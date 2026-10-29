@@ -32,9 +32,9 @@ Nenhum.
 
 - Merge de origin/main: já atualizado
 - Reavaliação depois do merge: não precisou
-- Push: em andamento
-- PR: em andamento
-- CI: em andamento
+- Push: feito
+- PR: https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/pull/6 aberto, sem issue aberta do RF-001 para fechar
+- CI: verde (check, pr-title), PR marcado como pronto, mergeStateStatus CLEAN
 
 ## Avisos
 
