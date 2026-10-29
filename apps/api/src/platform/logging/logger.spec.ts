@@ -1,6 +1,8 @@
-import { ServerResponse, type IncomingMessage } from 'node:http';
+import { ServerResponse, createServer, type IncomingMessage } from 'node:http';
 import { Writable } from 'node:stream';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { pino } from 'pino';
+import { pinoHttp } from 'pino-http';
 import {
   REDACT_CENSOR,
   REQUEST_ID_HEADER,
@@ -19,6 +21,47 @@ function loggerInMemory() {
   });
   const { level, redact } = createPinoHttpOptions({ LOG_LEVEL: 'info' });
   return { logger: pino({ level, redact }, sink), lines };
+}
+
+/**
+ * Sobe um servidor HTTP com o middleware do pino-http montado com as opções da API, como o
+ * nestjs-pino o monta, envia uma requisição e devolve a linha de log dela. `prepare` imita o que
+ * o Express acrescenta ao `req` antes do log (`originalUrl` e `query` já interpretada).
+ */
+async function logOfRequest(
+  path: string,
+  headers: Record<string, string>,
+  prepare: (req: IncomingMessage) => void,
+): Promise<string> {
+  const lines: string[] = [];
+  const sink = new Writable({
+    write(chunk, _encoding, callback) {
+      lines.push(String(chunk));
+      callback();
+    },
+  });
+  const middleware = pinoHttp(
+    createPinoHttpOptions({ LOG_LEVEL: 'info' }),
+    sink,
+  );
+  const server = createServer((req, res) => {
+    prepare(req);
+    middleware(req, res);
+    res.end('ok');
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const address = server.address();
+  if (address === null || typeof address === 'string') {
+    throw new Error('servidor sem porta');
+  }
+  try {
+    await fetch(`http://127.0.0.1:${address.port}${path}`, { headers });
+    for (let i = 0; lines.length === 0 && i < 50; i++) await sleep(10);
+  } finally {
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+  expect(lines).toHaveLength(1);
+  return lines[0];
 }
 
 describe('createPinoHttpOptions', () => {
@@ -72,6 +115,29 @@ describe('createPinoHttpOptions', () => {
       'user-agent': 'teste',
     });
     expect(line.res.headers['set-cookie']).toBe(REDACT_CENSOR);
+  });
+
+  it('registra só o caminho em req.url, sem a query string nem req.query, e mantém o resto da linha', async () => {
+    const raw = await logOfRequest(
+      '/api/auth/verify-email?token=segredo-da-query&callbackURL=%2F',
+      { cookie: 'better-auth.session_token=segredo-do-cookie' },
+      (req) => {
+        // Como o Express deixa o req: originalUrl com a query e req.query já interpretada.
+        Object.assign(req, {
+          originalUrl: req.url,
+          query: { token: 'segredo-da-query', callbackURL: '/' },
+        });
+      },
+    );
+    const line = JSON.parse(raw);
+    expect(raw).not.toMatch(/segredo-da-query|segredo-do-cookie|callbackURL/);
+    expect(line.req.url).toBe('/api/auth/verify-email');
+    expect(line.req.query).toBeUndefined();
+    expect(line.req.id).toMatch(/^[0-9a-f-]{36}$/);
+    expect(line.req.method).toBe('GET');
+    expect(line.req.headers.cookie).toBe(REDACT_CENSOR);
+    expect(line.res.statusCode).toBe(200);
+    expect(typeof line.responseTime).toBe('number');
   });
 });
 

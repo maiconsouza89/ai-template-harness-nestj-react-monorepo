@@ -69,6 +69,14 @@ if (endpoint) {
       getNodeAutoInstrumentations({
         // Um span por leitura de arquivo só faz ruído; o que interessa é HTTP, Nest e banco.
         '@opentelemetry/instrumentation-fs': { enabled: false },
+        // A query string das requisições recebidas carrega segredo (token de verificação de
+        // e-mail e de redefinição de senha do Better Auth, `code` de callbacks) e a instrumentação
+        // só redige por nome uns poucos parâmetros de assinatura. Aqui `url.query` sai redigida
+        // inteira nos spans de servidor, como no log de acesso, que registra só o caminho.
+        '@opentelemetry/instrumentation-http': {
+          startIncomingSpanHook: (request) =>
+            request.url?.includes('?') ? { 'url.query': '[redigido]' } : {},
+        },
       }),
       new PrismaInstrumentation(),
     ],
