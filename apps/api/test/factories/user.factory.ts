@@ -133,3 +133,45 @@ export async function adminBanido(
   });
   return { userId, email, password };
 }
+
+/** E-mail da conta do pré-requisito `conta-existente`, já em minúsculas. */
+export const CONTA_EXISTENTE_EMAIL = 'existente@example.com';
+
+/**
+ * Pré-requisito `conta-existente` do contrato (API-DUPLICADO-01, API-DUPLICADO-02,
+ * UI-DUPLICADO-01): a conta com o e-mail existente@example.com em minúsculas, papel user, e-mail
+ * não verificado, sem banimento e com credencial de senha cujo hash é do Better Auth da aplicação
+ * de teste. Substitui qualquer conta com esse e-mail, para o estado ser exatamente uma conta.
+ */
+export async function contaExistente(
+  app: INestApplication,
+): Promise<ContaComum> {
+  const email = CONTA_EXISTENTE_EMAIL;
+  const password = contaComumPassword(adminInicialCredentials().password);
+  const prisma = app.get(PrismaService);
+  const ctx = await (app.get(AuthService) as AuthService<Auth>).instance
+    .$context;
+
+  await prisma.user.deleteMany({ where: { email } });
+
+  const userId = newId(ctx, 'user');
+  await prisma.user.create({
+    data: {
+      id: userId,
+      name: 'Conta Existente',
+      email,
+      emailVerified: false,
+      role: 'user',
+      banned: false,
+      accounts: {
+        create: {
+          id: newId(ctx, 'account'),
+          accountId: userId,
+          providerId: 'credential',
+          password: await ctx.password.hash(password),
+        },
+      },
+    },
+  });
+  return { userId, email, password };
+}

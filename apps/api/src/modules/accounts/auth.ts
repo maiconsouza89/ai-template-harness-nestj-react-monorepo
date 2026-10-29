@@ -1,4 +1,4 @@
-import { betterAuth } from 'better-auth';
+import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins/admin';
 import type { PrismaClient } from '../../generated/prisma/client.js';
@@ -18,6 +18,15 @@ export type AuthEnv = Pick<
 >;
 
 /**
+ * Dependências que o `AccountsModule` monta e passa ao `createAuth`. Entram por parâmetro para
+ * este arquivo seguir importando só pacotes e tipos; o seed chama sem elas.
+ */
+export interface AuthDependencies {
+  /** Hook `before` do cadastro (`sign-up/sign-up.hook.ts`): validação, normalização e duplicado. */
+  beforeHook?: NonNullable<BetterAuthOptions['hooks']>['before'];
+}
+
+/**
  * Instância do Better Auth (ADR-0010) do Módulo Contas: sessão em cookie gravada no PostgreSQL
  * pelo adapter Prisma e o plugin admin para papéis e banimento. Na fundação só a borda existe;
  * envio de e-mail, bloqueio e rate limit entram pelos RFs. Este arquivo só importa pacotes e
@@ -27,21 +36,31 @@ export type AuthEnv = Pick<
  * - Cookie `httpOnly` (padrão), `secure` fora do ambiente local e, com `COOKIE_DOMAIN`,
  *   compartilhado entre subdomínios (`crossSubDomainCookies`).
  * - Cookie cache desligado para a revogação valer na próxima requisição.
- * - Cadastro por e-mail e senha fechado (`disableSignUp`): na fundação só o seed cria conta, o
- *   que impede alguém de registrar o e-mail de `ADMIN_EMAIL` antes do `make db-setup` e ser
- *   promovido a admin. O RF-001 reabre quando montar o fluxo de cadastro.
+ * - Cadastro por e-mail e senha aberto (RF-001), com `requireEmailVerification`: a conta nasce
+ *   pendente e o cadastro não abre sessão. A regra do cadastro fica no hook `before` recebido
+ *   em `deps`. Quem registrar o e-mail de `ADMIN_EMAIL` antes do `make db-setup` ganha só uma
+ *   conta comum: o seed recusa promovê-la (`SeedAdminConflictError`).
  * - Rate limit desligado (`rateLimit.enabled = false`): o padrão em produção é um balde em
  *   memória por processo, que não vale com réplicas e, sem `trustedProxies`, escreve um aviso
  *   fora do JSON no log. O RF-001 liga com armazenamento no Valkey e `trustedProxies`.
  */
-export function createAuth(env: AuthEnv, prisma: PrismaClient) {
+export function createAuth(
+  env: AuthEnv,
+  prisma: PrismaClient,
+  deps: AuthDependencies = {},
+) {
   return betterAuth({
     baseURL: env.BETTER_AUTH_URL,
     basePath: AUTH_BASE_PATH,
     secret: env.BETTER_AUTH_SECRET,
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
     trustedOrigins: [env.WEB_ORIGIN],
-    emailAndPassword: { enabled: true, disableSignUp: true },
+    emailAndPassword: {
+      enabled: true,
+      disableSignUp: false,
+      requireEmailVerification: true,
+    },
+    hooks: { before: deps.beforeHook },
     session: { cookieCache: { enabled: false } },
     rateLimit: { enabled: false },
     advanced: {

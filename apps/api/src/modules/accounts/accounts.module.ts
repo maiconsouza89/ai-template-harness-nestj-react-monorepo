@@ -5,6 +5,7 @@ import type { Env } from '../../platform/config/env.js';
 import { PrismaService } from '../../platform/prisma/prisma.service.js';
 import { createAuth } from './auth.js';
 import { GetSessionController } from './get-session/get-session.controller.js';
+import { signUpBeforeHook } from './sign-up/sign-up.hook.js';
 
 /**
  * Módulo Contas (ADR-0011): monta o Better Auth em `/api/auth` e registra o guard global, que
@@ -17,7 +18,7 @@ import { GetSessionController } from './get-session/get-session.controller.js';
     AuthModule.forRootAsync({
       inject: [ENV, PrismaService],
       useFactory: (env: Env, prisma: PrismaService) => ({
-        auth: createAuth(env, prisma),
+        auth: createAuth(env, prisma, { beforeHook: signUpBeforeHook }),
       }),
     }),
   ],
