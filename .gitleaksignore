@@ -1,3 +1,5 @@
 # Achados do gitleaks aceitos por fingerprint (commit:arquivo:regra:linha). Lido automaticamente por `gitleaks git .`.
 # Senha falsa da factory de teste conta-comum-com-email-do-admin; o literal saiu do código em seguida.
 494ca78dbbc83a9a9867267f738a0e1e0f27058b:apps/api/test/factories/user.factory.ts:generic-api-key:47
+# Cookie de sessão inventado (sem assinatura) da evidência de API-BORDA-03, que espera 401; não é segredo.
+89179499ec3dbc76b5f65b7755386ee23646bebb:docs/features/fundacao/avaliacao.md:generic-api-key:160
