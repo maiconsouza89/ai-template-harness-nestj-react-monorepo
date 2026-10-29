@@ -40,7 +40,7 @@
 - Reavaliação depois do merge: não precisou
 - Push: feito para origin/feat/fundacao
 - PR: https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/pull/4 existente atualizado
-- CI: em acompanhamento
+- CI: verde (jobs check e pr-title), PR já fora de rascunho, mergeStateStatus CLEAN
 
 ## Avisos
 
