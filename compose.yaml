@@ -42,6 +42,10 @@ services:
       WATCH_POLLING: ${WATCH_POLLING:-false}
     ports:
       - '3000:3000'
+    extra_hosts:
+      # Deixa um coletor OTLP rodando no host alcançável por OTEL_EXPORTER_OTLP_ENDPOINT
+      # (http://host.docker.internal:4318), como o Docker Desktop já faz.
+      - host.docker.internal:host-gateway
     volumes:
       - .:/app
       - api_root_node_modules:/app/node_modules

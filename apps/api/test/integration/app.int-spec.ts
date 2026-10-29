@@ -37,6 +37,30 @@ describe('App (integração)', () => {
     await request(app.getHttpServer()).get('/api/v1/health').expect(404);
   });
 
+  it('devolve um x-request-id único por requisição, que não é inteiro', async () => {
+    const first = await request(app.getHttpServer()).get('/api/health');
+    const second = await request(app.getHttpServer()).get('/api/health');
+    expect(first.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    expect(second.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    expect(first.headers['x-request-id']).not.toBe(
+      second.headers['x-request-id'],
+    );
+  });
+
+  it('publica o documento OpenAPI fora de produção, com as rotas sob /api e a versão', async () => {
+    const json = await request(app.getHttpServer())
+      .get('/api/docs-json')
+      .expect(200);
+    expect(json.body.openapi).toMatch(/^3\./);
+    expect(Object.keys(json.body.paths)).toEqual(
+      expect.arrayContaining(['/api/v1/session', '/api/health']),
+    );
+    await request(app.getHttpServer())
+      .get('/api/docs')
+      .expect(200)
+      .expect('Content-Type', /html/);
+  });
+
   it('monta o Better Auth em /api/auth, anônimo: GET /api/auth/ok responde 200', async () => {
     await request(app.getHttpServer())
       .get('/api/auth/ok')

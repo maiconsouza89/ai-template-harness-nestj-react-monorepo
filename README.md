@@ -73,6 +73,12 @@ chegar ao container (repositório em `/mnt/c` no WSL2), ponha `WATCH_POLLING=tru
 API valida as variáveis na subida e termina nomeando a que faltar (`docker compose logs api`).
 Para zerar o ambiente, inclusive o banco: `docker compose down -v`.
 
+Os logs da API saem em JSON, uma linha por entrada, com um `req.id` único por requisição
+(devolvido no cabeçalho `x-request-id`) e e-mail, nome, senha, cookie e authorization redigidos;
+`LOG_LEVEL` no `.env` muda o nível. Traces e métricas do OpenTelemetry só são exportados com
+`OTEL_EXPORTER_OTLP_ENDPOINT` definido (do Compose, um coletor no host fica em
+`http://host.docker.internal:4318`); sem a variável a instrumentação não faz nada.
+
 ## O que está incluído
 
 Instruções para agentes (`CLAUDE.md`), `Makefile` com `make check`, hook de commit, CI agnóstica

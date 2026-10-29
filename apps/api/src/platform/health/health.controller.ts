@@ -7,18 +7,9 @@ import {
 } from '@nestjs/common';
 import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import type { Response } from 'express';
-import type { HealthState } from './health-indicator.js';
+import { HealthResponseDto } from './health-response.dto.js';
 import { PostgresHealthIndicator } from './postgres-health.indicator.js';
 import { ValkeyHealthIndicator } from './valkey-health.indicator.js';
-
-/** Corpo de `GET /api/health` (spec da fundação, "Contratos de interface"). */
-export interface HealthResponse {
-  status: 'ok' | 'error';
-  checks: {
-    postgres: HealthState;
-    valkey: HealthState;
-  };
-}
 
 /**
  * `GET /api/health`, anônima e fora do versionamento (`/api/health`, não `/api/v1/health`):
@@ -34,10 +25,11 @@ export class HealthController {
     private readonly valkey: ValkeyHealthIndicator,
   ) {}
 
+  /** Informa se a API consegue falar com o PostgreSQL e com o Valkey. */
   @Get()
   async check(
     @Res({ passthrough: true }) res: Response,
-  ): Promise<HealthResponse> {
+  ): Promise<HealthResponseDto> {
     const [postgres, valkey] = await Promise.all([
       this.postgres.check(),
       this.valkey.check(),
