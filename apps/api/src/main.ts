@@ -41,6 +41,6 @@ async function bootstrap() {
   app.useLogger(app.get(PinoLogger));
   configureApp(app, configureAppOptionsFromEnv(env));
   app.enableShutdownHooks();
-  await app.listen(process.env.PORT ?? 3000);
+  await app.listen(env.PORT);
 }
 await bootstrap();

@@ -69,4 +69,19 @@ describe('loadEnv', () => {
       /NODE_ENV \(inválida/,
     );
   });
+
+  it('usa a porta 3000 quando PORT falta ou vem vazia', () => {
+    const { PORT: _omitted, ...sem } = envExample;
+    expect(loadEnv(sem).PORT).toBe(3000);
+    expect(loadEnv({ ...envExample, PORT: '' }).PORT).toBe(3000);
+    expect(loadEnv({ ...envExample, PORT: '8080' }).PORT).toBe(8080);
+  });
+
+  it('recusa PORT fora de 1 a 65535, nomeando a variável (CLI-CONFIG-03)', () => {
+    for (const port of ['70000', '0', 'abc']) {
+      expect(() => loadEnv({ ...envExample, PORT: port })).toThrow(
+        /PORT \(inválida/,
+      );
+    }
+  });
 });

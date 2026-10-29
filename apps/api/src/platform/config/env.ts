@@ -25,6 +25,10 @@ export const envSchema = z.object({
   SMTP_USER: optionalString(),
   SMTP_PASSWORD: optionalString(),
   OTEL_EXPORTER_OTLP_ENDPOINT: optionalUrl(),
+  PORT: z.preprocess(
+    emptyToUndefined,
+    z.coerce.number().int().min(1).max(65535).default(3000),
+  ),
   LOG_LEVEL: z.preprocess(
     emptyToUndefined,
     z

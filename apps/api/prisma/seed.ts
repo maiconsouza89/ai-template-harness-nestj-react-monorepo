@@ -14,10 +14,14 @@ import { EnvValidationError, loadEnv } from '../src/platform/config/env.ts';
  * alcançam módulos sem decorators ou outra sintaxe que o Node não apaga.
  */
 
-/** Variáveis do primeiro admin, lidas só aqui; a API não as conhece. */
+/**
+ * Variáveis do primeiro admin, lidas só aqui; a API não as conhece. `ADMIN_PASSWORD` segue a
+ * regra de senha do PRD (8 ou mais caracteres, com letra e número): `ctx.password.hash` não passa
+ * pela validação do Better Auth, então o seed a confere antes de tocar no banco.
+ */
 export const adminSeedSchema = z.object({
   ADMIN_EMAIL: z.email(),
-  ADMIN_PASSWORD: z.string().min(8).max(128),
+  ADMIN_PASSWORD: z.string().min(8).max(128).regex(/\p{L}/u).regex(/\p{N}/u),
 });
 
 export interface SeedAdminInput {
@@ -46,6 +50,29 @@ export class SeedAdminConflictError extends Error {
   }
 }
 
+/**
+ * Conta admin de `ADMIN_EMAIL` com banimento em vigor (`banned` e `banExpires` nulo ou no
+ * futuro; spec, Tratamento de erros): o seed recusa e não a altera, porque desbanir em silêncio
+ * desfaria a decisão de um admin. A mensagem não imprime o e-mail.
+ */
+export class SeedAdminBannedError extends Error {
+  constructor() {
+    super(
+      'a conta admin com o e-mail de ADMIN_EMAIL está banida; nada foi alterado',
+    );
+    this.name = 'SeedAdminBannedError';
+  }
+}
+
+/** Banimento em vigor: banido sem data de expiração ou com a data ainda no futuro. */
+export function isBanActive(
+  user: { banned: boolean | null; banExpires: Date | null },
+  now: Date = new Date(),
+): boolean {
+  if (user.banned !== true) return false;
+  return user.banExpires === null || user.banExpires.getTime() > now.getTime();
+}
+
 /** Id no formato da instância do Better Auth; UUID só se ela delegar a geração ao banco. */
 export function newId(ctx: AuthContext, model: 'user' | 'account'): string {
   const id = ctx.generateId({ model });
@@ -55,9 +82,10 @@ export function newId(ctx: AuthContext, model: 'user' | 'account'): string {
 /**
  * Pré-requisito `admin-inicial` do contrato: a conta de `email` com papel admin, e-mail
  * verificado, sem banimento e credencial de senha com o hash do Better Auth (`ctx.password.hash`
- * da instância, nunca texto puro). Idempotente: conta já admin e verificada não é tocada, nem a
- * senha; conta com o e-mail sem papel admin ou sem e-mail verificado lança
- * `SeedAdminConflictError` sem gravar nada.
+ * da instância, nunca texto puro). Idempotente: conta já admin, verificada e sem banimento em
+ * vigor não é tocada, nem a senha; conta com o e-mail sem papel admin ou sem e-mail verificado
+ * lança `SeedAdminConflictError`, e admin com banimento em vigor lança `SeedAdminBannedError`,
+ * os dois sem gravar nada.
  */
 export async function seedAdminInicial(
   prisma: PrismaClient,
@@ -69,12 +97,21 @@ export async function seedAdminInicial(
 
   const existing = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, role: true, emailVerified: true },
+    select: {
+      id: true,
+      role: true,
+      emailVerified: true,
+      banned: true,
+      banExpires: true,
+    },
   });
 
   if (existing) {
     if (existing.role !== 'admin' || !existing.emailVerified) {
       throw new SeedAdminConflictError();
+    }
+    if (isBanActive(existing)) {
+      throw new SeedAdminBannedError();
     }
     return { userId: existing.id, created: false };
   }
@@ -137,10 +174,15 @@ async function main() {
     console.log(
       result.created
         ? 'seed: primeiro admin criado'
-        : 'seed: primeiro admin já existia com papel admin e e-mail verificado; nada alterado',
+        : 'seed: primeiro admin já existia com papel admin, e-mail verificado e sem banimento; nada alterado',
     );
   } catch (error) {
-    if (error instanceof SeedAdminConflictError) fail(`seed: ${error.message}`);
+    if (
+      error instanceof SeedAdminConflictError ||
+      error instanceof SeedAdminBannedError
+    ) {
+      fail(`seed: ${error.message}`);
+    }
     throw error;
   } finally {
     await prisma.$disconnect();
