@@ -37,11 +37,39 @@ verificação automática. O que não está no repositório não existe para o a
       request before merging*, *Require status checks* `check` e `pr-title`.
    5. **Template repository**: marcar em General, só no repositório do template.
 
-4. Substitua este README pelo do seu projeto, implemente `scripts/lint.sh`, `format.sh`,
-   `test.sh` e `build.sh` para a sua stack e registre a escolha em um ADR
-   com a skill `/adr-writer`.
+4. Substitua este README pelo do seu projeto. A stack já vem decidida nos ADRs de
+   `docs/architecture/adr/` e implementada em `scripts/lint.sh`, `format.sh`, `test.sh` e
+   `build.sh`; para trocá-la, registre a decisão com a skill `/adr-writer` e reescreva os
+   scripts.
 5. Leia o [guia de contribuição](CONTRIBUTING.md). Agentes de código começam por
    [`CLAUDE.md`](CLAUDE.md).
+
+## Ambiente local
+
+Docker com Compose v2 é o único pré-requisito para rodar o aplicativo: API, SPA, PostgreSQL 18,
+Valkey 9 e Mailpit sobem em containers, com o código montado e hot reload (ADR-0006). Node 26 e
+pnpm 12 só são necessários no host para `make lint`, `make test` e `make build`.
+
+```sh
+make setup                   # uma vez após o clone: ativa os hooks
+cp .env.example .env         # ajuste ADMIN_EMAIL e ADMIN_PASSWORD se quiser
+docker compose up -d --wait  # sobe os cinco serviços e espera os health checks
+make db-setup                # aplica as migrações e cria o primeiro admin do .env
+```
+
+| Serviço | URL |
+| --- | --- |
+| SPA | <http://localhost:5173> |
+| API | <http://localhost:3000/api> (saúde em [`/api/health`](http://localhost:3000/api/health)) |
+| Documento OpenAPI | <http://localhost:3000/api/docs> (só fora de produção) |
+| Mailpit | <http://localhost:8025> (SMTP em `localhost:1025`) |
+
+A primeira subida instala as dependências dentro dos containers, o que leva alguns minutos;
+elas ficam em volumes nomeados, então dependência nova pede só `docker compose restart api web`.
+Editar um arquivo em `apps/api` ou `apps/web` recompila sem reconstruir imagem; se a mudança não
+chegar ao container (repositório em `/mnt/c` no WSL2), ponha `WATCH_POLLING=true` no `.env`. A
+API valida as variáveis na subida e termina nomeando a que faltar (`docker compose logs api`).
+Para zerar o ambiente, inclusive o banco: `docker compose down -v`.
 
 ## O que está incluído
 

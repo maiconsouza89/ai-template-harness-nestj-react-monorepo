@@ -8,6 +8,9 @@ export default defineConfig({
   server: {
     host: true,
     port: 5173,
+    // WATCH_POLLING=true no .env liga o polling no Compose quando o inotify não chega ao
+    // container (repositório em /mnt/c no WSL2); custa CPU, por isso fica desligado por padrão.
+    watch: { usePolling: process.env.WATCH_POLLING === 'true' },
   },
   test: {
     include: ['src/**/*.spec.ts'],
