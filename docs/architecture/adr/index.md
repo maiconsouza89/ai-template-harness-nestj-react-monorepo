@@ -15,3 +15,4 @@
 | [0009](0009-usar-nest-cli-para-as-operacoes-com-o-nest.md) | Usar Nest CLI para as operações com o Nest | accepted | 2026-10-29 |
 | [0010](0010-usar-better-auth-para-autenticacao.md) | Usar Better Auth para autenticação | accepted | 2026-10-29 |
 | [0011](0011-usar-vertical-slice-com-ddd-tatico-na-api.md) | Usar vertical slice com DDD tático na API | accepted | 2026-10-29 |
+| [0012](0012-usar-pnpm-como-gerenciador-de-pacotes.md) | Usar pnpm como gerenciador de pacotes | accepted | 2026-10-29 |
