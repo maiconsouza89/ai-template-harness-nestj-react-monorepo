@@ -6,8 +6,8 @@ Gerado de `prd.md` versão 0.1.0 pela skill prd-writer. Status se muda na coluna
 
 - Concluídos: 0 de 13 RFs (0 por cento)
 - Onda atual: 1
-- Liberados para começar: RF-001 (depende de DEP-1)
-- Em andamento: nenhum
+- Liberados para começar: nenhum
+- Em andamento: RF-001
 - Bloqueados: nenhum
 - Caminho crítico restante: RF-001 → RF-002 → RF-003 → RF-008 → RF-009 (5 RFs)
 
@@ -18,7 +18,7 @@ Aresta A → B: B não pode ser construído ou validado sem A.
 ```mermaid
 graph LR
   DEP1{{"DEP-1 serviço de envio de e-mail"}}:::externa
-  RF001["RF-001 Criar conta"]:::pendente
+  RF001["RF-001 Criar conta"]:::andamento
   RF002["RF-002 Confirmar e-mail"]:::pendente
   RF005["RF-005 Recuperar senha"]:::pendente
   RF003["RF-003 Entrar"]:::pendente
@@ -59,7 +59,7 @@ RFs da mesma onda podem ser desenvolvidos em paralelo.
 
 | Onda | RF | Nome | Prioridade | Status | Observação | Depende de |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | RF-001 | Criar conta | alta | pendente |  | DEP-1 |
+| 1 | RF-001 | Criar conta | alta | em andamento | spec em docs/features/RF-001-criar-conta/ | DEP-1 |
 | 2 | RF-002 | Confirmar e-mail | alta | pendente |  | RF-001 |
 | 2 | RF-005 | Recuperar senha | media | pendente |  | RF-001 |
 | 3 | RF-003 | Entrar | alta | pendente |  | RF-002 |
