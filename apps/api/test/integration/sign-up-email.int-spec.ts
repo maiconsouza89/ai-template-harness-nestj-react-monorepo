@@ -102,7 +102,8 @@ describe('E-mail de confirmação do cadastro (integração, Mailpit e Valkey do
 
   it('o job guarda id do usuário e link, nunca a senha nem o nome', async () => {
     const email = uniqueEmail('job');
-    const password = 'JobSenha2468';
+    // Gerada em tempo de execução: um literal com cara de chave vira falso positivo do gitleaks.
+    const password = `Job${randomUUID().slice(0, 8)}9`;
     const response = await signUp({
       name: 'Pessoa do Job',
       email,
