@@ -26,11 +26,17 @@ services:
         set -e
         pnpm install --frozen-lockfile --filter '@app/api...'
         pnpm --filter @app/contracts build
+        # Cliente Prisma em src/generated (ADR-0008), que o nest start compila junto.
+        pnpm --filter @app/api generate
         if [ "$${WATCH_POLLING:-false}" = true ]; then export TSC_WATCHFILE=DynamicPriorityPolling; fi
         # --no-shell: sem ele o nest start roda a app sob sh -c e, na recompilação, mata só o sh
         # (a imagem não tem ps para o tree-kill), deixando a app antiga presa na porta 3000.
         exec pnpm --filter @app/api start:dev --no-shell
-    env_file: .env
+    env_file:
+      # Opcional para `docker compose up postgres valkey` (make test) e `exec` funcionarem sem o
+      # .env; sem ele, a API sobe e termina nomeando as variáveis que faltam.
+      - path: .env
+        required: false
     environment:
       PORT: 3000
       WATCH_POLLING: ${WATCH_POLLING:-false}
@@ -72,7 +78,11 @@ services:
         pnpm install --frozen-lockfile --filter '@app/web...'
         pnpm --filter @app/contracts build
         exec pnpm --filter @app/web dev
-    env_file: .env
+    env_file:
+      # Opcional para `docker compose up postgres valkey` (make test) e `exec` funcionarem sem o
+      # .env; sem ele, a API sobe e termina nomeando as variáveis que faltam.
+      - path: .env
+        required: false
     environment:
       WATCH_POLLING: ${WATCH_POLLING:-false}
     ports:

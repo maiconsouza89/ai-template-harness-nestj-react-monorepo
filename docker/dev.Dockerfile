@@ -9,7 +9,12 @@
 FROM node:26-bookworm-slim
 
 ARG PNPM_VERSION=12.16.1
-RUN npm install -g "pnpm@${PNPM_VERSION}" && npm cache clean --force
+# openssl: a CLI do Prisma (ADR-0008) detecta a versão da libssl por ele para escolher o engine
+# de migração; sem o binário, avisa a cada comando e assume a 1.1.x.
+RUN apt-get update -y \
+    && apt-get install -y --no-install-recommends openssl \
+    && rm -rf /var/lib/apt/lists/* \
+    && npm install -g "pnpm@${PNPM_VERSION}" && npm cache clean --force
 
 # Pontos de montagem dos volumes nomeados, criados aqui com o dono certo: um volume novo herda
 # o conteúdo e o dono do diretório da imagem, e o serviço roda como o usuário node (uid 1000),

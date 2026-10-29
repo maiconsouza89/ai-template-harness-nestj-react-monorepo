@@ -5,6 +5,7 @@ import {
   Res,
   VERSION_NEUTRAL,
 } from '@nestjs/common';
+import { AllowAnonymous } from '@thallesp/nestjs-better-auth';
 import type { Response } from 'express';
 import type { HealthState } from './health-indicator.js';
 import { PostgresHealthIndicator } from './postgres-health.indicator.js';
@@ -22,8 +23,10 @@ export interface HealthResponse {
 /**
  * `GET /api/health`, anônima e fora do versionamento (`/api/health`, não `/api/v1/health`):
  * 200 com `status: ok` quando PostgreSQL e Valkey respondem, 503 com `status: error` quando
- * algum não responde. A API segue no ar em qualquer caso.
+ * algum não responde. A API segue no ar em qualquer caso. `@AllowAnonymous()` a libera do guard
+ * global do Módulo Contas (spec da fundação, Regras).
  */
+@AllowAnonymous()
 @Controller({ path: 'health', version: VERSION_NEUTRAL })
 export class HealthController {
   constructor(

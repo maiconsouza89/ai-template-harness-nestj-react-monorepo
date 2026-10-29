@@ -35,12 +35,18 @@ export const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
-/** Lançado por `loadEnv()`; a mensagem nomeia as variáveis, nunca imprime valor nenhum. */
+/**
+ * Lançado por `loadEnv()`; a mensagem nomeia as variáveis, nunca imprime valor nenhum.
+ * Sem parameter property no construtor: o seed (`prisma/seed.ts`) carrega este módulo direto no
+ * Node, que só apaga tipos e recusa sintaxe que gera código.
+ */
 export class EnvValidationError extends Error {
   override readonly name = 'EnvValidationError';
+  readonly variables: readonly string[];
 
-  constructor(readonly variables: readonly string[]) {
+  constructor(variables: readonly string[]) {
     super(`Configuração inválida; corrija no .env: ${variables.join(', ')}`);
+    this.variables = variables;
   }
 }
 

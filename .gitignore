@@ -32,3 +32,6 @@ dist/
 .turbo/
 coverage/
 *.tsbuildinfo
+
+# Cliente Prisma gerado por `pnpm generate` (ADR-0008)
+apps/api/src/generated/

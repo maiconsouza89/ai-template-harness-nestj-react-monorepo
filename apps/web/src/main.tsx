@@ -5,11 +5,21 @@ import { ErrorPage } from './routes/error-page.js';
 import { rootLoader } from './routes/root/loader.js';
 import { RootRoute } from './routes/root/route.js';
 
+/** Mostrado enquanto o `loader` da rota raiz lê a sessão na primeira carga. */
+function LoadingPage() {
+  return (
+    <main aria-busy="true">
+      <p>Carregando…</p>
+    </main>
+  );
+}
+
 // Roteador em modo data (ADR-0004). Cada RF pendura as próprias rotas em `children`.
 export const router = createBrowserRouter([
   {
     path: '/',
     Component: RootRoute,
+    HydrateFallback: LoadingPage,
     loader: rootLoader,
     errorElement: <ErrorPage />,
     children: [],

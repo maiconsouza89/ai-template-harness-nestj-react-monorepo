@@ -20,6 +20,12 @@ catalog:
 # Falha a instalação fora do Node fixado em engines (ADR-0013).
 engineStrict: true
 
+# Únicos pacotes autorizados a rodar scripts de instalação (ADR-0008): o schema engine que a CLI
+# do Prisma usa em `migrate` é baixado no postinstall de @prisma/engines.
+allowBuilds:
+  '@prisma/engines': true
+  prisma: true
+
 minimumReleaseAgeExclude:
   - '@nestjs/schematics@12.0.12'
   - '@types/node@26.6.6'

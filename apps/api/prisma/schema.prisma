@@ -1,0 +1,90 @@
+// Schema do Prisma 7 (ADR-0008) sobre o PostgreSQL 18 (ADR-0007).
+// As tabelas de contas (user, session, account, verification) seguem o Better Auth com o plugin
+// admin (ADR-0010) e foram geradas pela CLI dele a partir de prisma/better-auth.config.ts:
+//   pnpm dlx auth@1.7.14 generate --config prisma/better-auth.config.ts --output prisma/schema.prisma -y
+// Cada RF acrescenta os próprios modelos aqui e cria a migração com `prisma migrate dev`.
+
+generator client {
+  provider               = "prisma-client"
+  // Fora do node_modules, no src/ para o nest build compilar junto. Gerado por `pnpm generate`
+  // antes de build e test (turbo.json); não versionado.
+  output                 = "../src/generated/prisma"
+  runtime                = "nodejs"
+  moduleFormat           = "esm"
+  generatedFileExtension = "ts"
+  // Importa com `.ts` para o Node 26 executar o cliente direto (seed); o tsc reescreve para
+  // `.js` no dist por `rewriteRelativeImportExtensions`.
+  importFileExtension    = "ts"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  role          String?
+  banned        Boolean?  @default(false)
+  banReason     String?
+  banExpires    DateTime?
+  sessions      Session[]
+  accounts      Account[]
+
+  @@unique([email])
+  @@map("user")
+}
+
+model Session {
+  id             String   @id
+  expiresAt      DateTime
+  token          String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  ipAddress      String?
+  userAgent      String?
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  impersonatedBy String?
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}

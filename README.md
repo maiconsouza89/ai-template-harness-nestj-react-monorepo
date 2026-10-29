@@ -48,7 +48,9 @@ verificação automática. O que não está no repositório não existe para o a
 
 Docker com Compose v2 é o único pré-requisito para rodar o aplicativo: API, SPA, PostgreSQL 18,
 Valkey 9 e Mailpit sobem em containers, com o código montado e hot reload (ADR-0006). Node 26 e
-pnpm 12 só são necessários no host para `make lint`, `make test` e `make build`.
+pnpm 12 só são necessários no host para `make lint`, `make test` e `make build`; `make test`
+também usa o Docker, para subir o PostgreSQL e o Valkey do Compose e recriar o banco `app_test`
+dos testes de integração.
 
 ```sh
 make setup                   # uma vez após o clone: ativa os hooks

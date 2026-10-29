@@ -5,7 +5,7 @@ SHELL := /bin/sh
 .DEFAULT_GOAL := help
 
 .PHONY: help setup check check-branch check-hooks check-eol check-shell check-actions check-secrets check-adr \
-	check-prd check-hld check-c4 check-spec check-eval check-validators check-skills check-claude-hooks lint format test build
+	check-prd check-hld check-c4 check-spec check-eval check-validators check-skills check-claude-hooks lint format test build db-setup
 
 help: ## Lista os alvos disponíveis
 	@grep -E '^[a-zA-Z_ -]+:.*## ' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*## "}; {printf "  %-14s %s\n", $$1, $$2}'
@@ -62,6 +62,7 @@ check-claude-hooks: ## Testa os hooks do Claude Code em .claude/hooks com casos 
 	@sh scripts/tests/test-claude-hooks.sh
 
 # Contrato de alvos, igual em qualquer stack. Cada projeto gerado implementa scripts/<alvo>.sh;
-# sem o script, contract.sh avisa e passa. check inclui lint e test; format e build são manuais.
-lint format test build: ## Alvos do contrato da stack (scripts/<alvo>.sh)
+# sem o script, contract.sh avisa e passa. check inclui lint e test; format, build e db-setup
+# são manuais (db-setup aplica as migrações e cria o primeiro admin do .env, idempotente).
+lint format test build db-setup: ## Alvos do contrato da stack (scripts/<alvo>.sh)
 	@sh scripts/contract.sh $@
