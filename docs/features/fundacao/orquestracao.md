@@ -2,9 +2,9 @@
 
 *Gerado pela skill implement-and-evaluate. Cada execução sobrescreve este arquivo; o histórico está no git.*
 
-- Execução: 2026-10-29T04-36-36Z
+- Execução: 2026-10-29T14-39-10Z
 - Branch: feat/fundacao
-- Status: precisa de decisão
+- Status: sucesso
 - Orçamento: 3 ciclos de correção
 - Autorizado: commits sim, fechamento sim
 - Pedidos: nenhum
@@ -13,42 +13,41 @@
 
 | Ciclo | Skill | Status | Resultado | Commit |
 | --- | --- | --- | --- | --- |
-| 0 | implement-feature | pronto para avaliar | fases 5/5 | 7bd9fab, 7418157, 8a9835f, 5c70769, 6b5e485 |
-| 0 | evaluator | reprovado | passou 44, falhou 1, bloqueado 0, manual 0 | |
-| 0 | fix-runner (achado) | corrigido | cadastro por e-mail e senha fechado na fundação | ebfa82e |
-| 0 | fix-runner (achado) | corrigido | query string fora do log de acesso e dos spans | fe50f55 |
-| 0 | fix-runner (achado) | abortado | http.target e http.url nos spans: não reproduzido, só url.query existe e já sai redigido | sem commit |
+| 0 | spec-writer (revisão) | concluída | contrato revisado, 49 itens | 56ea7fb |
+| 0 | implement-feature | pronto para avaliar | fases 5/5 já commitadas; pré-requisito novo produzido | 494ca78 |
+| 0 | evaluator | reprovado no gate | gate check vermelho em check-secrets; 49 bloqueados, nenhum exercitado | |
+| 1 | fix-runner | corrigido | gate check-secrets: senha de teste derivada em tempo de execução e fingerprint em .gitleaksignore | bd379bf |
+| 1 | evaluator | reprovado | passou 47, falhou 2, bloqueado 0, manual 0 | |
+| 2 | fix-runner | corrigido | CLI-ADMIN-04, CLI-IMAGEM-02 | 011fc61 |
+| 2 | evaluator | limpo | passou 49, manual 0 | |
 
 ## Mudanças entre ciclos
 
-- Ciclo 0: nenhum ciclo de correção; o único item reprovado, UI-INICIO-01, tem dono contrato e não vai para a fix-runner.
+- Ciclo 1: o gate check voltou a passar e 47 itens passaram; continuam falhando: CLI-ADMIN-04, CLI-IMAGEM-02
+- Ciclo 2: passaram CLI-ADMIN-04, CLI-IMAGEM-02; continuam falhando: nenhum
 
 ## Resultado
 
-- Status final: precisa de decisão
-- Ciclos de correção: 0
-- Commits: 5 de fase, 2 de correção (achados da revisão de segurança, Fix-Cycle 0), 1 de registro
-- Pendentes no fim: UI-INICIO-01 (contrato): o bullet "o console não registra erro" contradiz o 401 que a spec (linhas 74 e 229) e API-BORDA-02 exigem para GET /api/v1/session no anônimo; o Chromium registra todo 4xx como erro de console. A /spec-writer ajusta o bullet (ou a spec muda a leitura da sessão no anônimo).
+- Status final: sucesso
+- Ciclos de correção: 2
+- Commits: 0 de fase nesta execução (5 da anterior), 1 de revisão da spec, 1 de pré-requisito, 2 de correção, 1 de registro
+- Pendentes no fim: Nenhum.
 - Manuais a revisar: Nenhum.
 
 ## Fechamento
 
-- Merge de origin/main: não feito, avaliação não limpa
+- Merge de origin/main: já atualizado
 - Reavaliação depois do merge: não precisou
-- Push: não feito, avaliação não limpa
-- PR: não aberto: avaliação não limpa; o PR #4 já existente neste branch segue sem os commits desta execução até o push
-- CI: não acompanhada: sem push
+- Push: feito para origin/feat/fundacao
+- PR: https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/pull/4 existente atualizado
+- CI: em acompanhamento
 
 ## Avisos
 
-- Bloqueio da implement-feature ignorado por ordem explícita da pessoa: o servidor estático da imagem da SPA está pendente de ADR (o ADR-0005 o deixou de fora); a fase 5 segue com a hipótese da spec, nginx oficial com fallback para index.html. Registrar o ADR com a /adr-writer antes do merge.
-- Aviso do preparar.py: spec.md cita o componente 'API NestJS', que não está na tabela de componentes do HLD.
-- Máquina com Node 18.19.1 no PATH e sem pnpm; o ADR-0013 pede Node 26 LTS. O mise está instalado e tem Node 26 disponível para a implementação fixar.
-- Divergência do contrato decidida na fase 3: UI-INICIO-01 exige console sem erro, mas o 401 de GET /api/v1/session no anônimo (API-BORDA-02) é registrado pelo Chromium como erro de rede. A pessoa escolheu seguir com o 401; se a evaluator reprovar, o item sai com dono contrato para a /spec-writer.
-- Revisão de segurança automática no commit 8a9835f: (1) seed promove conta existente de ADMIN_EMAIL a admin sem redefinir senha, que é a regra da spec (linha 65) e fica como pendência de decisão para a /spec-writer; (2) cadastro por e-mail e senha aberto na fundação, sem RF que o defina, enviado à /fix-runner modo achado (Fix-Cycle 0).
-- Revisão de segurança automática no commit 5c70769: o log de acesso do pino registra req.url com a query string, que pode carregar token; enviado à /fix-runner modo achado (Fix-Cycle 0), depois do achado do cadastro aberto.
-- Revisão de segurança automática no commit fe50f55: o hook do OpenTelemetry redige só url.query; os atributos http.target e http.url da semconv antiga poderiam levar a query. A /fix-runner modo achado não reproduziu: a instrumentação-http 0.300 só emite url.path e url.query no span de servidor, e url.query já sai redigido. Sem mudança.
-- A sessão do Claude Code reiniciou durante a fase 4; o subagente foi retomado com o contexto dele e terminou a fase. A trava em /tmp sumiu com o reinício e foi recriada.
-- PR #4 (feat: implementa a fundação do monorepo) já estava aberto neste branch antes da execução, fora de rascunho, só com os commits de documentação.
-- Pendências para outras skills levantadas na implementação: /adr-writer (servidor estático da SPA; ADR-0019 promete spans do Nest, mas a instrumentação nestjs-core 0.71 não aceita Nest 12; ADR-0006 diz rebuild da imagem de dev para dependência nova e aqui basta restart; ADR-0024 precisa de --browser chromium sem root); /spec-writer (regra de promoção do seed na linha 65 é achado de segurança; lacunas do contrato para sign-up recusado e query string sem segredo em log e spans; CLI-LOGS-01 observa req.id, não "requestId"; componente API NestJS fora da tabela do HLD); /hld-writer (requisições a /api/auth/* não geram linha de acesso no pino); em produção o Better Auth liga rate limit por padrão e, sem trustedProxies, escreve uma linha WARN fora do JSON na primeira requisição a /api/auth.
-- `make test` deixa postgres e valkey do Compose de pé ao terminar (desenho do scripts/test.sh); `docker compose down -v` derruba.
+- Segunda execução sobre a fundação: as 5 fases já estavam commitadas pela execução anterior (7bd9fab, 7418157, 8a9835f, 5c70769, 6b5e485), que terminou em precisa de decisão por UI-INICIO-01 (dono contrato). A /spec-writer revisou o contrato (49 itens, 4 novos) e a revisão entrou no commit inicial desta execução.
+- Bloqueio da implement-feature (servidor estático da SPA pendente de ADR) seguido por ordem explícita da pessoa, como na execução anterior; o ADR fica para a /adr-writer antes do merge na main.
+- Aviso do preparar.py: spec.md cita o componente 'API NestJS', que não está na tabela de componentes do HLD (dono /hld-writer).
+- Dois itens novos do contrato pedem mudança de código decidida na revisão: CLI-ADMIN-04 (seed recusa conta pré-existente sem papel admin) e o bullet de log só JSON em CLI-IMAGEM-02 (rate limit do Better Auth desligado na fundação). A correção é da /fix-runner, a partir do veredito.
+- O commit 494ca78 (factory do pré-requisito novo) levou a senha falsa de teste 'OutraSenha123' em literal e o gitleaks a marcou como generic-api-key no histórico. O make check rodado antes do commit passou porque o gitleaks varre commits, não a árvore de trabalho; a correção foi para a /fix-runner no ciclo 1.
+- Revisão de segurança automática no commit 011fc61: rateLimit.enabled false na instância do Better Auth é regressão de proteção contra força bruta. Risco aceito por decisão explícita da pessoa na revisão da spec (Decisões de 2026-10-29): o padrão da biblioteca é um balde em memória por processo, que não vale com réplicas e suja o log JSON; o RF-001 liga o rate limit com armazenamento no Valkey e trustedProxies. Sem correção aqui.
+- PR #4 (feat: implementa a fundação do monorepo) já estava aberto neste branch, fora de rascunho; o push do fechamento o atualiza.
