@@ -27,6 +27,9 @@ export type AuthEnv = Pick<
  * - Cookie `httpOnly` (padrão), `secure` fora do ambiente local e, com `COOKIE_DOMAIN`,
  *   compartilhado entre subdomínios (`crossSubDomainCookies`).
  * - Cookie cache desligado para a revogação valer na próxima requisição.
+ * - Cadastro por e-mail e senha fechado (`disableSignUp`): na fundação só o seed cria conta, o
+ *   que impede alguém de registrar o e-mail de `ADMIN_EMAIL` antes do `make db-setup` e ser
+ *   promovido a admin. O RF-001 reabre quando montar o fluxo de cadastro.
  */
 export function createAuth(env: AuthEnv, prisma: PrismaClient) {
   return betterAuth({
@@ -35,7 +38,7 @@ export function createAuth(env: AuthEnv, prisma: PrismaClient) {
     secret: env.BETTER_AUTH_SECRET,
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
     trustedOrigins: [env.WEB_ORIGIN],
-    emailAndPassword: { enabled: true },
+    emailAndPassword: { enabled: true, disableSignUp: true },
     session: { cookieCache: { enabled: false } },
     advanced: {
       useSecureCookies: env.NODE_ENV === 'production',
