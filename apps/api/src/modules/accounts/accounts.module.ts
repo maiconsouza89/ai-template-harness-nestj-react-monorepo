@@ -16,10 +16,12 @@ import { signUpBeforeHook } from './sign-up/sign-up.hook.js';
 /**
  * Módulo Contas (ADR-0011): monta o Better Auth em `/api/auth` e registra o guard global, que
  * recusa com 401 toda rota sem sessão, salvo as marcadas com `@AllowAnonymous()`. Os casos de
- * uso do módulo ficam em pastas próprias (`get-session/`, `sign-up/`); as rotas de cadastro,
- * entrar, sair e recuperação são do próprio Better Auth e entram pelos RF-001 a RF-005 como
- * configuração. Importa o Módulo E-mail para o callback de envio do link de confirmação e usa a
- * conexão compartilhada com o Valkey para os contadores do rate limit.
+ * uso do módulo ficam em pastas próprias (`get-session/`, `sign-up/`); as rotas de autenticação
+ * são do próprio Better Auth e entram como configuração do `createAuth`. O cadastro, com a regra
+ * no hook `before`, o envio do link de confirmação e o rate limit estão ligados desde o RF-001;
+ * entrar, sair e recuperação entram pelos RF-003 a RF-005. Importa o Módulo E-mail para o
+ * callback de envio do link e usa a conexão compartilhada com o Valkey para os contadores do
+ * rate limit.
  */
 @Module({
   imports: [

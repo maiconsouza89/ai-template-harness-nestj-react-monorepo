@@ -62,9 +62,10 @@ export const EMAIL_VERIFICATION_EXPIRES_IN_SECONDS = 24 * 60 * 60;
 
 /**
  * Instância do Better Auth (ADR-0010) do Módulo Contas: sessão em cookie gravada no PostgreSQL
- * pelo adapter Prisma e o plugin admin para papéis e banimento. Na fundação só a borda existe;
- * envio de e-mail, bloqueio e rate limit entram pelos RFs. Este arquivo só importa pacotes e
- * tipos para o seed (`prisma/seed.ts`) carregá-lo direto no Node, sem compilar.
+ * pelo adapter Prisma e o plugin admin para papéis e banimento. O cadastro, o envio do link de
+ * confirmação e o rate limit vieram com o RF-001; o bloqueio por tentativas erradas entra com o
+ * RF-003. Este arquivo só importa pacotes e tipos para o seed (`prisma/seed.ts`) carregá-lo
+ * direto no Node, sem compilar; o que depende do Nest chega montado em `deps`.
  *
  * - `trustedOrigins` e o CORS da API usam a mesma origem da SPA, `WEB_ORIGIN`.
  * - Cookie `httpOnly` (padrão), `secure` fora do ambiente local e, com `COOKIE_DOMAIN`,
@@ -72,8 +73,8 @@ export const EMAIL_VERIFICATION_EXPIRES_IN_SECONDS = 24 * 60 * 60;
  * - Cookie cache desligado para a revogação valer na próxima requisição.
  * - Cadastro por e-mail e senha aberto (RF-001), com `requireEmailVerification`: a conta nasce
  *   pendente e o cadastro não abre sessão. O link de confirmação vale 24 horas e sai pelo
- *   `sendVerificationEmail` recebido em `deps`, que enfileira o e-mail no Módulo E-mail. A regra do cadastro fica no hook `before` recebido
- *   em `deps`. Quem registrar o e-mail de `ADMIN_EMAIL` antes do `make db-setup` ganha só uma
+ *   `sendVerificationEmail` recebido em `deps`, que enfileira o e-mail no Módulo E-mail. A
+ *   regra do cadastro fica no hook `before` recebido em `deps`. Quem registrar o e-mail de `ADMIN_EMAIL` antes do `make db-setup` ganha só uma
  *   conta comum: o seed recusa promovê-la (`SeedAdminConflictError`).
  * - Rate limit por IP com os contadores no Valkey (`rateLimitStorage` recebido em `deps`, com
  *   fail-open) e o IP lido do `X-Forwarded-For` atrás dos proxies de `TRUSTED_PROXIES`; sem

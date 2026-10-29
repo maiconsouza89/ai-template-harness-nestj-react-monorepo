@@ -4,6 +4,8 @@ import { createBrowserRouter, RouterProvider } from 'react-router';
 import { ErrorPage } from './routes/error-page.js';
 import { rootLoader } from './routes/root/loader.js';
 import { RootRoute } from './routes/root/route.js';
+import { signUpAction } from './routes/sign-up/action.js';
+import { SignUpRoute } from './routes/sign-up/route.js';
 
 /** Mostrado enquanto o `loader` da rota raiz lê a sessão na primeira carga. */
 function LoadingPage() {
@@ -22,7 +24,9 @@ export const router = createBrowserRouter([
     HydrateFallback: LoadingPage,
     loader: rootLoader,
     errorElement: <ErrorPage />,
-    children: [],
+    children: [
+      { path: 'cadastro', Component: SignUpRoute, action: signUpAction },
+    ],
   },
 ]);
 
