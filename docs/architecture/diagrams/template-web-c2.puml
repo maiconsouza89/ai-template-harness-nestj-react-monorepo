@@ -1,0 +1,36 @@
+@startuml template-web-c2
+!pragma charset UTF-8
+!include <C4/C4_Container>
+
+title C2 • Container - Template de aplicação web com contas e tarefas
+LAYOUT_TOP_DOWN()
+
+Person(usuario, "Pessoa usuária", "Cria conta, entra e gerencia as próprias tarefas")
+Person(admin, "Admin", "Gerencia papel e situação das contas")
+
+System_Boundary(sistema, "Template de aplicação web com contas e tarefas") {
+  Container(web, "SPA Web", "Vite, React Router (modo data), imagem Docker estática", "Telas e rotas protegidas em app.<domínio>; guarda só o cookie de sessão")
+  Container(api, "API NestJS", "Node.js 26 LTS, NestJS, Better Auth 1, Prisma 7, BullMQ 6", "Monólito modular sem estado em memória em api.<domínio>; consome a fila de e-mail no mesmo processo")
+  ContainerDb(pg, "PostgreSQL", "PostgreSQL 18", "Fonte de verdade de contas, sessões, verificações, tarefas e auditoria")
+  ContainerDb(rds, "Redis", "Valkey 9, AOF everysec, noeviction", "Fila de e-mail do BullMQ e contadores de bloqueio e rate limit")
+}
+
+System_Ext(smtp, "Servidor SMTP", "Entrega os e-mails transacionais; no ambiente local é o Mailpit")
+
+Rel(usuario, web, "Usa", "HTTPS")
+Rel(admin, web, "Usa", "HTTPS")
+Rel(web, api, "Chama /api/auth e /api/v1", "REST/JSON, HTTPS, cookie de sessão")
+Rel(api, pg, "Lê e grava o domínio e as sessões", "Prisma 7")
+Rel(api, rds, "Enfileira e consome jobs, conta falhas e janelas", "ioredis 5, protocolo Redis")
+Rel(api, smtp, "Envia e-mails em pt-BR", "SMTP, Nodemailer 10")
+
+note right of api
+  Garantias
+  • Sem estado em memória: cresce por réplicas atrás do balanceador
+  • E-mail enfileirado depois do commit; falha do SMTP não derruba cadastro
+  • Redis fora do ar: login segue sem bloqueio nem rate limit
+  • Contratos é pacote de build compartilhado com a SPA, não roda
+end note
+
+SHOW_LEGEND()
+@enduml
