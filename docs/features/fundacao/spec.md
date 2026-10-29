@@ -52,7 +52,9 @@ Fora desta spec
 Regras
 - Toda rota da API exige sessão, salvo as marcadas com `@AllowAnonymous()`; na fundação, só `GET /api/health` e as rotas do próprio Better Auth em `/api/auth` (HLD, Segurança).
 - A API não sobe sem todas as variáveis obrigatórias, e a mensagem de erro nomeia a variável ausente sem imprimir o valor de nenhuma (HLD, Gestão de segredos).
-- Nenhum log contém os campos `email`, `name`, `password`, `cookie` nem `authorization` em texto puro (PRD, Compliance; ADR-0018).
+- Nenhum log contém os campos `email`, `name`, `password`, `cookie` nem `authorization` em texto puro, nem a query string das requisições recebidas; o log de acesso registra só o caminho da URL, e o span de servidor do OpenTelemetry redige `url.query` (PRD, Compliance; ADR-0018; ADR-0019).
+- O cadastro por e-mail e senha fica fechado na fundação (`disableSignUp`): só o seed cria conta, e o RF-001 abre o cadastro quando montar o fluxo. A rota recusa com 400 e código `EMAIL_PASSWORD_SIGN_UP_DISABLED`; o `createUser` do plugin admin não é afetado.
+- O rate limit do Better Auth fica desligado na fundação (`rateLimit.enabled = false`), porque o padrão da biblioteca em produção é um balde em memória por processo, que não vale com réplicas (HLD, API sem estado) e escreve aviso fora do JSON no log; o RF-001 liga com armazenamento no Valkey e `trustedProxies` (HLD, Valkey).
 - O `requestId` é único entre réplicas e processos, nunca o contador por processo do pino (ADR-0018).
 - Sem `OTEL_EXPORTER_OTLP_ENDPOINT`, a API não exporta telemetria nem registra erro por isso (ADR-0019).
 - O documento OpenAPI não é publicado com `NODE_ENV=production` (HLD, Interfaces públicas).
@@ -62,7 +64,7 @@ Regras
 - O Valkey roda com `appendonly yes`, `appendfsync everysec` e `maxmemory-policy noeviction` (ADR-0014).
 - O preparo do banco é idempotente: rodar `make db-setup` de novo não duplica o admin nem falha (PRD, Decisão primeiro admin criado na instalação).
 - O primeiro admin nasce com papel admin, e-mail verificado, sem banimento, e a senha de `ADMIN_PASSWORD` gravada com o hash do Better Auth, nunca em texto puro (PRD, Segurança e autorização).
-- Se a conta de `ADMIN_EMAIL` já existe, o seed não muda a senha dela; só garante papel admin e e-mail verificado.
+- Se a conta de `ADMIN_EMAIL` já existe com papel admin e e-mail verificado, o seed não muda nada nela, nem a senha. Se existe sem papel admin ou sem e-mail verificado, o seed termina com código diferente de zero dizendo que já há conta com esse e-mail sem papel admin, e não altera a conta: promover em silêncio uma conta criada antes do `make db-setup` entregaria o admin a quem registrou o e-mail primeiro.
 - `prisma` e `@prisma/client` ficam em `^7` e o `ioredis` em `^5`, e o TypeScript na major 6 em todo o monorepo (ADR-0008, ADR-0014, ADR-0020).
 - O pnpm é instalado na versão do `packageManager` do `package.json` raiz em Compose, imagens e CI, nunca por `corepack enable` (ADR-0012, ADR-0013).
 
@@ -111,8 +113,9 @@ Fluxo técnico da subida local
 ```
 
 `/api/auth/*` (Better Auth, formato da biblioteca)
-- Montado pelo `@thallesp/nestjs-better-auth`; na fundação, nenhuma opção de produto (envio de e-mail, bloqueio, rate limit) é configurada.
+- Montado pelo `@thallesp/nestjs-better-auth`; na fundação, nenhuma opção de produto (envio de e-mail, bloqueio) é configurada, e duas opções de borda ficam fixadas até o RF-001: `emailAndPassword.disableSignUp = true` e `rateLimit.enabled = false`.
 - `GET /api/auth/ok` responde 200 `{ "ok": true }` (rota do better-auth 1.7.14).
+- `POST /api/auth/sign-up/email` responde 400 com `code` igual a `EMAIL_PASSWORD_SIGN_UP_DISABLED` e não cria conta (better-auth 1.7, `routes/sign-up.ts`).
 - `POST /api/auth/sign-in/email` com `{ "email": "...", "password": "..." }` abre sessão e devolve o cookie `httpOnly`; a fundação o usa só para provar o seed do admin.
 
 `GET /api/docs` e `GET /api/docs-json` (anônimas, fora de produção)
@@ -154,7 +157,7 @@ Migração inicial `apps/api/prisma/migrations/<timestamp>_init/`, com o schema 
 
 O e-mail em minúsculas e a situação pendente/ativa/desativada do HLD se expressam por `email` normalizado no cadastro (RF-001), `emailVerified` e `banned`; a coluna de situação anterior para a reativação é do RF-013.
 
-O seed cria em `user` e `account` (provider `credential`) a conta de `ADMIN_EMAIL`, com `role = "admin"`, `emailVerified = true` e `banned = false`, usando o hasher do Better Auth (`ctx.password.hash` da instância), num `upsert` por e-mail.
+O seed procura a conta de `ADMIN_EMAIL` em `user`. Sem conta, cria em `user` e `account` (provider `credential`) com `role = "admin"`, `emailVerified = true` e `banned = false`, usando o hasher do Better Auth (`ctx.password.hash` da instância). Com conta já admin e verificada, não grava nada. Com conta sem papel admin ou sem e-mail verificado, termina com código diferente de zero sem gravar.
 
 ---
 
@@ -167,6 +170,8 @@ O seed cria em `user` e `account` (provider `credential`) a conta de `ADMIN_EMAI
 | Valkey fora do ar | API NestJS, health check | `GET /api/health` responde 503 com `valkey: down`; a API continua no ar | Corpo JSON com o estado de cada dependência |
 | Requisição sem sessão a rota protegida | Módulo Contas, guard global | 401 | SPA mostra o estado anônimo |
 | `ADMIN_EMAIL` ou `ADMIN_PASSWORD` ausente | PostgreSQL, seed do `make db-setup` | Seed termina com código diferente de zero, sem gravar nada | Mensagem nomeando a variável |
+| Conta de `ADMIN_EMAIL` já existe sem papel admin ou sem e-mail verificado | PostgreSQL, seed do `make db-setup` | Seed termina com código diferente de zero, sem alterar a conta | Mensagem dizendo que já existe conta com esse e-mail sem papel admin |
+| Cadastro por e-mail e senha em `/api/auth/sign-up/email` | Módulo Contas, Better Auth | 400 com código `EMAIL_PASSWORD_SIGN_UP_DISABLED`, sem criar conta | Nada na fundação; o RF-001 monta a tela |
 | Migração falha | PostgreSQL, `prisma migrate deploy` | `make db-setup` termina com código diferente de zero | Saída do Prisma |
 | Coletor OTLP inacessível | API NestJS, exportador OTLP | Exportação descartada com aviso no log; requisições seguem | nada |
 | Rota inexistente na SPA | SPA Web, `errorElement` da rota raiz | Página de erro | "Página não encontrada" em pt-BR |
@@ -178,14 +183,15 @@ O seed cria em `user` e `account` (provider `credential`) a conta de `ADMIN_EMAI
 
 Unidade (Vitest, `*.spec.ts` ao lado do código)
 - `apps/api/src/platform/config/env.spec.ts`: esquema de variáveis recusa ausente e aceita o `.env.example`; mensagem sem valores.
-- `apps/api/src/platform/logging/logger.spec.ts`: a redação remove `email`, `name`, `password`, `cookie` e `authorization`; `genReqId` gera ids distintos.
+- `apps/api/src/platform/logging/logger.spec.ts`: a redação remove `email`, `name`, `password`, `cookie` e `authorization`; a linha de acesso registra a URL sem a query string; `genReqId` gera ids distintos.
 - `apps/api/src/platform/health/health.controller.spec.ts`: 200 e 503 com os checks trocados por dublês via `overrideProvider()`.
 - `packages/contracts/src/session.spec.ts`: o esquema aceita `user` e `admin` e recusa outros papéis.
 - `apps/web/src/routes/root.spec.ts`: o `loader` devolve o estado anônimo com 401 e o estado da sessão com 200, com `fetch` trocado por dublê.
 
 Integração (Vitest, `apps/api/test/integration/**/*.int-spec.ts`, banco `app_test` no PostgreSQL do Compose)
 - `app.int-spec.ts`: a aplicação inteira sobe com `createNestApplication()` e Supertest; rota protegida responde 401; `GET /api/auth/ok` responde 200; `/api/docs-json` tem `/api/v1/session`.
-- `seed.int-spec.ts`: o seed cria o admin, roda duas vezes sem duplicar e o login por `POST /api/auth/sign-in/email` funciona com a senha do seed.
+- `seed.int-spec.ts`: o seed cria o admin, roda duas vezes sem duplicar nem mudar o hash, recusa conta pré-existente sem papel admin sem alterá-la, e o login por `POST /api/auth/sign-in/email` funciona com a senha do seed.
+- `sign-up.int-spec.ts`: `POST /api/auth/sign-up/email` responde 400 com `EMAIL_PASSWORD_SIGN_UP_DISABLED` e não cria conta.
 
 Verificação por superfície
 
@@ -222,6 +228,9 @@ Decisões
 - `GET /api/auth/ok` existe no better-auth 1.7.14 (`dist/api/routes/ok.mjs`) e `migrations.seed` existe no `@prisma/config` 7.10.1: conferidos no pacote publicado.
 - O plugin CLI do `@nestjs/swagger` roda só no `nest build`; nos testes Vitest os decorators de propriedade não são gerados, então nenhum teste de unidade depende do documento (ADR-0020).
 - Prisma com o `moduleFormat` padrão `esm`, já que a API é ESM (ADR-0008 só exige `cjs` para API CommonJS).
+- Revisão de 2026-10-29, após a primeira avaliação: a SPA anônima continua lendo `GET /api/v1/session` e recebendo 401; o item de UI passa a tolerar só a mensagem de rede que o navegador registra para esse 401, porque o Chromium registra todo 4xx de `fetch` como erro de console e a SPA não tem como suprimir isso. Alternativa descartada: responder 200 com sessão nula ao anônimo, que esconderia a borda que API-BORDA-02 prova.
+- Revisão de 2026-10-29, achados da revisão de segurança: cadastro fechado com `emailAndPassword.disableSignUp` (doc do Better Auth, Options, `emailAndPassword`: bloqueia só a rota pública de sign-up; `createUser` do plugin admin segue); seed que recusa conta pré-existente sem papel admin, em vez de promovê-la (regra do projeto; a doc do Better Auth não cobre seed); query string fora do log de acesso (`serializers.req` do pino-http) e `url.query` redigido no span de servidor (`startIncomingSpanHook` da `@opentelemetry/instrumentation-http`; a versão 0.300 emite só `url.path` e `url.query` no span de servidor, conferido no código da instrumentação).
+- Revisão de 2026-10-29, rate limit: desligado na fundação. Doc do Better Auth, Options, `rateLimit`: `enabled` padrão `true` em produção, `window` 10 s, `max` 100, `storage` padrão `memory`; sem `advanced.ipAddress.trustedProxies` a biblioteca cai num balde único por caminho e avisa no stderr. O RF-001 liga com `storage: "secondary-storage"` no Valkey (HLD) e `trustedProxies`. Alternativa descartada: manter o padrão, que não funciona com réplicas e suja o log JSON.
 
 Hipóteses
 - Pacotes `@app/api`, `@app/web` e `@app/contracts` (hipótese)
@@ -235,14 +244,7 @@ Hipóteses
 - Servidor estático da imagem da SPA: nginx oficial com fallback para `index.html` (hipótese)
 
 Pendentes de ADR
-- Servidor estático da imagem da SPA: nginx oficial com fallback para `index.html` (hipótese)
-
-Pendentes de ADR
-- Formato ESM e Vitest como runner de testes de API, SPA e Contratos: decidido na entrevista, falta o registro; alternativa descartada CommonJS com Jest 30 e `--experimental-vm-modules`.
-- oxlint e Prettier como lint e formatação: decidido na entrevista; alternativas descartadas ESLint com typescript-eslint, e Biome.
-- `@playwright/cli` como ferramenta de navegador da superfície UI dos contratos, sem suíte E2E versionada: decidido na entrevista; alternativas descartadas `@playwright/test`, Vitest Browser Mode e Cypress. Bloqueia a implementação dos itens de UI até o registro.
-- Zod 4 como biblioteca de validação de Contratos e da config: decidido na entrevista; alternativa descartada class-validator com class-transformer.
-- Servidor estático da imagem da SPA, que o ADR-0005 deixou de fora: opções nginx oficial (hipótese desta spec), Caddy, ou `serve` em Node; critério, imagem pequena sem runtime Node.
+- Servidor estático da imagem da SPA, que o ADR-0005 deixou de fora: nginx oficial em Alpine com fallback para `index.html` (hipótese desta spec, já implementada em `apps/web/Dockerfile` e `apps/web/nginx.conf` por decisão explícita da pessoa), Caddy, ou `serve` em Node; critério, imagem pequena sem runtime Node. ESM com Vitest, oxlint com Prettier, `@playwright/cli` e Zod 4, pendentes na primeira versão desta spec, estão registrados nos ADR-0021 a ADR-0024.
 
 ---
 

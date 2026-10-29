@@ -10,13 +10,15 @@
 ### Estado persistido
 - `admin-inicial`: conta com o e-mail de ADMIN_EMAIL, papel admin, e-mail verificado, sem banimento e credencial de senha igual a ADMIN_PASSWORD. Usado por: CLI-ADMIN-02, CLI-LOGS-03, API-ADMIN-01
 - `sessao-admin`: sessão válida da conta `admin-inicial`, com o cookie de sessão correspondente. Usado por: API-BORDA-04, UI-INICIO-02
+- `conta-comum-com-email-do-admin`: conta com o e-mail de ADMIN_EMAIL, sem papel admin, e-mail não verificado e credencial de senha diferente de ADMIN_PASSWORD. Usado por: CLI-ADMIN-04
 
 ### Configuração
 - Arquivo `.env` copiado do `.env.example`, com ADMIN_EMAIL e ADMIN_PASSWORD preenchidos com uma senha de 8 ou mais caracteres com letra e número, NODE_ENV igual a development e OTEL_EXPORTER_OTLP_ENDPOINT ausente, salvo onde o item diz outra coisa.
+- OTEL_EXPORTER_OTLP_PROTOCOL igual a http/json só nos itens que o dizem, para o receptor local conseguir ler os atributos dos spans.
 - Docker com Compose v2, shellcheck, actionlint, gitleaks e python3 instalados na máquina.
 
 ### Dependências externas
-- Coletor OTLP do destino, simulado por um receptor HTTP local que aceita qualquer requisição e registra método, caminho e horário.
+- Coletor OTLP do destino, simulado por um receptor HTTP local que aceita qualquer requisição e registra método, caminho, horário e corpo.
 
 ## Gates de qualidade
 
@@ -34,11 +36,11 @@ Cada gate precisa passar para a feature ser considerada pronta.
 | Ambiente local: Docker Compose com api, web, postgres, valkey e mailpit, com o código montado e hot reload (ADR-0006, ADR-0014, ADR-0016). | CLI-AMBIENTE-01, CLI-AMBIENTE-02, CLI-AMBIENTE-03, UI-RECARGA-01 |
 | Configuração e segredos: .env.example versionado e validação das variáveis na subida da API, que falha se faltar alguma (HLD, Gestão de segredos). | CLI-CONFIG-01, CLI-CONFIG-02 |
 | Banco: PostgreSQL 18 com Prisma 7 e a migração inicial com as tabelas do Better Auth e os campos do plugin admin (ADR-0007, ADR-0008, ADR-0010). | CLI-BANCO-01, CLI-BANCO-02 |
-| Preparo do banco: alvo make db-setup que aplica as migrações e cria o primeiro admin a partir do .env, de forma idempotente (PRD, Decisão primeiro admin criado na instalação). | CLI-ADMIN-01, CLI-ADMIN-02, CLI-ADMIN-03 |
-| Autenticação na borda: Better Auth montado em /api/auth no Módulo Contas, com o guard global que recusa requisição sem sessão (ADR-0010). | API-BORDA-01, API-BORDA-02, API-BORDA-03, API-BORDA-04, API-ADMIN-01, API-CORS-01, API-CORS-02 |
+| Preparo do banco: alvo make db-setup que aplica as migrações e cria o primeiro admin a partir do .env, de forma idempotente (PRD, Decisão primeiro admin criado na instalação). | CLI-ADMIN-01, CLI-ADMIN-02, CLI-ADMIN-03, CLI-ADMIN-04 |
+| Autenticação na borda: Better Auth montado em /api/auth no Módulo Contas, com o guard global que recusa requisição sem sessão (ADR-0010). | API-BORDA-01, API-BORDA-02, API-BORDA-03, API-BORDA-04, API-BORDA-05, API-ADMIN-01, API-CORS-01, API-CORS-02 |
 | Saúde: rota anônima de health check que informa o estado do PostgreSQL e do Valkey (HLD, Observabilidade). | API-SAUDE-01, API-SAUDE-02, API-SAUDE-03 |
-| Logs: nestjs-pino com JSON por linha, requestId único e redação de dados pessoais (ADR-0018). | CLI-LOGS-01, CLI-LOGS-02, CLI-LOGS-03 |
-| Métricas e tracing: OpenTelemetry carregado antes da aplicação e exportando por OTLP só com endpoint configurado (ADR-0019). | CLI-OTEL-01, CLI-OTEL-02 |
+| Logs: nestjs-pino com JSON por linha, requestId único e redação de dados pessoais (ADR-0018). | CLI-LOGS-01, CLI-LOGS-02, CLI-LOGS-03, CLI-LOGS-04 |
+| Métricas e tracing: OpenTelemetry carregado antes da aplicação e exportando por OTLP só com endpoint configurado (ADR-0019). | CLI-OTEL-01, CLI-OTEL-02, CLI-OTEL-03 |
 | Documento OpenAPI em /api/docs, publicado só fora de produção (ADR-0020). | API-DOCS-01, API-DOCS-02, API-DOCS-03 |
 | SPA Web: Vite com React Router em modo data, rota inicial que lê a sessão pela API e consumo do pacote Contratos (ADR-0004, ADR-0012). | CLI-MONOREPO-02, UI-INICIO-01, UI-INICIO-02, UI-INICIO-03, UI-INICIO-04 |
 | Imagens Docker multi-stage da API e da SPA com turbo prune (ADR-0005). | CLI-IMAGEM-01, CLI-IMAGEM-02, CLI-IMAGEM-03 |
@@ -46,7 +48,7 @@ Cada gate precisa passar para a feature ser considerada pronta.
 
 ## API HTTP
 
-Modo de verificação: requisições HTTP contra a API em execução no ambiente local, inspecionando status, cabeçalhos e corpo.
+Modo de verificação: requisições HTTP contra a API em execução no ambiente local, inspecionando status, cabeçalhos e corpo, e o estado do banco quando o item o cita.
 
 ### Saúde do sistema
 
@@ -102,6 +104,14 @@ Modo de verificação: requisições HTTP contra a API em execução no ambiente
   - a resposta é 200
   - o corpo traz o userId da conta `admin-inicial`
   - o corpo traz role igual a admin
+
+#### API-BORDA-05
+- **Dado:** o ambiente no ar e nenhuma conta com o e-mail novo@example.com.
+- **Quando:** uma requisição sem cookie pede POST /api/auth/sign-up/email com esse e-mail, um nome e uma senha válida.
+- **Então:**
+  - a resposta é 400
+  - o corpo traz o código EMAIL_PASSWORD_SIGN_UP_DISABLED
+  - nenhuma conta com esse e-mail passa a existir no banco
 
 ### Primeiro admin
 
@@ -300,6 +310,7 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
 - **Então:**
   - o código de saída é 0
   - continua existindo exatamente uma conta com o e-mail de ADMIN_EMAIL
+  - a credencial de senha dessa conta não muda
   - nenhuma migração nova é aplicada
 
 #### CLI-ADMIN-03
@@ -310,6 +321,16 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
   - a saída nomeia ADMIN_EMAIL
   - nenhuma conta existe no banco
 
+#### CLI-ADMIN-04
+- **Dado:** `conta-comum-com-email-do-admin`.
+- **Quando:** `make db-setup`.
+- **Então:**
+  - o código de saída é diferente de 0
+  - a saída diz que já existe conta com o e-mail de ADMIN_EMAIL sem papel admin
+  - essa conta continua sem papel admin e com o e-mail não verificado
+  - a credencial de senha dessa conta não muda
+  - continua existindo exatamente uma conta com o e-mail de ADMIN_EMAIL
+
 ### Logs estruturados
 
 #### CLI-LOGS-01
@@ -317,7 +338,7 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
 - **Quando:** lê-se a linha do log da api referente a essa requisição.
 - **Então:**
   - a linha é um objeto JSON completo
-  - a linha traz um requestId, o status e o tempo de resposta
+  - a linha traz um identificador único da requisição, o status e o tempo de resposta
   - a linha não contém o valor do cabeçalho cookie
   - a linha não contém o valor do cabeçalho authorization
 
@@ -325,7 +346,7 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
 - **Dado:** o ambiente no ar e duas requisições GET /api/health enviadas em sequência.
 - **Quando:** leem-se as duas linhas do log da api referentes a elas.
 - **Então:**
-  - os dois requestId são diferentes
+  - os dois identificadores de requisição são diferentes
   - nenhum dos dois é um número inteiro
 
 #### CLI-LOGS-03
@@ -334,6 +355,13 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
 - **Então:**
   - o e-mail da conta não aparece em nenhuma linha
   - a senha da conta não aparece em nenhuma linha
+
+#### CLI-LOGS-04
+- **Dado:** o ambiente no ar e uma requisição GET /api/health?token=segredo-da-query enviada.
+- **Quando:** lê-se a linha do log da api referente a essa requisição.
+- **Então:**
+  - a linha registra o caminho /api/health
+  - o texto segredo-da-query não aparece na linha
 
 ### Telemetria
 
@@ -350,6 +378,13 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
   - em até 30 segundos o receptor registra ao menos uma requisição de exportação de traces
   - a api continua respondendo 200 em GET /api/health
 
+#### CLI-OTEL-03
+- **Dado:** a api no ar com OTEL_EXPORTER_OTLP_ENDPOINT apontando para o receptor HTTP local e OTEL_EXPORTER_OTLP_PROTOCOL igual a http/json.
+- **Quando:** a api responde a uma requisição GET /api/health?token=segredo-da-query.
+- **Então:**
+  - em até 30 segundos o receptor registra uma exportação de traces com um span dessa requisição
+  - o texto segredo-da-query não aparece em nenhum atributo dos spans recebidos
+
 ### Imagens
 
 #### CLI-IMAGEM-01
@@ -363,10 +398,11 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
 
 #### CLI-IMAGEM-02
 - **Dado:** a imagem da API construída e os serviços postgres e valkey do Compose no ar.
-- **Quando:** sobe-se um container dessa imagem com as variáveis do `.env` e NODE_ENV igual a production.
+- **Quando:** sobe-se um container dessa imagem com as variáveis do `.env` e NODE_ENV igual a production, e pede-se GET /api/auth/ok nele.
 - **Então:**
   - o container segue em execução
   - o log do container tem a linha JSON de subida da API sem erro
+  - todas as linhas do log do container são objetos JSON
   - GET /api/health nesse container responde 200
 
 #### CLI-IMAGEM-03
@@ -407,7 +443,7 @@ Modo de verificação: navegador dirigido contra a SPA em execução no ambiente
 - **Então:**
   - a página mostra, em português do Brasil, que não há sessão aberta
   - o elemento html tem lang igual a pt-BR
-  - o console não registra erro
+  - o console não registra erro além da mensagem de rede do navegador para o 401 esperado de GET /api/v1/session
 
 #### UI-INICIO-02
 - **Dado:** o navegador com o cookie de `sessao-admin`.
