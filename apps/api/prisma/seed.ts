@@ -47,7 +47,7 @@ export class SeedAdminConflictError extends Error {
 }
 
 /** Id no formato da instância do Better Auth; UUID só se ela delegar a geração ao banco. */
-function newId(ctx: AuthContext, model: 'user' | 'account'): string {
+export function newId(ctx: AuthContext, model: 'user' | 'account'): string {
   const id = ctx.generateId({ model });
   return typeof id === 'string' ? id : randomUUID();
 }

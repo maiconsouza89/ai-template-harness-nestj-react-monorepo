@@ -8,6 +8,7 @@ import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
 import { createTestApp } from '../create-test-app.js';
 import { sessaoAdmin } from '../factories/session.factory.js';
 import {
+  adminBanido,
   adminInicialCredentials,
   contaComumComEmailDoAdmin,
 } from '../factories/user.factory.js';
@@ -118,6 +119,42 @@ describe('Seed do primeiro admin (integração, banco app_test)', () => {
       ).toBe(false);
     } finally {
       // Não deixa uma conta comum com ADMIN_EMAIL no banco compartilhado pelos outros arquivos.
+      await prisma.user.deleteMany({ where: { email } });
+    }
+  });
+
+  it('a factory admin-banido grava o admin banido que o CLI-ADMIN-05 pede', async () => {
+    const conta = await adminBanido(app);
+    try {
+      expect(conta.email).toBe(email);
+      expect(conta.password).toBe(credentials.password);
+
+      const users = await prisma.user.findMany({
+        where: { email },
+        include: { accounts: true },
+      });
+      expect(users).toHaveLength(1);
+      const [user] = users;
+      expect(user.id).toBe(conta.userId);
+      expect(user.role).toBe('admin');
+      expect(user.emailVerified).toBe(true);
+      expect(user.banned).toBe(true);
+      expect(user.banExpires).toBeNull();
+      expect(user.accounts).toHaveLength(1);
+      const [account] = user.accounts;
+      expect(account.providerId).toBe('credential');
+      expect(account.password).toBeTruthy();
+      expect(account.password).not.toBe(credentials.password);
+
+      const ctx = await auth.$context;
+      expect(
+        await ctx.password.verify({
+          hash: account.password as string,
+          password: credentials.password,
+        }),
+      ).toBe(true);
+    } finally {
+      // Não deixa um admin banido com ADMIN_EMAIL no banco compartilhado pelos outros arquivos.
       await prisma.user.deleteMany({ where: { email } });
     }
   });
