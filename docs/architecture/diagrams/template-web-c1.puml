@@ -1,0 +1,28 @@
+@startuml template-web-c1
+!pragma charset UTF-8
+!include <C4/C4_Context>
+
+title C1 • System Context - Template de aplicação web com contas e tarefas
+AddRelTag("hipotese", $legendText="hipótese", $lineStyle=DashedLine())
+LAYOUT_LEFT_RIGHT()
+
+Person(usuario, "Pessoa usuária", "Cria conta, entra e gerencia as próprias tarefas")
+Person(admin, "Admin", "Gerencia papel e situação das contas")
+
+System(sistema, "Template de aplicação web com contas e tarefas", "Contas com confirmação por e-mail, papéis e cadastro de tarefas")
+
+System_Ext(smtp, "Servidor SMTP", "Entrega os e-mails transacionais; no ambiente local, uma caixa de teste com interface web")
+
+Rel(usuario, sistema, "Cadastra-se, entra e gerencia tarefas")
+Rel(admin, sistema, "Busca, promove, rebaixa, desativa e reativa contas")
+Rel(sistema, smtp, "Envia e-mails de confirmação, recuperação e troca de senha")
+Rel(smtp, usuario, "Entrega os e-mails na caixa de entrada", $tags="hipotese")
+
+note bottom of smtp
+  Fluxo de mão única
+  • O sistema só envia; não recebe nada do servidor SMTP
+  • Trocar a caixa de teste por um provedor real é só configuração
+end note
+
+SHOW_LEGEND()
+@enduml

@@ -1,0 +1,59 @@
+@startuml template-web-c3
+!pragma charset UTF-8
+!include <C4/C4_Component>
+
+title C3 • Component - API NestJS
+LAYOUT_TOP_DOWN()
+
+Container(web, "SPA Web", "Vite, React Router (modo data)", "Telas e rotas protegidas; chama a API com o cookie de sessão")
+Container(ctr, "Contratos", "Pacote TypeScript do monorepo, workspace do pnpm", "DTOs e esquemas de validação compartilhados; só existe em tempo de build")
+
+Container_Boundary(api, "API NestJS") {
+  Component(contas, "Módulo Contas", "NestJS, Better Auth 1", "Cadastro, confirmação, sessão, recuperação e troca de senha; perfil em /api/v1/me; bloqueio por e-mail")
+  Component(usuarios, "Módulo Usuários", "NestJS, plugin admin do Better Auth, Prisma 7", "Lista e busca contas; muda papel e situação com travas e auditoria")
+  Component(tarefas, "Módulo Tarefas", "NestJS, Prisma 7", "CRUD das tarefas da pessoa logada; slice de referência do template")
+  Component(email, "Módulo E-mail", "NestJS, @nestjs/bullmq, Nodemailer 10", "Cria e consome jobs da fila email.send, renderiza e envia o e-mail")
+}
+
+ContainerDb(pg, "PostgreSQL", "PostgreSQL 18", "Fonte de verdade de contas, sessões, verificações, tarefas e auditoria")
+ContainerDb(rds, "Redis", "Valkey 9", "Fila de e-mail e contadores com TTL")
+System_Ext(smtp, "Servidor SMTP", "Entrega os e-mails transacionais; no ambiente local é o Mailpit")
+
+Rel(web, contas, "Cadastra, entra, sai, recupera senha, edita perfil", "REST/JSON, /api/auth e /api/v1/me")
+Rel(web, usuarios, "Gerencia contas como admin", "REST/JSON, /api/v1/admin")
+Rel(web, tarefas, "Cria, lista, edita, conclui e exclui tarefas", "REST/JSON, /api/v1/tasks")
+Rel(web, ctr, "Valida formulários com os esquemas", "dependência de build")
+Rel(usuarios, ctr, "Usa os DTOs de listagem e filtro", "dependência de build")
+Rel(tarefas, ctr, "Valida corpo e filtros", "dependência de build")
+Rel(contas, pg, "Grava usuário, sessão, credencial e verificação", "Better Auth, adapter Prisma")
+Rel(contas, rds, "Conta falhas de login e janelas de rate limit", "ioredis 5")
+Rel(contas, email, "Pede e-mail de confirmação, recuperação e troca de senha", "chamada in-process")
+Rel(usuarios, contas, "Muda papel e bane pelo plugin admin", "chamada in-process")
+Rel(usuarios, pg, "Grava registro de auditoria na mesma transação", "Prisma 7")
+Rel(tarefas, pg, "Lê e grava tarefas filtradas pela dona", "Prisma 7")
+Rel(email, rds, "Enfileira e consome jobs email.send", "BullMQ 6")
+Rel(email, pg, "Lê o endereço do usuário no envio", "Prisma 7")
+Rel(email, smtp, "Envia mensagem MIME em pt-BR", "SMTP")
+
+note right of tarefas
+  Isolamento
+  • ownerId vem da sessão, nunca do cliente
+  • Tarefa alheia ou inexistente responde 404, inclusive para admin
+  • Não toca Redis, BullMQ nem OpenTelemetry
+end note
+
+note right of email
+  Entrega
+  • Job guarda id do usuário; endereço lido na hora do envio
+  • 5 tentativas com backoff exponencial a partir de 5 s
+  • Entrega ao menos uma vez, em até 2 minutos
+end note
+
+note left of usuarios
+  Travas
+  • Admin não rebaixa nem desativa a si mesmo
+  • Nenhuma ação deixa o sistema sem admin ativo
+end note
+
+SHOW_LEGEND()
+@enduml
