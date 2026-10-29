@@ -7,7 +7,10 @@ import type { Auth } from '../../src/modules/accounts/auth.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
 import { createTestApp } from '../create-test-app.js';
 import { sessaoAdmin } from '../factories/session.factory.js';
-import { adminInicialCredentials } from '../factories/user.factory.js';
+import {
+  adminInicialCredentials,
+  contaComumComEmailDoAdmin,
+} from '../factories/user.factory.js';
 
 describe('Seed do primeiro admin (integração, banco app_test)', () => {
   let app: INestApplication<App>;
@@ -76,5 +79,46 @@ describe('Seed do primeiro admin (integração, banco app_test)', () => {
       .set('Cookie', session.cookie)
       .expect(200)
       .expect({ userId: session.userId, role: 'admin' });
+  });
+
+  it('a factory conta-comum-com-email-do-admin grava a conta comum que o CLI-ADMIN-04 pede', async () => {
+    const conta = await contaComumComEmailDoAdmin(app);
+    try {
+      expect(conta.email).toBe(email);
+      expect(conta.password).not.toBe(credentials.password);
+
+      const users = await prisma.user.findMany({
+        where: { email },
+        include: { accounts: true },
+      });
+      expect(users).toHaveLength(1);
+      const [user] = users;
+      expect(user.id).toBe(conta.userId);
+      expect(user.role).toBeNull();
+      expect(user.emailVerified).toBe(false);
+      expect(user.banned).toBe(false);
+      expect(user.accounts).toHaveLength(1);
+      const [account] = user.accounts;
+      expect(account.providerId).toBe('credential');
+      expect(account.password).toBeTruthy();
+      expect(account.password).not.toBe(conta.password);
+
+      const ctx = await auth.$context;
+      expect(
+        await ctx.password.verify({
+          hash: account.password as string,
+          password: conta.password,
+        }),
+      ).toBe(true);
+      expect(
+        await ctx.password.verify({
+          hash: account.password as string,
+          password: credentials.password,
+        }),
+      ).toBe(false);
+    } finally {
+      // Não deixa uma conta comum com ADMIN_EMAIL no banco compartilhado pelos outros arquivos.
+      await prisma.user.deleteMany({ where: { email } });
+    }
   });
 });

@@ -1,4 +1,5 @@
 import type { INestApplication } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { AuthService } from '@thallesp/nestjs-better-auth';
 import { seedAdminInicial } from '../../prisma/seed.js';
 import type { Auth } from '../../src/modules/accounts/auth.js';
@@ -33,4 +34,69 @@ export async function adminInicial(
   const auth = (app.get(AuthService) as AuthService<Auth>).instance;
   const { userId } = await seedAdminInicial(prisma, auth, credentials);
   return { userId, ...credentials };
+}
+
+export interface ContaComum {
+  userId: string;
+  email: string;
+  /** Senha em texto puro usada no hash da credencial; diferente de ADMIN_PASSWORD. */
+  password: string;
+}
+
+/** Senha da conta comum; o `.env.test` fixa ADMIN_PASSWORD em outro valor. */
+const CONTA_COMUM_PASSWORD = 'OutraSenha123';
+
+/** Id no formato da instância do Better Auth; UUID só se ela delegar a geração ao banco. */
+function newId(
+  ctx: Awaited<Auth['$context']>,
+  model: 'user' | 'account',
+): string {
+  const id = ctx.generateId({ model });
+  return typeof id === 'string' ? id : randomUUID();
+}
+
+/**
+ * Pré-requisito `conta-comum-com-email-do-admin` do contrato (CLI-ADMIN-04): a conta com o
+ * e-mail de ADMIN_EMAIL, sem papel admin, e-mail não verificado, sem banimento e com credencial
+ * de senha cujo hash (do Better Auth da aplicação de teste) é de uma senha diferente de
+ * ADMIN_PASSWORD. Substitui qualquer conta com esse e-mail, para o estado ser exatamente o que
+ * o contrato descreve: uma única conta, comum.
+ */
+export async function contaComumComEmailDoAdmin(
+  app: INestApplication,
+): Promise<ContaComum> {
+  const { email: adminEmail, password: adminPassword } =
+    adminInicialCredentials();
+  if (CONTA_COMUM_PASSWORD === adminPassword) {
+    throw new Error(
+      'ADMIN_PASSWORD do .env.test coincide com a senha da conta comum; troque uma delas',
+    );
+  }
+  const email = adminEmail.trim().toLowerCase();
+  const prisma = app.get(PrismaService);
+  const ctx = await (app.get(AuthService) as AuthService<Auth>).instance
+    .$context;
+
+  await prisma.user.deleteMany({ where: { email } });
+
+  const userId = newId(ctx, 'user');
+  await prisma.user.create({
+    data: {
+      id: userId,
+      name: email.slice(0, email.indexOf('@')),
+      email,
+      emailVerified: false,
+      role: null,
+      banned: false,
+      accounts: {
+        create: {
+          id: newId(ctx, 'account'),
+          accountId: userId,
+          providerId: 'credential',
+          password: await ctx.password.hash(CONTA_COMUM_PASSWORD),
+        },
+      },
+    },
+  });
+  return { userId, email, password: CONTA_COMUM_PASSWORD };
 }
