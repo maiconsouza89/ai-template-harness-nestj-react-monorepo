@@ -24,7 +24,17 @@ export type AuthEnv = Pick<
 export interface AuthDependencies {
   /** Hook `before` do cadastro (`sign-up/sign-up.hook.ts`): validação, normalização e duplicado. */
   beforeHook?: NonNullable<BetterAuthOptions['hooks']>['before'];
+  /**
+   * Callback de envio do link de confirmação (`sign-up/send-verification-email.ts`), que agenda
+   * o job na fila `email.send` depois do commit. Sem ele (seed), nenhum e-mail é enviado.
+   */
+  sendVerificationEmail?: NonNullable<
+    BetterAuthOptions['emailVerification']
+  >['sendVerificationEmail'];
 }
+
+/** Prazo do link de confirmação de e-mail: 24 horas (PRD, Segurança e autorização). */
+export const EMAIL_VERIFICATION_EXPIRES_IN_SECONDS = 24 * 60 * 60;
 
 /**
  * Instância do Better Auth (ADR-0010) do Módulo Contas: sessão em cookie gravada no PostgreSQL
@@ -37,7 +47,8 @@ export interface AuthDependencies {
  *   compartilhado entre subdomínios (`crossSubDomainCookies`).
  * - Cookie cache desligado para a revogação valer na próxima requisição.
  * - Cadastro por e-mail e senha aberto (RF-001), com `requireEmailVerification`: a conta nasce
- *   pendente e o cadastro não abre sessão. A regra do cadastro fica no hook `before` recebido
+ *   pendente e o cadastro não abre sessão. O link de confirmação vale 24 horas e sai pelo
+ *   `sendVerificationEmail` recebido em `deps`, que enfileira o e-mail no Módulo E-mail. A regra do cadastro fica no hook `before` recebido
  *   em `deps`. Quem registrar o e-mail de `ADMIN_EMAIL` antes do `make db-setup` ganha só uma
  *   conta comum: o seed recusa promovê-la (`SeedAdminConflictError`).
  * - Rate limit desligado (`rateLimit.enabled = false`): o padrão em produção é um balde em
@@ -59,6 +70,11 @@ export function createAuth(
       enabled: true,
       disableSignUp: false,
       requireEmailVerification: true,
+    },
+    emailVerification: {
+      sendOnSignUp: true,
+      expiresIn: EMAIL_VERIFICATION_EXPIRES_IN_SECONDS,
+      sendVerificationEmail: deps.sendVerificationEmail,
     },
     hooks: { before: deps.beforeHook },
     session: { cookieCache: { enabled: false } },

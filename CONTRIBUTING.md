@@ -72,7 +72,8 @@ ao atualizar, troque SHA e comentário juntos.
 `make lint`, `make format`, `make test`, `make build` e `make db-setup` existem em qualquer
 projeto gerado. Para implementar, crie `scripts/<alvo>.sh` (POSIX sh, pode chamar a ferramenta da
 stack) e registre a escolha da stack em um ADR. Enquanto o script não existe, o alvo avisa e passa.
-Neste repositório, `make test` sobe `postgres` e `valkey` do Compose, recria o banco `app_test` e
+Neste repositório, `make test` sobe `postgres`, `valkey` e `mailpit` do Compose, recria o banco
+`app_test`, esvazia o banco lógico do Valkey de teste (o de `REDIS_URL` em `apps/api/.env.test`) e
 aplica as migrações antes dos testes de integração, e `make db-setup` aplica as migrações e cria o
 primeiro admin do `.env` num container do serviço `api`: os dois exigem Docker com Compose v2.
 

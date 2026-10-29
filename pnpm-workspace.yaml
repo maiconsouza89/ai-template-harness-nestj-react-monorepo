@@ -29,6 +29,9 @@ allowBuilds:
   # instalação, e o do protobufjs (exportadores OTLP) só reescreve um package.json interno.
   '@scarf/scarf': false
   protobufjs: false
+  # Negado: o msgpackr-extract (via bullmq) só compila um acelerador nativo opcional; sem ele o
+  # msgpackr usa a implementação em JavaScript.
+  msgpackr-extract: false
 
 minimumReleaseAgeExclude:
   - '@nestjs/schematics@12.0.12'
