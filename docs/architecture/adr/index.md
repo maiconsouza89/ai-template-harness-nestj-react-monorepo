@@ -16,3 +16,11 @@
 | [0010](0010-usar-better-auth-para-autenticacao.md) | Usar Better Auth para autenticação | accepted | 2026-10-29 |
 | [0011](0011-usar-vertical-slice-com-ddd-tatico-na-api.md) | Usar vertical slice com DDD tático na API | accepted | 2026-10-29 |
 | [0012](0012-usar-pnpm-como-gerenciador-de-pacotes.md) | Usar pnpm como gerenciador de pacotes | accepted | 2026-10-29 |
+| [0013](0013-usar-node-26-lts-como-runtime.md) | Usar Node.js 26 LTS como runtime | accepted | 2026-10-29 |
+| [0014](0014-usar-valkey-para-fila-e-contadores.md) | Usar Valkey para fila e contadores | accepted | 2026-10-29 |
+| [0015](0015-usar-bullmq-para-a-fila-de-e-mail.md) | Usar BullMQ para a fila de e-mail | accepted | 2026-10-29 |
+| [0016](0016-usar-mailpit-como-caixa-de-e-mail-local.md) | Usar Mailpit como caixa de e-mail local | accepted | 2026-10-29 |
+| [0017](0017-usar-smtp-generico-com-nodemailer-para-envio-de-e-mail.md) | Usar SMTP genérico com Nodemailer para envio de e-mail | accepted | 2026-10-29 |
+| [0018](0018-usar-nestjs-pino-para-logs-estruturados.md) | Usar nestjs-pino para logs estruturados | accepted | 2026-10-29 |
+| [0019](0019-usar-opentelemetry-para-metricas-e-tracing.md) | Usar OpenTelemetry para métricas e tracing | accepted | 2026-10-29 |
+| [0020](0020-usar-nestjs-swagger-com-plugin-cli-e-typescript-6.md) | Usar @nestjs/swagger com plugin CLI e TypeScript 6 | accepted | 2026-10-29 |

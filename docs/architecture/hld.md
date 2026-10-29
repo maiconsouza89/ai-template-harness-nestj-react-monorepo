@@ -1,6 +1,6 @@
 # HLD: Template de aplicação web com contas e tarefas
 
-Versão: 0.2.1
+Versão: 0.2.2
 Data: 2026-10-29
 Responsável: Maicon Souza (hipótese)
 PRD: docs/product/prd.md versão 0.1.0
@@ -70,20 +70,20 @@ Tecnologias principais
 | --- | --- | --- |
 | Turborepo | Orquestra lint, test e build entre os pacotes do monorepo, com cache | ADR-0002 |
 | pnpm | Gerenciador de pacotes que fornece os workspaces ao Turborepo | ADR-0012 |
-| Node.js 24 LTS | Runtime da API, do build e das imagens, acima do piso de 22.22 | pendente de ADR |
+| Node.js 26 LTS | Runtime da API, do build e das imagens, acima do piso de 22.22 | ADR-0013 |
 | NestJS | Framework da API: módulos, injeção de dependência, testes | ADR-0003 |
 | Nest CLI | Scaffold, geração, build e watch da API, fixado no lockfile | ADR-0009 |
 | Vite e React Router (modo data) | Build e roteamento da SPA estática | ADR-0004 |
 | PostgreSQL 18 | Banco relacional, fonte de verdade do domínio | ADR-0007 |
 | Prisma 7 | ORM e migrações versionadas do esquema | ADR-0008 |
 | Better Auth | Cadastro, confirmação, sessão em cookie no banco, recuperação, troca de senha, plugin admin | ADR-0010 |
-| Redis | Fila de e-mail do BullMQ, contador de bloqueio por e-mail e armazenamento do rate limit do Better Auth | pendente de ADR |
-| BullMQ | Fila de jobs sobre o Redis para o envio de e-mail, com retry e backoff, integrada ao Nest por `@nestjs/bullmq` | pendente de ADR |
-| SMTP | Protocolo único de envio de e-mail, local e em produção | pendente de ADR |
-| Mailpit | Caixa SMTP de teste do ambiente local, com interface web e API | pendente de ADR |
-| nestjs-pino | Logs JSON estruturados com redação de dados pessoais | pendente de ADR |
-| OpenTelemetry | Métricas e tracing com exportação OTLP para o coletor do destino | pendente de ADR |
-| @nestjs/swagger | Documento OpenAPI gerado a partir dos controllers e DTOs | pendente de ADR |
+| Valkey 9 (protocolo Redis) | Fila de e-mail do BullMQ, contador de bloqueio por e-mail e armazenamento do rate limit do Better Auth | ADR-0014 |
+| BullMQ | Fila de jobs sobre o Redis para o envio de e-mail, com retry e backoff, integrada ao Nest por `@nestjs/bullmq` | ADR-0015 |
+| SMTP (Nodemailer) | Protocolo único de envio de e-mail, local e em produção | ADR-0017 |
+| Mailpit | Caixa SMTP de teste do ambiente local, com interface web e API | ADR-0016 |
+| nestjs-pino | Logs JSON estruturados com redação de dados pessoais | ADR-0018 |
+| OpenTelemetry | Métricas e tracing com exportação OTLP para o coletor do destino | ADR-0019 |
+| @nestjs/swagger | Documento OpenAPI gerado a partir dos controllers e DTOs, com o plugin CLI e TypeScript 6 | ADR-0020 |
 | Docker multi-stage | Artefato de deploy de cada app | ADR-0005 |
 | Docker Compose | Ambiente de desenvolvimento completo | ADR-0006 |
 
@@ -345,18 +345,18 @@ ADRs associados
 - ADR-0010 Usar Better Auth para autenticação: sessão em cookie no banco, plugin admin, confirmação e recuperação.
 - ADR-0011 Usar vertical slice com DDD tático na API: organização interna de todos os módulos.
 - ADR-0012 Usar pnpm como gerenciador de pacotes: workspaces, lockfile e dependência `workspace:` do pacote Contratos.
+- ADR-0013 Usar Node.js 26 LTS como runtime: imagem base, Compose e `engines.node`.
+- ADR-0014 Usar Valkey para fila e contadores: o serviço que o HLD chama de Redis, com AOF e `noeviction`, e o `ioredis` 5.
+- ADR-0015 Usar BullMQ para a fila de e-mail: fila `email.send`, 5 tentativas com backoff, enfileiramento depois do commit.
+- ADR-0016 Usar Mailpit como caixa de e-mail local: serviço do Compose e API REST para os testes de ponta a ponta.
+- ADR-0017 Usar SMTP genérico com Nodemailer para envio de e-mail: troca do local para o real só por variável de ambiente.
+- ADR-0018 Usar nestjs-pino para logs estruturados: JSON por linha, `requestId` e redação dos dados pessoais.
+- ADR-0019 Usar OpenTelemetry para métricas e tracing: OTLP ligado só com endpoint configurado.
+- ADR-0020 Usar @nestjs/swagger com plugin CLI e TypeScript 6: documento `/api/docs` e TypeScript do monorepo na major 6.
 
 Decisões pendentes de ADR
-- Critério comum a todas: vence a opção que não aumenta o setup de 15 minutos nem o que o dev precisa entender para copiar o padrão em 2 horas, e que não prende o projeto gerado a um destino. Ordem: primeiro o que trava a fundação.
-- Node.js 24 LTS: versão major do runtime nas imagens e no Compose; opções Node 24, 26 e 22, todas listadas como LTS e acima do piso de 22.22. Trava as imagens.
-- Redis: fila de e-mail, bloqueio por e-mail e rate limit, persistido com AOF e `noeviction`; opções Redis, Valkey, tabela no PostgreSQL. Serviço do Compose.
-- BullMQ: fila do envio de e-mail; opções BullMQ com `@nestjs/bullmq` (escolhida na revisão 0.2.0), pg-boss sobre o PostgreSQL (desenho da versão 0.1.0, com job na transação), tabela outbox com poller próprio. Serviço da fundação.
-- Mailpit: caixa SMTP de teste local; opções Mailpit, MailHog. Serviço do Compose.
-- SMTP: protocolo único de envio; opções SMTP genérico, porta abstrata com adapters por API de provedor.
-- nestjs-pino: logger estruturado com redação; opções nestjs-pino, logger embutido do Nest em JSON.
-- OpenTelemetry: métricas e tracing; opções OpenTelemetry com OTLP, Prometheus com prom-client, só logs e health check.
-- @nestjs/swagger: documento OpenAPI; opções @nestjs/swagger, só os tipos de Contratos sem documento gerado.
+- Nenhuma: todas as tecnologias principais têm ADR aceito.
 
 Próximos passos
-- Escrever os ADRs pendentes com `/adr-writer`, na ordem acima: Node.js 24 LTS destrava a fundação; Redis, BullMQ e Mailpit destravam o Compose; os demais entram com as features.
+- Revisar o HLD com `/hld-writer` para renomear o componente Redis para Valkey no texto, no diagrama e nos fluxos (ADR-0014).
 - Gerar os diagramas C4 (contexto e containers) com `/c4-writer` a partir deste HLD.
