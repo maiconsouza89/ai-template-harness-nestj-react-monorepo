@@ -1,0 +1,54 @@
+{
+  "skill_name": "spec-writer",
+  "evals": [
+    {
+      "id": 0,
+      "name": "rf-010-direto",
+      "prompt": "o PRD, o HLD e os ADRs do viewstore estão fechados (docs/). gera a spec do RF-010, contratar anúncio direto. não vou conseguir responder pergunta agora, vai no automático e marca hipótese onde decidir por mim.",
+      "expected_output": "docs/features/RF-010-contratar-anuncio-direto/ com spec.md, plan.md e contract.md em português. Spec cita os componentes do HLD (Comercial, Financeiro, Criativos e moderação) e a stack pelos ADRs (NestJS 0002, PostgreSQL 0003, Asaas 0007), sem escolher tecnologia nova fora de 'Pendentes de ADR'. Contrato com os 4 critérios do RF-010 e o de integração 'RF-008 → RF-010' pelo texto literal, cada um com item; sem RF-013 ou RF-014 (fora do fecho); Asaas/DEP-1 em Dependências externas. Roadmap com RF-010 em andamento. Relatório avisa que as dependências não estão feitas e que a fundação não existe.",
+      "files": ["evals/files/viewstore"],
+      "assertions": [
+        "validate.py da skill sai com 0 erros em docs/features",
+        "Existem spec.md, plan.md e contract.md em docs/features/RF-010-contratar-anuncio-direto/",
+        "O manifesto do contrato tem a linha 'RF-008 → RF-010: espaço vendido em anúncio direto sai da disponibilidade da tela na semana.'",
+        "contract.md não cita RF-013 nem RF-014",
+        "spec.md cita ADR-0007 e o componente Financeiro",
+        "plan.md não tem fase cujo nome fale de testes",
+        "docs/product/roadmap.md marca RF-010 como 'em andamento'",
+        "spec.md tem a tabela 'Verificação por superfície' com uma linha por seção de superfície do contract.md"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "fundacao-greenfield",
+      "prompt": "vamos começar a codar o viewstore. PRD, HLD e ADRs estão em docs/, mas ainda não existe nenhuma linha de código no repo. prepara o que precisa ficar pronto antes do primeiro RF, pode decidir sozinho e marcar hipótese.",
+      "expected_output": "docs/features/fundacao/ com spec.md, plan.md e contract.md: esqueleto da API e do Worker NestJS, PostgreSQL com PostGIS e migração inicial, Redis/BullMQ, autenticação Cognito na borda, configuração e segredos, observabilidade mínima e scripts/lint.sh, test.sh, build.sh. Seção 'Convenções para as features' com estrutura de pastas, testes, seed, fixtures, configuração de teste e mocks. Nenhum comportamento de RF implementado; nenhum RF citado no contrato; roadmap intocado. Pendentes de ADR para framework de teste, ORM e migração se nenhum ADR cobre.",
+      "files": ["evals/files/viewstore"],
+      "assertions": [
+        "validate.py da skill sai com 0 erros em docs/features",
+        "Existem spec.md, plan.md e contract.md em docs/features/fundacao/",
+        "spec.md tem a seção '## Convenções para as features' com as seis linhas de convenção",
+        "contract.md não cita nenhum RF-NNN",
+        "spec.md lista em 'Pendentes de ADR' ao menos uma decisão de stack que nenhum ADR cobre (ex.: framework de teste ou ORM)",
+        "docs/product/roadmap.md não foi alterado",
+        "Nenhum item do contract.md da fundação tem Dado ou Quando que exija PR, push ou run da CI; a entrega de CI é coberta por item local",
+        "Se o contrato da fundação tem a seção UI, a linha UI de 'Verificação por superfície' cita um ADR aceito ou está 'pendente de ADR' e listada em 'Pendentes de ADR'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "rf-013-integracoes",
+      "prompt": "quero o plano de implementação e os critérios testáveis do painel do anunciante (RF-013) do viewstore. sem perguntas, decide e me diz o que assumiu.",
+      "expected_output": "docs/features/RF-013-painel-do-anunciante-com-comprovacao/ com os três arquivos. Manifesto com os critérios do RF-013 e os três de integração que terminam nele (RF-010 → RF-013, RF-011 → RF-013, RF-012 → RF-013), literais e cobertos; nenhum critério RF-013 → X; contrato sem RF fora do fecho (RF-014, RF-015, RF-016 ausentes). Surfaces UI e API HTTP; estado persistido declarativo (campanha contratada, exibições registradas) sem misturar com arquivo.",
+      "files": ["evals/files/viewstore"],
+      "assertions": [
+        "validate.py da skill sai com 0 erros em docs/features",
+        "Existem spec.md, plan.md e contract.md em docs/features/RF-013-painel-do-anunciante-com-comprovacao/",
+        "O manifesto tem as três linhas de integração RF-010 → RF-013, RF-011 → RF-013 e RF-012 → RF-013",
+        "contract.md não cita RF-014, RF-015 nem RF-016",
+        "contract.md tem as seções '## UI' e '## API HTTP'",
+        "spec.md não tem tabela que ligue teste a critério de aceitação"
+      ]
+    }
+  ]
+}

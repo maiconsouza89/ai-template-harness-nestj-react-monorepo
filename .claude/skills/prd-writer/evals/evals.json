@@ -1,0 +1,113 @@
+{
+  "skill_name": "prd-writer",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Preciso do PRD do sistema que vamos construir, em docs/product/prd.md. Não tenho mais ninguém pra responder perguntas agora, então usa o que está aqui e marca hipótese onde faltar.\n\nÉ um sistema de agendamento para barbearias pequenas (1 a 5 cadeiras). Hoje o dono marca no WhatsApp e numa agenda de papel; perde uns 8 a 10 horários por semana por desencontro e não-comparecimento, e gasta quase 1 hora por dia respondendo mensagem. Já tentaram usar o Google Agenda compartilhado mas os clientes não usavam.\n\nPúblico: dono da barbearia (administra), barbeiros (veem a própria agenda) e cliente final (marca pelo celular sem instalar nada). Objetivo: reduzir não-comparecimento pela metade em 3 meses e tirar o dono do WhatsApp.\n\nO que precisa ter: cadastro da barbearia com serviços (nome, duração, preço) e barbeiros com horário de trabalho; cliente escolhe serviço, barbeiro (ou 'qualquer'), dia e horário livre e confirma com nome e telefone; lembrete automático pro cliente 24h e 2h antes com opção de cancelar; cliente pode cancelar/remarcar até 2h antes; dono vê a agenda do dia de todos e marca manualmente também (cliente que liga); marcar não-comparecimento e, depois de 2 faltas em 60 dias, o cliente só agenda pagando sinal. Fora de escopo: pagamento online do serviço inteiro, programa de fidelidade, app nativo, múltiplas unidades.\n\nA gente já decidiu que vai ser Node com Postgres e o lembrete via WhatsApp Business API.",
+      "expected_output": "docs/product/prd.md completo em português seguindo o template: resumo, contexto com números, objetivos com métrica e meta, escopo, RFs numerados com fluxo/exceções/erros/prioridade, NFRs com performance e disponibilidade (hipóteses marcadas), decisões de produto (sinal após 2 faltas, janela de 2h), dependência externa do canal de mensagens, riscos, critérios de aceitação, validação, e blocos 'Depende de' por RF. Mapa Mermaid, ondas e caminho crítico só no roadmap. Node/Postgres/WhatsApp API não aparecem como stack no PRD (o canal de mensagens aparece como dependência externa descrita pelo que faz); o relatório final lista essas decisões como pendentes de ADR. Junto, docs/product/roadmap.md gerado com todos os RFs pendentes.",
+      "files": [],
+      "assertions": [
+        "PRD em português com as 11 seções do template presentes e na ordem (Resumo ... Validação), sem seção de mapa de dependências",
+        "Todo requisito funcional tem id RF-NNN, descrição, 'Para quem', fluxo principal (3 a 8 passos), exceções, prioridade e 2 a 5 critérios de aceitação próprios cobrindo sucesso e falha",
+        "Requisitos não funcionais incluem Performance e Disponibilidade com meta numérica",
+        "PRD sem grafo, ondas ou caminho crítico; cada RF com dependência tem bloco 'Depende de' com itens 'RF-NNN|DEP-N (dado|fluxo|regra): o quê', sem ciclos, citando só RFs e DEPs existentes",
+        "docs/product/roadmap.md tem o grafo Mermaid, a tabela de ondas cobrindo todos os RFs respeitando dependências e o caminho crítico na Situação",
+        "Hipóteses marcadas explicitamente com '(hipótese)' onde o brief não deu a informação",
+        "Nenhum termo de stack (linguagem, banco, framework, protocolo) no corpo do PRD",
+        "Relatório final lista hipóteses, lacunas e decisões técnicas pendentes de ADR",
+        "validate.py sai com 0 erros no PRD gerado",
+        "Regra de produto 'sinal após 2 faltas em 60 dias' e 'janela de cancelamento de 2h' aparecem como decisão de produto ou RF",
+        "Node, Postgres e WhatsApp Business API não aparecem como stack no PRD; canal de lembretes aparece como dependência externa e o relatório os cita como pendentes de ADR",
+        "RFs que criam, alteram ou apagam dado, dinheiro ou permissão têm 'Erros previstos'; RF só de consulta pode omitir",
+        "Todo item 'dado' de 'Depende de' tem critério de integração citando os dois RFs na seção global de critérios",
+        "docs/product/roadmap.md existe, foi gerado pelo roadmap.py, com todos os RFs como pendente, grafo colorido e seção Situação"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "monta o PRD em docs/product/prd.md de um portal interno de reembolso de despesas pra nossa empresa (uns 300 funcionários, 12 gestores aprovadores, financeiro com 3 pessoas). hoje é formulário em excel mandado por email, o financeiro gasta ~40h/mês conferindo e uns 15% dos pedidos voltam por falta de nota ou centro de custo errado. pagamento atrasa em média 18 dias.\n\nquero: funcionário cadastra despesa com foto/pdf da nota, valor, data, categoria e centro de custo; política limita valor por categoria (ex: almoço até R$ 60, hotel até R$ 400/noite) e bloqueia acima disso salvo justificativa; gestor aprova ou devolve com comentário; financeiro vê fila de aprovados, marca como pago e exporta lote pro sistema contábil que a gente já usa; funcionário acompanha status; relatório mensal por centro de custo pro financeiro. meta: pagamento em até 7 dias, devolução abaixo de 5%, financeiro gastando menos de 10h/mês. fora: adiantamento de viagem, cartão corporativo, integração automática com o contábil (por enquanto exporta arquivo). segue sem me perguntar, assume o que precisar.",
+      "expected_output": "PRD em português conforme template, com RFs separados para cadastro, validação de política, aprovação, pagamento/exportação, acompanhamento e relatório; política por categoria como decisão de produto; exportação para o sistema contábil como dependência externa/pré-requisito descrita pelo que faz; NFRs com permissão por papel e auditoria; blocos 'Depende de' por RF (grafo e ondas só no roadmap) onde cadastro precede validação/aprovação e aprovação precede pagamento; roadmap com ondas mostrando paralelismo (ex: relatório e acompanhamento em paralelo a pagamento) e caminho crítico; hipóteses marcadas; validador passa sem erro. Junto, docs/product/roadmap.md gerado com todos os RFs pendentes.",
+      "files": [],
+      "assertions": [
+        "PRD em português com as 11 seções do template presentes e na ordem (Resumo ... Validação), sem seção de mapa de dependências",
+        "Todo requisito funcional tem id RF-NNN, descrição, 'Para quem', fluxo principal (3 a 8 passos), exceções, prioridade e 2 a 5 critérios de aceitação próprios cobrindo sucesso e falha",
+        "Requisitos não funcionais incluem Performance e Disponibilidade com meta numérica",
+        "PRD sem grafo, ondas ou caminho crítico; cada RF com dependência tem bloco 'Depende de' com itens 'RF-NNN|DEP-N (dado|fluxo|regra): o quê', sem ciclos, citando só RFs e DEPs existentes",
+        "docs/product/roadmap.md tem o grafo Mermaid, a tabela de ondas cobrindo todos os RFs respeitando dependências e o caminho crítico na Situação",
+        "Hipóteses marcadas explicitamente com '(hipótese)' onde o brief não deu a informação",
+        "Nenhum termo de stack (linguagem, banco, framework, protocolo) no corpo do PRD",
+        "Relatório final lista hipóteses, lacunas e decisões técnicas pendentes de ADR",
+        "validate.py sai com 0 erros no PRD gerado",
+        "Limites por categoria (R$ 60 almoço, R$ 400 hotel) e bloqueio salvo justificativa aparecem como RF ou decisão de produto",
+        "Exportação para o sistema contábil aparece como RF descrito pelo que faz e dependência externa/pré-requisito, sem integração automática (fora de escopo)",
+        "RFs que criam, alteram ou apagam dado, dinheiro ou permissão têm 'Erros previstos'; RF só de consulta pode omitir",
+        "Todo item 'dado' de 'Depende de' tem critério de integração citando os dois RFs na seção global de critérios",
+        "docs/product/roadmap.md existe, foi gerado pelo roadmap.py, com todos os RFs como pendente, grafo colorido e seção Situação"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Quero estruturar a ideia antes de começar a codar. É uma plataforma pra uma escola de idiomas pequena oferecer cursos online gravados com certificado. Aluno compra o curso, assiste as aulas em ordem, faz um quiz ao final de cada módulo (precisa de 70% pra liberar o próximo), e no fim do curso ganha certificado em PDF com código de verificação público. Professor sobe vídeo, material em PDF e monta o quiz. Admin da escola cadastra professores e cursos, define preço, e vê relatório de vendas e conclusão. Hoje eles vendem pelo Hotmart e mandam as aulas por link do Drive, perdem controle de quem concluiu e emitem certificado na mão (cerca de 30 por mês, 2 dias de atraso). Objetivo: 100% dos certificados automáticos e taxa de conclusão de curso de 25% pra 40% em 6 meses. Fora de escopo: aulas ao vivo, fórum, app mobile, afiliados. Gera o docs/product/prd.md, não precisa me entrevistar, marca o que for suposição.",
+      "expected_output": "PRD em português seguindo o template; RFs para cadastro de cursos/professores, publicação de conteúdo, compra, assistir em ordem, quiz com gate de 70%, certificado com verificação pública, relatórios; regra de 70% e ordem obrigatória como decisões de produto com trade-off; meio de pagamento como dependência externa descrita pelo que faz (sem citar Hotmart como stack escolhida); 'Depende de' formando a cadeia cadastro → conteúdo → compra → aula → quiz → certificado e paralelismo de relatório/verificação pública visível nas ondas do roadmap; validador sem erro; hipóteses marcadas. Junto, docs/product/roadmap.md gerado com todos os RFs pendentes.",
+      "files": [],
+      "assertions": [
+        "PRD em português com as 11 seções do template presentes e na ordem (Resumo ... Validação), sem seção de mapa de dependências",
+        "Todo requisito funcional tem id RF-NNN, descrição, 'Para quem', fluxo principal (3 a 8 passos), exceções, prioridade e 2 a 5 critérios de aceitação próprios cobrindo sucesso e falha",
+        "Requisitos não funcionais incluem Performance e Disponibilidade com meta numérica",
+        "PRD sem grafo, ondas ou caminho crítico; cada RF com dependência tem bloco 'Depende de' com itens 'RF-NNN|DEP-N (dado|fluxo|regra): o quê', sem ciclos, citando só RFs e DEPs existentes",
+        "docs/product/roadmap.md tem o grafo Mermaid, a tabela de ondas cobrindo todos os RFs respeitando dependências e o caminho crítico na Situação",
+        "Hipóteses marcadas explicitamente com '(hipótese)' onde o brief não deu a informação",
+        "Nenhum termo de stack (linguagem, banco, framework, protocolo) no corpo do PRD",
+        "Relatório final lista hipóteses, lacunas e decisões técnicas pendentes de ADR",
+        "validate.py sai com 0 erros no PRD gerado",
+        "Gate de 70 por cento no quiz e ordem obrigatória das aulas aparecem como RF e/ou decisão de produto com trade-off",
+        "Certificado com código de verificação público é RF próprio e meio de pagamento é dependência externa descrita pelo que faz",
+        "RFs que criam, alteram ou apagam dado, dinheiro ou permissão têm 'Erros previstos'; RF só de consulta pode omitir",
+        "Todo item 'dado' de 'Depende de' tem critério de integração citando os dois RFs na seção global de critérios",
+        "docs/product/roadmap.md existe, foi gerado pelo roadmap.py, com todos os RFs como pendente, grafo colorido e seção Situação"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "O PRD da barbearia está em docs/product/prd.md e o roadmap em docs/product/roadmap.md (o RF-001 já está feito e o RF-002 em andamento). Mudança de escopo: a agenda do dono (RF-005) saiu dessa entrega, o dono vai usar o papel por enquanto. E entra um requisito novo: o dono marca não comparecimento, e cliente com 2 faltas em 60 dias só agenda pagando sinal. Atualiza tudo, não precisa me entrevistar.",
+      "expected_output": "Modo Revisão: RF-005 sai dos requisitos e vai para Fora de escopo com motivo; RF novo recebe RF-006 (não reutiliza RF-005); como a marcação de falta não tem mais a agenda do dono, o RF novo precisa de um ponto de entrada próprio ou hipótese marcada; blocos 'Depende de' e critérios de integração refeitos, ondas recalculadas pelo roadmap; versão sobe para 0.2.0 com data; validador sem erro; roadmap sincronizado preservando RF-001 feito e RF-002 em andamento, RF-005 como removido e RF-006 pendente.",
+      "files": [
+        "evals/files/barbearia/prd.md",
+        "evals/files/barbearia/roadmap.md"
+      ],
+      "assertions": [
+        "RF-005 não está mais em Requisitos funcionais e aparece em Fora de escopo com motivo",
+        "O requisito novo usa RF-006 (nenhum número reutilizado)",
+        "Versão do cabeçalho sobe para 0.2.0 e a data é atualizada",
+        "O RF novo tem 'Para quem', critérios de aceitação próprios e, se lê marcações, 'Depende de' com item 'dado' e critério de integração",
+        "Regra '2 faltas em 60 dias exige sinal' aparece como decisão de produto com justificativa e trade-off ou dentro do RF",
+        "Meio de cobrança do sinal aparece como dependência externa descrita pelo que faz, sem stack",
+        "validate.py sai com 0 erros",
+        "roadmap.md mantém RF-001 feito e RF-002 em andamento, tem RF-005 como removido com observação e RF-006 como pendente",
+        "Relatório final diz o que mudou no PRD e no roadmap",
+        "O pedido vira um único RF novo (RF-006); RF-007 só existe se o relatório justificar a divisão (prioridade diferente ou ciclo de dependência que um RF só não resolve)",
+        "roadmap.md está no formato gerado: rodar roadmap.py sync numa cópia não altera o arquivo",
+        "Grafo do roadmap.md reflete os status: RF001 com classe feito, RF002 com classe andamento e RF-005 fora do grafo"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "atualiza o andamento da barbearia: o RF-002 terminou ontem, o RF-003 travou porque a gente ainda não fechou contrato com o serviço de mensagens, e começamos o RF-004 hoje. o que dá pra pegar agora? (PRD e roadmap estão em docs/product/)",
+      "expected_output": "Modo Progresso: roadmap.py set para RF-002 feito, RF-003 bloqueado com motivo, RF-004 em andamento; prd.md não é alterado; resposta mostra a Situação: onda atual, liberados (RF-005), bloqueados com motivo e caminho crítico restante.",
+      "files": [
+        "evals/files/barbearia/prd.md",
+        "evals/files/barbearia/roadmap.md"
+      ],
+      "assertions": [
+        "prd.md fica byte a byte igual ao original",
+        "roadmap.md tem RF-002 feito, RF-003 bloqueado com motivo citando o contrato do serviço de mensagens e RF-004 em andamento",
+        "RF-001 continua feito",
+        "Nós do grafo no roadmap.md estão com a classe de cor correspondente ao novo status",
+        "A resposta diz que RF-005 está liberado para começar",
+        "A resposta cita o bloqueio do RF-003 e o caminho crítico restante",
+        "roadmap.md está no formato gerado: rodar roadmap.py sync numa cópia não altera o arquivo",
+        "Seção Situação do roadmap.md atualizada: 2 de 5 concluídos, RF-005 liberado, RF-003 entre os bloqueados com motivo"
+      ]
+    }
+  ]
+}

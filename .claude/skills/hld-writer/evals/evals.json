@@ -1,0 +1,108 @@
+{
+  "skill_name": "hld-writer",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Já temos o PRD do sistema de agendamento de barbearias em docs/product/prd.md. Agora preciso do HLD em docs/architecture/hld.md. Não tenho ninguém pra responder perguntas, então segue direto e marca hipótese onde faltar.\n\nO que já está decidido: vai ser um serviço só (monólito modular) em Node.js com PostgreSQL, rodando em contêiner na cloud; lembretes saem pela WhatsApp Business API, com um worker separado consumindo uma fila; o sinal é cobrado por um gateway de pagamento via link (Pix ou cartão). O cliente acessa por página web no celular, sem app. Dono e barbeiro entram com e-mail e senha; cliente não tem conta, acessa pelo link do agendamento com token.\n\nAinda não escrevemos nenhum ADR.",
+      "expected_output": "docs/architecture/hld.md em português seguindo o template: cabeçalho com PRD e versão; objetivo técnico citando RFs; diagrama Mermaid de componentes com API, serviço de agenda, worker de lembretes, banco, fila e sistemas externos (WhatsApp, gateway); tabela de tecnologias com Node.js, PostgreSQL, fila e WhatsApp API todas 'pendente de ADR'; componentes com responsabilidades e dependências; fluxos de agendamento, lembrete e cobrança de sinal; modelo de dados com Barbearia, Serviço, Barbeiro, Agendamento, Cliente/Falta; interfaces com protocolo e exposição; metas de disponibilidade (99.5 do PRD) e performance (1 s do PRD); segurança com token por link para cliente e e-mail/senha para dono; observabilidade; riscos; rastreabilidade cobrindo RF-001 a RF-006; decisões pendentes de ADR listando as tecnologias; relatório final com hipóteses e pendências.",
+      "files": [
+        "evals/files/prd.md"
+      ],
+      "assertions": [
+        "HLD em português em docs/architecture/hld.md com as 12 seções '## ' do template presentes e na ordem (Objetivo técnico ... ADRs e próximos passos)",
+        "Cabeçalho com '# HLD:', Versão, Data em AAAA-MM-DD, Responsável e linha 'PRD:'",
+        "Arquitetura geral tem diagrama Mermaid (graph LR) de componentes e todo componente da tabela aparece como nó dele",
+        "Tabela de tecnologias tem coluna Decisão preenchida em toda linha com ADR-NNNN existente ou 'pendente de ADR', e toda tecnologia pendente aparece em 'Decisões pendentes de ADR'",
+        "Há pelo menos 2 fluxos '### Fluxo:' com 3 a 8 passos cada, mais 'Fluxo de dados' e 'Persistência e replicação' preenchidos",
+        "Tabela de interfaces com Nome, Tipo, Protocolo, Exposição (interna ou externa) e SLA ou limite com número em cada linha",
+        "Metas de escalabilidade incluem disponibilidade e recuperação (RTO/RPO) com número",
+        "Segurança (Autenticação, Autorização, Proteção de dados, Gestão de segredos) e Observabilidade (Logs, Métricas, Tracing, Dashboards e alertas) têm todas as subseções preenchidas com prática concreta",
+        "Cada risco tem Probabilidade (baixa|media|alta), Impacto, Mitigação em lista e Plano de contingência",
+        "Tudo que não veio do brief está marcado com '(hipótese)' e não há travessão '—' no documento",
+        "validate.py da skill hld-writer sai com 0 erros no HLD gerado",
+        "Relatório final lista hipóteses, decisões pendentes de ADR e lacunas abertas",
+        "Seção de rastreabilidade cobre RF-001 a RF-006 (todos os RFs do PRD) com componentes, interfaces e fluxo, e não cita RF inexistente",
+        "Metas reutilizam os NFRs do PRD (99.5 por cento de disponibilidade e lista de horários em até 1 s) em vez de inventar outros",
+        "Node.js, PostgreSQL, WhatsApp Business API, a fila e o gateway de pagamento aparecem como tecnologias ou sistemas externos com decisão 'pendente de ADR' (não há ADR no repositório)"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "monta o HLD em docs/architecture/hld.md do portal interno de reembolso de despesas. não tem PRD ainda, usa o que tá aqui. ~300 funcionários, 12 gestores, financeiro com 3 pessoas. funcionário cadastra despesa com foto/pdf da nota, valor, data, categoria e centro de custo; política limita valor por categoria e bloqueia acima salvo justificativa; gestor aprova ou devolve; financeiro vê fila de aprovados, marca pago e exporta lote em CSV pro sistema contábil (SAP, só exportação de arquivo por enquanto); funcionário acompanha status; relatório mensal por centro de custo.\n\ntécnico: Python com Django, Postgres, arquivos num storage de objetos compatível com S3, login via SSO corporativo (Azure AD, OIDC). roda on-premises no datacenter da empresa, em Kubernetes que a infra já mantém. a infra já tem Prometheus e Grafana. segue sem me perguntar, assume o que precisar.",
+      "expected_output": "docs/architecture/hld.md em português conforme template, cabeçalho 'PRD: não há PRD'; objetivo técnico derivado do brief; diagrama de componentes com portal web, API/serviço de reembolso, motor de política, storage de notas, banco, exportador CSV, SSO e SAP como externos; tecnologias (Django, PostgreSQL, storage S3, Kubernetes, OIDC) com 'pendente de ADR'; fluxos de cadastro+política, aprovação e exportação; modelo de dados com Despesa, Nota, Política/Limite, Aprovação, Lote de pagamento, Centro de custo; interfaces (portal, API interna, exportação de arquivo) com exposição; metas com número marcadas hipótese; segurança com OIDC e papéis; observabilidade usando Prometheus/Grafana; riscos; rastreabilidade dizendo que não há PRD; decisões pendentes de ADR; validador sem erro.",
+      "files": [],
+      "assertions": [
+        "HLD em português em docs/architecture/hld.md com as 12 seções '## ' do template presentes e na ordem (Objetivo técnico ... ADRs e próximos passos)",
+        "Cabeçalho com '# HLD:', Versão, Data em AAAA-MM-DD, Responsável e linha 'PRD:'",
+        "Arquitetura geral tem diagrama Mermaid (graph LR) de componentes e todo componente da tabela aparece como nó dele",
+        "Tabela de tecnologias tem coluna Decisão preenchida em toda linha com ADR-NNNN existente ou 'pendente de ADR', e toda tecnologia pendente aparece em 'Decisões pendentes de ADR'",
+        "Há pelo menos 2 fluxos '### Fluxo:' com 3 a 8 passos cada, mais 'Fluxo de dados' e 'Persistência e replicação' preenchidos",
+        "Tabela de interfaces com Nome, Tipo, Protocolo, Exposição (interna ou externa) e SLA ou limite com número em cada linha",
+        "Metas de escalabilidade incluem disponibilidade e recuperação (RTO/RPO) com número",
+        "Segurança (Autenticação, Autorização, Proteção de dados, Gestão de segredos) e Observabilidade (Logs, Métricas, Tracing, Dashboards e alertas) têm todas as subseções preenchidas com prática concreta",
+        "Cada risco tem Probabilidade (baixa|media|alta), Impacto, Mitigação em lista e Plano de contingência",
+        "Tudo que não veio do brief está marcado com '(hipótese)' e não há travessão '—' no documento",
+        "validate.py da skill hld-writer sai com 0 erros no HLD gerado",
+        "Relatório final lista hipóteses, decisões pendentes de ADR e lacunas abertas",
+        "Cabeçalho tem 'PRD: não há PRD' e a seção de rastreabilidade diz que não há PRD em vez de inventar RFs",
+        "Ambiente de implantação é on-premises em Kubernetes e a observabilidade aproveita Prometheus e Grafana já existentes",
+        "SAP aparece como sistema externo e a exportação de lote CSV aparece como interface do tipo arquivo, sem integração automática",
+        "Django, PostgreSQL, storage compatível com S3, Kubernetes e OIDC/Azure AD estão na tabela de tecnologias como 'pendente de ADR'"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Preciso desenhar a arquitetura de uma plataforma de ingestão de telemetria de equipamentos industriais (uns 2 mil sensores hoje, 20 mil em 18 meses, cada um mandando leitura a cada 5 segundos). Os dados chegam por MQTT de gateways nas fábricas, passam por validação e enriquecimento (vincular ao equipamento e à linha de produção), vão pra um stream (Kafka), são processados pra gerar alertas de limite (temperatura, vibração) em menos de 10 segundos e armazenados em banco de séries temporais pra dashboards e consulta histórica de 2 anos. Operadores veem alertas numa tela e podem reconhecer; engenheiros consultam histórico por API. Híbrido: gateways e broker MQTT ficam on-premises nas fábricas, o resto na cloud. Já temos ADR aceito de Kafka como plataforma de streaming (docs/architecture/adr/0007-usar-kafka-como-plataforma-de-streaming.md). Gera o docs/architecture/hld.md sem me entrevistar, marca o que for suposição.",
+      "expected_output": "docs/architecture/hld.md em português conforme template, sem PRD; diagrama de componentes com gateway MQTT, broker, ingestor/validador, enriquecedor, Kafka, processador de alertas, banco de séries temporais, API de consulta, tela de operação; tabela de tecnologias com Kafka citando ADR-0007 e as demais 'pendente de ADR'; fluxos de ingestão e de alerta com passos ponta a ponta; fluxo de dados origem → transformação → destino; interfaces incluindo MQTT (externa/interna), tópicos Kafka (interna), API de histórico; escalabilidade com particionamento por equipamento, backpressure e metas numéricas (alerta < 10 s, 20 mil sensores); segurança com mTLS nos gateways; observabilidade com lag de consumidor; riscos de volume e conectividade das fábricas; rastreabilidade sem PRD; validador sem erro.",
+      "files": [
+        "evals/files/0007-usar-kafka-como-plataforma-de-streaming.md"
+      ],
+      "assertions": [
+        "HLD em português em docs/architecture/hld.md com as 12 seções '## ' do template presentes e na ordem (Objetivo técnico ... ADRs e próximos passos)",
+        "Cabeçalho com '# HLD:', Versão, Data em AAAA-MM-DD, Responsável e linha 'PRD:'",
+        "Arquitetura geral tem diagrama Mermaid (graph LR) de componentes e todo componente da tabela aparece como nó dele",
+        "Tabela de tecnologias tem coluna Decisão preenchida em toda linha com ADR-NNNN existente ou 'pendente de ADR', e toda tecnologia pendente aparece em 'Decisões pendentes de ADR'",
+        "Há pelo menos 2 fluxos '### Fluxo:' com 3 a 8 passos cada, mais 'Fluxo de dados' e 'Persistência e replicação' preenchidos",
+        "Tabela de interfaces com Nome, Tipo, Protocolo, Exposição (interna ou externa) e SLA ou limite com número em cada linha",
+        "Metas de escalabilidade incluem disponibilidade e recuperação (RTO/RPO) com número",
+        "Segurança (Autenticação, Autorização, Proteção de dados, Gestão de segredos) e Observabilidade (Logs, Métricas, Tracing, Dashboards e alertas) têm todas as subseções preenchidas com prática concreta",
+        "Cada risco tem Probabilidade (baixa|media|alta), Impacto, Mitigação em lista e Plano de contingência",
+        "Tudo que não veio do brief está marcado com '(hipótese)' e não há travessão '—' no documento",
+        "validate.py da skill hld-writer sai com 0 erros no HLD gerado",
+        "Relatório final lista hipóteses, decisões pendentes de ADR e lacunas abertas",
+        "Kafka aparece na tabela de tecnologias com decisão ADR-0007 e as demais tecnologias como 'pendente de ADR'; ADR-0007 está em 'ADRs associados'",
+        "Escalabilidade cita particionamento por equipamento ou sensor e backpressure, com metas numéricas de alerta em menos de 10 s e 20 mil sensores",
+        "Ambiente é híbrido com broker MQTT on-premises e processamento na cloud; segurança usa mTLS ou certificados por gateway",
+        "Interfaces incluem a entrada MQTT, tópicos Kafka (interna) e a API de histórico, cada uma com exposição e SLA"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Gera o HLD do sistema de agendamento de barbearias em docs/architecture/hld.md. O PRD está em docs/product/prd.md e já temos alguns ADRs em docs/architecture/adr, usa eles. O que mais sei: vai ser um serviço só (monólito modular) rodando em contêiner na cloud, com um worker separado consumindo a fila de lembretes; cliente acessa por página web no celular, sem conta, pelo link do agendamento com token; dono e barbeiro fazem login; lembretes saem por um canal de mensagens (WhatsApp Business API) e o sinal é cobrado por link de pagamento (Pix ou cartão). Não tenho ninguém pra responder perguntas, segue direto e marca hipótese onde faltar. Repositório no diretório atual.",
+      "expected_output": "HLD conforme template citando os ADRs existentes pelo status: PostgreSQL com ADR-0005 e OIDC com ADR-0006 (aceitos), fila com ADR-0007 Kafka (o 0003 RabbitMQ está superseded e não pode ser citado), Redis como ADR-0004 (proposed) e em pendências como 'em discussão'; Node.js, WhatsApp Business API e gateway de pagamento como 'pendente de ADR'; cabeçalho 'PRD: docs/product/prd.md versão 0.2.0'; rastreabilidade RF-001 a RF-005; validate.py sem erro; relatório final diz quais ADRs foram lidos e como entraram.",
+      "files": [
+        "evals/files/adrs-mistos"
+      ],
+      "assertions": [
+        "HLD em português em docs/architecture/hld.md com as 12 seções '## ' do template presentes e na ordem (Objetivo técnico ... ADRs e próximos passos)",
+        "Cabeçalho com '# HLD:', Versão, Data em AAAA-MM-DD, Responsável e linha 'PRD:'",
+        "Arquitetura geral tem diagrama Mermaid (graph LR) de componentes e todo componente da tabela aparece como nó dele",
+        "Tabela de tecnologias tem coluna Decisão preenchida em toda linha com ADR-NNNN existente ou 'pendente de ADR', e toda tecnologia pendente aparece em 'Decisões pendentes de ADR'",
+        "Há pelo menos 2 fluxos '### Fluxo:' com 3 a 8 passos cada, mais 'Fluxo de dados' e 'Persistência e replicação' preenchidos",
+        "Tabela de interfaces com Nome, Tipo, Protocolo, Exposição (interna ou externa) e SLA ou limite com número em cada linha",
+        "Metas de escalabilidade incluem disponibilidade e recuperação (RTO/RPO) com número",
+        "Segurança (Autenticação, Autorização, Proteção de dados, Gestão de segredos) e Observabilidade (Logs, Métricas, Tracing, Dashboards e alertas) têm todas as subseções preenchidas com prática concreta",
+        "Cada risco tem Probabilidade (baixa|media|alta), Impacto, Mitigação em lista e Plano de contingência",
+        "Tudo que não veio do brief está marcado com '(hipótese)' e não há travessão '—' no documento",
+        "validate.py da skill hld-writer sai com 0 erros no HLD gerado",
+        "Relatório final lista hipóteses, decisões pendentes de ADR e lacunas abertas",
+        "Tabela de tecnologias cita ADR-0005 para PostgreSQL e ADR-0006 para OIDC, e nenhuma dessas duas está 'pendente de ADR'",
+        "A fila de lembretes cita ADR-0007 (Kafka); ADR-0003 (RabbitMQ, superseded) não é citado em lugar nenhum do HLD",
+        "Redis aparece como 'ADR-0004 (proposed)' na coluna Decisão e em 'Decisões pendentes de ADR' como em discussão, não como decisão aceita",
+        "WhatsApp Business API e o gateway de pagamento estão 'pendente de ADR' na tabela de tecnologias e listados em 'Decisões pendentes de ADR'",
+        "Cabeçalho tem 'PRD: docs/product/prd.md versão 0.2.0' (a versão atual do PRD) e a rastreabilidade cobre RF-001 a RF-005",
+        "Relatório final diz quais ADRs foram lidos e com que status cada um entrou no HLD"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,35 @@
+# Release automática: a cada push em main, o release-please abre ou atualiza o PR de release
+# (versão e CHANGELOG calculados dos commits). O PR entra em auto-merge: quando os checks
+# obrigatórios passam, o GitHub mescla, cria a tag vX.Y.Z e a GitHub Release.
+#
+# Token: PRs criados com o GITHUB_TOKEN não disparam a CI, então o auto-merge nunca completaria.
+# Cadastre o secret RELEASE_PLEASE_TOKEN (token pessoal fine-grained com Contents e Pull requests
+# em leitura e escrita). Sem o secret, o fallback usa GITHUB_TOKEN e o PR fica para merge manual.
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release:
+    name: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        id: release
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+
+      - name: Ativa auto-merge no PR de release
+        if: steps.release.outputs.prs_created == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN || secrets.GITHUB_TOKEN }}
+          PR_JSON: ${{ steps.release.outputs.pr }}
+        run: |
+          number=$(printf '%s' "$PR_JSON" | jq -r .number)
+          gh pr merge "$number" --auto --squash --repo "$GITHUB_REPOSITORY"

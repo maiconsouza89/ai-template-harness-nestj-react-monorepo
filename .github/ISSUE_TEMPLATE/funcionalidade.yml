@@ -1,0 +1,30 @@
+name: Funcionalidade
+description: Proposta de melhoria ou novo padrão para o template.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema
+      description: Que dificuldade isso resolve para quem usa o template ou para o agente?
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Proposta
+      description: O que mudaria e onde (arquivo, alvo do Makefile, workflow, documento).
+    validations:
+      required: true
+  - type: textarea
+    id: alternativas
+    attributes:
+      label: Alternativas consideradas
+      description: Outras formas de resolver e por que foram descartadas. Vira a base do ADR, se a mudança for uma decisão de arquitetura ou tecnologia.
+  - type: checkboxes
+    id: escopo
+    attributes:
+      label: Escopo
+      options:
+        - label: Se este é o repositório do template, a mudança continua agnóstica de stack.
+        - label: É uma decisão de arquitetura ou tecnologia cara de reverter e, portanto, precisa de um ADR.

@@ -1,0 +1,37 @@
+#!/bin/sh
+# Valida o cabeçalho da mensagem segundo Conventional Commits 1.0.0.
+# Ativado por `git config core.hooksPath .githooks` (ver scripts/setup.sh).
+# Tipos e escopos em inglês; descrição em português.
+# LC_ALL=C: o regex e a contagem trabalham por byte, sem depender de uma locale UTF-8 instalada.
+# Caracteres acentuados (UTF-8) são aceitos; o tamanho conta caracteres descartando os bytes de
+# continuação (10xxxxxx).
+
+export LC_ALL=C
+
+msg_file="$1"
+header=$(sed -n '1p' "$msg_file")
+
+case "$header" in
+  "Merge "*|"fixup! "*|"squash! "*|"Revert "*) exit 0 ;;
+esac
+
+types='build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test'
+pattern="^($types)(\([a-z0-9._/-]+\))?!?: [^A-Z[:space:]](.*[^.[:space:]])?$"
+
+fail() {
+  printf '%s\n' "commit-msg: cabeçalho inválido:" "  $header" "" "$1" "" \
+    "Formato: <tipo>[(escopo)][!]: <descrição>" \
+    "Tipos:   $types" \
+    "Regras:  descrição em minúsculas, no imperativo, sem ponto final, até 72 caracteres" \
+    "Exemplo: feat(hooks): valida cabeçalho do commit" >&2
+  exit 1
+}
+
+length=$(printf '%s' "$header" | tr -d '\200-\277' | wc -c | tr -d ' ')
+[ "$length" -le 72 ] || fail "O cabeçalho tem $length caracteres (máximo 72)."
+printf '%s\n' "$header" | grep -Eq "$pattern" || fail "O cabeçalho não segue o padrão Conventional Commits."
+
+second=$(sed -n '2p' "$msg_file")
+[ -z "$second" ] || fail "A segunda linha deve estar em branco (separa cabeçalho e corpo)."
+
+exit 0

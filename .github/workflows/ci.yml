@@ -1,0 +1,43 @@
+# CI agnóstica de stack: roda o mesmo `make check` usado localmente (inclui gitleaks no histórico).
+# Actions fixadas por SHA completo (recomendação do GitHub e do OpenSSF); o comentário indica a versão.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # gitleaks varre o histórico completo
+
+      - name: Instala actionlint
+        env:
+          ACTIONLINT_VERSION: 1.7.12
+        run: |
+          mkdir -p "$HOME/.local/bin"
+          curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash \
+            | bash -s -- "$ACTIONLINT_VERSION" "$HOME/.local/bin"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Instala gitleaks
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -fsSL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
+            | tar -xz -C "$HOME/.local/bin" gitleaks
+
+      - name: make check
+        env:
+          CI: "true"
+          PR_FROM_FORK: ${{ github.event.pull_request.head.repo.fork }}
+        run: make check
+

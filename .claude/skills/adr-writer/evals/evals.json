@@ -1,0 +1,60 @@
+{
+  "skill_name": "adr-writer",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "Registra a decisão do runtime do serviço de agendamento. Escolhemos Node.js 22 LTS porque o time inteiro já trabalha com JavaScript no front e a API é majoritariamente I/O (agenda, lembretes). As alternativas que a gente pesou foram Python com FastAPI (o time conhece pouco) e Go (performance que a gente não precisa agora, curva de aprendizado). Já está decidido e em uso, pode entrar como aceito. Não precisa me perguntar nada; o repositório está no diretório atual, com HLD e ADRs em docs/.",
+      "expected_output": "Novo ADR 0008 accepted em docs/architecture/adr/0008-usar-node-js-como-runtime*.md com as três opções e consequências verificáveis; index.md regenerado; docs/architecture/hld.md atualizado: linha Node.js da tabela de tecnologias passa de 'pendente de ADR' para ADR-0008, Node.js sai de 'Decisões pendentes de ADR', entra em 'ADRs associados', versão do HLD sobe de 0.1.0 para 0.1.1 com data de hoje; validate.py da hld-writer sem erro; audit.py sem erro; relatório final cita o ADR e o que mudou no HLD.",
+      "files": [
+        "evals/files/pendencia"
+      ],
+      "assertions": [
+        "Existe docs/architecture/adr/0008-*.md com status accepted, date de hoje, title sobre Node.js como runtime, description 'por que X em vez de Y', supersedes e superseded-by vazios",
+        "O ADR 0008 lista Node.js, Python/FastAPI e Go em 'Opções consideradas', uma linha cada, e tem 2 a 5 consequências com pelo menos um Bom e um Ruim verificáveis",
+        "docs/architecture/adr/index.md foi regenerado e lista o 0008",
+        "Na tabela 'Tecnologias principais' do docs/architecture/hld.md a linha Node.js tem Decisão ADR-0008 e não mais 'pendente de ADR'",
+        "Node.js não aparece mais em 'Decisões pendentes de ADR' do HLD e aparece em 'ADRs associados' como ADR-0008",
+        "Cabeçalho do HLD tem Versão 0.1.1 e Data de hoje; nenhuma outra seção do HLD (componentes, fluxos, rastreabilidade) foi alterada",
+        "python3 .claude/skills/hld-writer/scripts/validate.py docs/architecture/hld.md sai com 0 erros",
+        "python3 .claude/skills/adr-writer/scripts/audit.py docs/architecture/adr sai com 0 erros",
+        "Nenhum travessão '—' no ADR 0008",
+        "Relatório final cita o caminho do ADR 0008 e diz que o HLD foi atualizado"
+      ]
+    },
+    {
+      "id": 1,
+      "prompt": "cria um ADR pra escolha do Zod pra validar as variáveis de ambiente do projeto. as alternativas eram envalid e checagem manual com if no boot. escolhemos Zod porque já usamos pra validar request e dá pra reaproveitar o schema e os tipos. já tá decidido. ainda não temos nenhum ADR no repo (diretório atual), monta a pasta do jeito certo.",
+      "expected_output": "Bootstrap: docs/architecture/adr/ criada com README.md (cópia do asset), 0001-usar-adrs-para-decisoes-de-arquitetura.md accepted com a data de hoje, index.md gerado; depois 0002-usar-zod-para-validar-env.md accepted com as três opções (Zod, envalid, checagem manual), consequências verificáveis, sem Referências inventadas (ou com link real e data de consulta); audit.py sem erro; nenhum arquivo extra (sem template copiado, sem pasta por status).",
+      "files": [],
+      "assertions": [
+        "docs/architecture/adr/ contém exatamente README.md, index.md, 0001-usar-adrs-para-decisoes-de-arquitetura.md e um 0002-*.md sobre Zod; nenhum template.md copiado nem subpasta",
+        "0001 tem status accepted e date de hoje (sem AAAA-MM-DD restante)",
+        "0002 tem status accepted, title com a decisão em voz ativa (usar Zod para validar env), description no formato 'por que X em vez de Y', e lista Zod, envalid e checagem manual em 'Opções consideradas'",
+        "Consequências do 0002 são verificáveis (ex: env inválida derruba o boot) e não desejos genéricos; 2 a 5 bullets",
+        "Se 0002 tem seção Referências, cada bullet tem URL e há 'Consultado em AAAA-MM-DD' com data real; se não há fato externo, a seção foi apagada",
+        "index.md foi gerado pelo audit.py --index e lista 0001 e 0002",
+        "python3 .claude/skills/adr-writer/scripts/audit.py docs/architecture/adr sai com 0 erros e sem aviso de travessão",
+        "Relatório final diz que a pasta foi criada (bootstrap) e cita o caminho e o número do ADR do Zod"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "A gente trocou o RabbitMQ pelo Kafka na fila de lembretes: precisamos reprocessar lembretes e eventos de marcação pra relatórios, e o RabbitMQ descarta a mensagem depois de consumida. Pesamos também o serviço de streaming gerenciado da cloud, mas não queremos acoplar. Registra isso do jeito certo; o ADR do RabbitMQ já existe em docs/architecture/adr e o HLD em docs/architecture/hld.md cita ele. Já está decidido, não precisa perguntar. Repositório no diretório atual.",
+      "expected_output": "Novo ADR 0007 accepted 'Usar Kafka...' com supersedes \"0003\" e Contexto abrindo com o que mudou desde o 0003; ADR 0003 passa a status superseded com superseded-by \"0007\" e date atualizada, corpo intacto; index.md regenerado; no HLD toda citação de ADR-0003 vira ADR-0007 (tabela de tecnologias com Kafka no lugar de RabbitMQ ou mantendo o nome com a decisão nova, e 'ADRs associados'), versão sobe para 0.1.1; validate.py da hld-writer e audit.py sem erro.",
+      "files": [
+        "evals/files/supersede"
+      ],
+      "assertions": [
+        "Existe docs/architecture/adr/0007-*.md accepted sobre Kafka com supersedes \"0003\" e 'Contexto e problema' dizendo o que mudou desde o 0003",
+        "0003 tem status superseded, superseded-by \"0007\" e date atualizada para hoje; o corpo (Contexto, Opções, Decisão, Consequências) do 0003 não foi editado",
+        "0007 lista Kafka, RabbitMQ e serviço gerenciado em 'Opções consideradas' e tem consequências verificáveis",
+        "index.md regenerado mostra 0003 como superseded e 0007 como accepted",
+        "docs/architecture/hld.md não cita mais ADR-0003 em lugar nenhum; a fila de lembretes aponta para ADR-0007 na tabela de tecnologias e em 'ADRs associados'",
+        "Versão do HLD sobe para 0.1.1 com data de hoje e as demais seções ficam intactas",
+        "python3 .claude/skills/hld-writer/scripts/validate.py docs/architecture/hld.md sai com 0 erros",
+        "python3 .claude/skills/adr-writer/scripts/audit.py docs/architecture/adr sai com 0 erros (cadeia de supersede bidirecional)",
+        "Relatório final cita o número novo, o supersede do 0003 e a troca no HLD"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,37 @@
+name: Bug
+description: Algo não funciona como documentado.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar. Preencha o suficiente para reproduzir; o resto é opcional.
+  - type: textarea
+    id: comportamento
+    attributes:
+      label: O que acontece
+      description: Comportamento observado e o esperado.
+      placeholder: "make check falha com ... mas deveria ..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproducao
+    attributes:
+      label: Como reproduzir
+      description: Passos a partir de um clone limpo.
+      placeholder: |
+        1. git clone ... && make setup
+        2. ...
+    validations:
+      required: true
+  - type: textarea
+    id: ambiente
+    attributes:
+      label: Ambiente
+      description: Saída de `git --version`, `make --version`, `sh --version` ou equivalente, e sistema operacional.
+      render: shell
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto adicional
+      description: Logs, capturas, links para PRs ou ADRs relacionados.

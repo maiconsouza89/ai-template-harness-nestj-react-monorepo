@@ -1,0 +1,65 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "release-type": "simple",
+  "include-component-in-tag": false,
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": false,
+  "pull-request-title-pattern": "chore(release): v${version}",
+  "pull-request-header": "Release automática gerada pelo release-please a partir dos commits em main. O merge deste PR cria a tag e a GitHub Release.",
+  "changelog-sections": [
+    {
+      "type": "feat",
+      "section": "Adicionado"
+    },
+    {
+      "type": "fix",
+      "section": "Corrigido"
+    },
+    {
+      "type": "perf",
+      "section": "Alterado"
+    },
+    {
+      "type": "ci",
+      "section": "Manutenção",
+      "hidden": true
+    },
+    {
+      "type": "build",
+      "section": "Manutenção",
+      "hidden": true
+    },
+    {
+      "type": "revert",
+      "section": "Revertido"
+    },
+    {
+      "type": "docs",
+      "section": "Documentação",
+      "hidden": true
+    },
+    {
+      "type": "chore",
+      "section": "Manutenção",
+      "hidden": true
+    },
+    {
+      "type": "refactor",
+      "section": "Manutenção",
+      "hidden": true
+    },
+    {
+      "type": "style",
+      "section": "Manutenção",
+      "hidden": true
+    },
+    {
+      "type": "test",
+      "section": "Manutenção",
+      "hidden": true
+    }
+  ],
+  "packages": {
+    ".": {}
+  }
+}

@@ -1,0 +1,25 @@
+# Segredos
+.env
+.env.*
+!.env.example
+*.pem
+
+# Memória local de agentes
+CLAUDE.local.md
+
+# Sistema operacional
+.DS_Store
+Thumbs.db
+
+# Editores (settings e extensions compartilhados ficam versionados)
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# Temporários
+*.log
+tmp/
+
+# Bancada de evals do skill-creator (snapshots, saídas e benchmarks por iteração)
+.claude/skills/*-workspace/
+__pycache__/

@@ -1,0 +1,41 @@
+# Com squash merge, o título do PR vira o cabeçalho do commit em main.
+# Mesmas regras do hook .githooks/commit-msg: tipos em inglês, descrição minúscula, sem ponto final.
+#
+# SEGURANÇA: pull_request_target roda com token privilegiado no contexto do branch base, inclusive
+# para PRs de fork. Este workflow só lê o título. Não adicione actions/checkout nem execução de
+# código do PR aqui; para isso use um workflow com pull_request.
+name: pr-title
+
+on:
+  pull_request_target:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  pr-title:
+    name: pr-title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@48f256284bd46cdaab1048c3721360e808335d50 # v6.1.1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          types: |
+            build
+            chore
+            ci
+            docs
+            feat
+            fix
+            perf
+            refactor
+            revert
+            style
+            test
+          requireScope: false
+          subjectPattern: ^(?![A-Z\s]).+(?<![.\s])$
+          subjectPatternError: |
+            O título "{title}" não segue o padrão: descrição em minúsculas, sem ponto final,
+            no formato <tipo>[(escopo)][!]: <descrição>. Exemplo: feat(hooks): valida cabeçalho do commit

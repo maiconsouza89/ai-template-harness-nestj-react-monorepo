@@ -1,0 +1,53 @@
+{
+  "skill_name": "c4-writer",
+  "evals": [
+    {
+      "id": 0,
+      "name": "viewstore-hld-completo",
+      "prompt": "o HLD do viewstore tá fechado (docs/architecture/hld.md) e os ADRs todos aceitos. gera os diagramas C4 dele pra eu colocar no PR. não precisa me perguntar nada.",
+      "expected_output": "docs/architecture/diagrams/ com viewstore-c1.puml, viewstore-c2.puml, um C3 do backend (API/Worker com os módulos Contas, Telas e programação, Criativos e moderação, Comercial, Financeiro) e viewstore.md; C4 Code Level pulado porque o HLD não tem assinaturas; módulos não aparecem como containers no C2; tecnologias do C2 batem com os ADRs (NestJS, PostgreSQL com PostGIS, Redis/BullMQ, React SPA, S3/CloudFront); Asaas, Google Maps, SES e Cognito como externos; validador sem erro.",
+      "files": ["evals/files/viewstore"],
+      "assertions": [
+        "validate.py da skill sai com 0 erros em docs/architecture/diagrams",
+        "Existem viewstore-c1.puml, viewstore-c2.puml, ao menos um viewstore-c3*.puml e viewstore.md em docs/architecture/diagrams/",
+        "Não existe viewstore-c4*.puml e o .md marca C4 Code Level como 'pulado' com motivo",
+        "C1 tem Asaas (ou Provedor de pagamento), Google Maps, Amazon SES e Amazon Cognito como System_Ext",
+        "C2 não declara Contas, Comercial ou Financeiro como Container (são módulos do monólito)",
+        "C2 cita NestJS, PostgreSQL e Redis no $techn de algum container",
+        "Cabeçalho do .md tem 'Fonte: docs/architecture/hld.md versão 0.2.0'",
+        "Textos dos diagramas em português com acento (nenhum aviso de 'português sem acento' do validador)"
+      ]
+    },
+    {
+      "id": 1,
+      "name": "fdd-biblioteca-embarcada",
+      "prompt": "terminei o FDD do limitador de taxa em docs/fdd/limitador-de-taxa.md. quero os C4 dele, todos os níveis que der.",
+      "expected_output": "docs/architecture/diagrams/ com limitador-de-taxa-c1..c3 e c4 (o FDD tem assinaturas e structs) e limitador-de-taxa.md; o limitador não aparece como System ou Container separado (biblioteca embarcada no order-gateway); Redis 7.2 e Serviço de pedidos como externos; C4 com Limiter, Store, RedisStore, MemoryStore, Policy, Decision, Key, PolicySource; painel do lojista, limite por IP e sliding_log ausentes dos diagramas e listados em Fora do escopo.",
+      "files": ["evals/files/fdd"],
+      "assertions": [
+        "validate.py da skill sai com 0 erros em docs/architecture/diagrams",
+        "Existe limitador-de-taxa-c4*.puml como diagrama de classes com Limiter, Store, RedisStore e MemoryStore",
+        "C1 e C2 não têm System ou Container próprio para o limitador; ele aparece dentro do order-gateway",
+        "C2 mostra o gateway com Go 1.23 e o Redis com 7.2 no $techn",
+        "Nenhum .puml menciona sliding_log, painel do lojista ou limite por IP",
+        "O .md lista os três itens fora do escopo do FDD em 'Fora do escopo'",
+        "Cabeçalho do .md tem 'Fonte: docs/fdd/limitador-de-taxa.md versão 1.1.0'"
+      ]
+    },
+    {
+      "id": 2,
+      "name": "barbearia-conflito-e-svg",
+      "prompt": "Gera os diagramas C4 do sistema de agendamento de barbearias a partir do HLD e me entrega em SVG também, quero abrir no navegador.",
+      "expected_output": "docs/architecture/diagrams/ com C1, C2 e talvez C3; a fila desenhada como Kafka (ADR-0007 aceito) e o conflito com 'AMQP' da tabela de interfaces registrado em Conflitos e lacunas; Redis do ADR-0004 proposed, se aparecer, com tag hipotese e citado como proposed; ADR-0003 RabbitMQ (superseded) não citado; tentativa de render.sh e relato honesto do resultado (sem motor: instrução de instalação, sem usar servidor público).",
+      "files": ["evals/files/barbearia"],
+      "assertions": [
+        "validate.py da skill sai com 0 erros em docs/architecture/diagrams",
+        "C2 descreve a fila com Kafka no $techn, não RabbitMQ",
+        "O .md tem em 'Conflitos e lacunas' a divergência entre Kafka (ADR-0007) e AMQP (tabela de interfaces do HLD)",
+        "Nenhum arquivo cita ADR-0003",
+        "Se Redis aparece em algum diagrama, ele tem tag hipotese e o .md cita ADR-0004 como proposed",
+        "O relatório final diz se o SVG foi gerado ou por que não, sem enviar o diagrama a servidor externo (nenhum uso de plantuml.com ou kroki)"
+      ]
+    }
+  ]
+}
