@@ -79,6 +79,30 @@ Os logs da API saem em JSON, uma linha por entrada, com um `req.id` único por r
 `OTEL_EXPORTER_OTLP_ENDPOINT` definido (do Compose, um coletor no host fica em
 `http://host.docker.internal:4318`); sem a variável a instrumentação não faz nada.
 
+## Imagens de produção
+
+Cada app sai como imagem Docker multi-stage (ADR-0005), construída a partir da raiz do monorepo
+porque o `turbo prune` precisa do workspace inteiro. A imagem da API leva só o `dist` e as
+dependências de produção sobre Node 26, e sobe com `node --import ./dist/instrumentation.js
+dist/main.js`; a da SPA serve os estáticos do `vite build` pelo nginx em Alpine, com fallback
+para o `index.html`, sem Node.
+
+```sh
+docker build -f apps/api/Dockerfile -t app-api .
+docker build -f apps/web/Dockerfile --build-arg VITE_API_URL=https://api.exemplo.com -t app-web .
+```
+
+A API lê a configuração do ambiente na subida (as mesmas variáveis do `.env.example`, com
+`NODE_ENV=production`) e termina nomeando a que faltar; as migrações não rodam na imagem, e sim
+por `make db-setup`. A SPA fixa `VITE_API_URL` no bundle em tempo de build (ADR-0004), por isso
+o argumento; sem ele, aponta para `http://localhost:3000`. Para experimentar no local, com o
+`postgres` e o `valkey` do Compose no ar:
+
+```sh
+docker run --rm -p 3000:3000 --network "$(basename "$PWD")_default" --env-file .env -e NODE_ENV=production app-api
+docker run --rm -p 8080:80 app-web   # http://localhost:8080
+```
+
 ## O que está incluído
 
 Instruções para agentes (`CLAUDE.md`), `Makefile` com `make check`, hook de commit, CI agnóstica

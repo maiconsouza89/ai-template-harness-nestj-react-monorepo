@@ -38,7 +38,7 @@ O ruleset de `main` exige dois checks verdes antes do merge:
 
 | Check | Workflow | O que faz |
 | --- | --- | --- |
-| `check` | `ci.yml` | `make check` em Ubuntu com shellcheck, actionlint e gitleaks instalados (histórico completo) |
+| `check` | `ci.yml` | `make check` em Ubuntu com Node 26, o pnpm do `packageManager`, as dependências do workspace, shellcheck, actionlint e gitleaks instalados (histórico completo) |
 | `pr-title` | `pr-title.yml` | Título do PR no padrão do hook `commit-msg` |
 
 Para adicionar uma verificação:

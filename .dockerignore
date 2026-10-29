@@ -1,0 +1,27 @@
+# Contexto de build das imagens (apps/*/Dockerfile, ADR-0005) e da imagem de desenvolvimento
+# (docker/dev.Dockerfile). O contexto é a raiz do monorepo, por causa do turbo prune; o que fica
+# de fora aqui não entra em nenhum estágio nem invalida o cache.
+
+# Dependências, artefatos e cache: as imagens instalam e compilam do zero
+node_modules
+**/node_modules
+**/dist
+**/.turbo
+**/*.tsbuildinfo
+**/coverage
+# Cliente Prisma gerado dentro da imagem pelo `pnpm generate` (ADR-0008)
+apps/api/src/generated
+
+# Segredos: a configuração entra por variável de ambiente em tempo de execução, nunca na imagem
+.env
+.env.*
+
+# Nada do repositório além do código: histórico, documentação, harness e temporários
+.git
+.githooks
+.github
+.claude
+.vscode
+docs
+*.log
+tmp

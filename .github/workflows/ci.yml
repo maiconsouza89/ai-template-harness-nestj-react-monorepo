@@ -1,4 +1,7 @@
-# CI agnóstica de stack: roda o mesmo `make check` usado localmente (inclui gitleaks no histórico).
+# CI: roda o mesmo `make check` usado localmente (inclui gitleaks no histórico). Antes dele,
+# instala o que o `make check` desta stack exige: Node 26 (ADR-0013), o pnpm na versão do
+# packageManager do package.json raiz (ADR-0012; nunca por corepack) e as dependências do
+# workspace. O Docker do runner serve ao `make test` (PostgreSQL e Valkey do Compose).
 # Actions fixadas por SHA completo (recomendação do GitHub e do OpenSSF); o comentário indica a versão.
 name: ci
 
@@ -18,6 +21,20 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0 # gitleaks varre o histórico completo
+
+      # Sem `version`: a action lê o campo packageManager do package.json raiz. Vem antes do
+      # setup-node porque o cache do pnpm dele precisa do binário instalado.
+      - name: Instala pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Instala Node 26
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26
+          cache: pnpm
+
+      - name: Instala as dependências do workspace
+        run: pnpm install --frozen-lockfile
 
       - name: Instala actionlint
         env:
