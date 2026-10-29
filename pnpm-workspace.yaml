@@ -1,0 +1,25 @@
+# Workspaces do pnpm (ADR-0012). O Turborepo (ADR-0002) orquestra as tarefas entre eles.
+packages:
+  - apps/*
+  - packages/*
+
+# Versões compartilhadas: cada pacote declara a dependência com "catalog:" e a versão mora aqui.
+catalog:
+  # ADR-0020: TypeScript na major 6 enquanto @nestjs/cli e @nestjs/swagger não aceitam a 7.
+  typescript: ~6.0.3
+  '@types/node': ^26.6.6
+  # ADR-0021: Vitest 5 sobre o Vite 8 como runner único.
+  vite: ^8.3.5
+  vitest: ^5.0.5
+  # ADR-0022: oxlint sem lint de tipos e Prettier.
+  oxlint: ^1.90.0
+  prettier: ^3.9.10
+  # ADR-0023: Zod 4 em Contratos e na validação da configuração.
+  zod: ^4.6.7
+
+# Falha a instalação fora do Node fixado em engines (ADR-0013).
+engineStrict: true
+
+minimumReleaseAgeExclude:
+  - '@nestjs/schematics@12.0.12'
+  - '@types/node@26.6.6'

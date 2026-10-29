@@ -23,3 +23,10 @@ tmp/
 # Bancada de evals do skill-creator (snapshots, saídas e benchmarks por iteração)
 .claude/skills/*-workspace/
 __pycache__/
+
+# Stack Node (pnpm, Turborepo, build e testes)
+node_modules/
+dist/
+.turbo/
+coverage/
+*.tsbuildinfo
