@@ -32,6 +32,20 @@ export interface SeedAdminResult {
 
 type AuthContext = Awaited<Auth['$context']>;
 
+/**
+ * Conta de `ADMIN_EMAIL` já existe sem papel admin ou sem e-mail verificado (spec, Tratamento
+ * de erros): o seed recusa e não altera a conta, para não entregar o admin a quem registrou o
+ * e-mail antes do `make db-setup`. A mensagem não imprime o e-mail.
+ */
+export class SeedAdminConflictError extends Error {
+  constructor() {
+    super(
+      'já existe conta com o e-mail de ADMIN_EMAIL sem papel admin (ou sem e-mail verificado); nada foi alterado',
+    );
+    this.name = 'SeedAdminConflictError';
+  }
+}
+
 /** Id no formato da instância do Better Auth; UUID só se ela delegar a geração ao banco. */
 function newId(ctx: AuthContext, model: 'user' | 'account'): string {
   const id = ctx.generateId({ model });
@@ -41,8 +55,9 @@ function newId(ctx: AuthContext, model: 'user' | 'account'): string {
 /**
  * Pré-requisito `admin-inicial` do contrato: a conta de `email` com papel admin, e-mail
  * verificado, sem banimento e credencial de senha com o hash do Better Auth (`ctx.password.hash`
- * da instância, nunca texto puro). Idempotente: se a conta já existe, garante papel e
- * verificação e não toca na senha; só cria a credencial quando a conta não tem nenhuma.
+ * da instância, nunca texto puro). Idempotente: conta já admin e verificada não é tocada, nem a
+ * senha; conta com o e-mail sem papel admin ou sem e-mail verificado lança
+ * `SeedAdminConflictError` sem gravar nada.
  */
 export async function seedAdminInicial(
   prisma: PrismaClient,
@@ -54,32 +69,12 @@ export async function seedAdminInicial(
 
   const existing = await prisma.user.findUnique({
     where: { email },
-    include: {
-      accounts: { where: { providerId: 'credential' }, select: { id: true } },
-    },
+    select: { id: true, role: true, emailVerified: true },
   });
 
   if (existing) {
-    await prisma.user.update({
-      where: { id: existing.id },
-      data: {
-        role: 'admin',
-        emailVerified: true,
-        banned: false,
-        banReason: null,
-        banExpires: null,
-      },
-    });
-    if (existing.accounts.length === 0) {
-      await prisma.account.create({
-        data: {
-          id: newId(ctx, 'account'),
-          accountId: existing.id,
-          providerId: 'credential',
-          userId: existing.id,
-          password: await ctx.password.hash(input.password),
-        },
-      });
+    if (existing.role !== 'admin' || !existing.emailVerified) {
+      throw new SeedAdminConflictError();
     }
     return { userId: existing.id, created: false };
   }
@@ -142,8 +137,11 @@ async function main() {
     console.log(
       result.created
         ? 'seed: primeiro admin criado'
-        : 'seed: primeiro admin já existia; papel admin e e-mail verificado garantidos',
+        : 'seed: primeiro admin já existia com papel admin e e-mail verificado; nada alterado',
     );
+  } catch (error) {
+    if (error instanceof SeedAdminConflictError) fail(`seed: ${error.message}`);
+    throw error;
   } finally {
     await prisma.$disconnect();
   }

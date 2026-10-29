@@ -30,6 +30,9 @@ export type AuthEnv = Pick<
  * - Cadastro por e-mail e senha fechado (`disableSignUp`): na fundação só o seed cria conta, o
  *   que impede alguém de registrar o e-mail de `ADMIN_EMAIL` antes do `make db-setup` e ser
  *   promovido a admin. O RF-001 reabre quando montar o fluxo de cadastro.
+ * - Rate limit desligado (`rateLimit.enabled = false`): o padrão em produção é um balde em
+ *   memória por processo, que não vale com réplicas e, sem `trustedProxies`, escreve um aviso
+ *   fora do JSON no log. O RF-001 liga com armazenamento no Valkey e `trustedProxies`.
  */
 export function createAuth(env: AuthEnv, prisma: PrismaClient) {
   return betterAuth({
@@ -40,6 +43,7 @@ export function createAuth(env: AuthEnv, prisma: PrismaClient) {
     trustedOrigins: [env.WEB_ORIGIN],
     emailAndPassword: { enabled: true, disableSignUp: true },
     session: { cookieCache: { enabled: false } },
+    rateLimit: { enabled: false },
     advanced: {
       useSecureCookies: env.NODE_ENV === 'production',
       crossSubDomainCookies: env.COOKIE_DOMAIN

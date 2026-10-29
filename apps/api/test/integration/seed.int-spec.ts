@@ -2,7 +2,7 @@ import { INestApplication } from '@nestjs/common';
 import { AuthService } from '@thallesp/nestjs-better-auth';
 import request from 'supertest';
 import { App } from 'supertest/types.js';
-import { seedAdminInicial } from '../../prisma/seed.js';
+import { SeedAdminConflictError, seedAdminInicial } from '../../prisma/seed.js';
 import type { Auth } from '../../src/modules/accounts/auth.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
 import { createTestApp } from '../create-test-app.js';
@@ -118,6 +118,36 @@ describe('Seed do primeiro admin (integração, banco app_test)', () => {
       ).toBe(false);
     } finally {
       // Não deixa uma conta comum com ADMIN_EMAIL no banco compartilhado pelos outros arquivos.
+      await prisma.user.deleteMany({ where: { email } });
+    }
+  });
+
+  it('recusa conta pré-existente sem papel admin e não a altera (CLI-ADMIN-04)', async () => {
+    const conta = await contaComumComEmailDoAdmin(app);
+    try {
+      const before = await prisma.account.findFirstOrThrow({
+        where: { userId: conta.userId, providerId: 'credential' },
+      });
+
+      await expect(
+        seedAdminInicial(prisma, auth, credentials),
+      ).rejects.toBeInstanceOf(SeedAdminConflictError);
+      await expect(seedAdminInicial(prisma, auth, credentials)).rejects.toThrow(
+        /já existe conta com o e-mail de ADMIN_EMAIL sem papel admin/,
+      );
+
+      const users = await prisma.user.findMany({
+        where: { email },
+        include: { accounts: true },
+      });
+      expect(users).toHaveLength(1);
+      const [user] = users;
+      expect(user.id).toBe(conta.userId);
+      expect(user.role).toBeNull();
+      expect(user.emailVerified).toBe(false);
+      expect(user.accounts).toHaveLength(1);
+      expect(user.accounts[0].password).toBe(before.password);
+    } finally {
       await prisma.user.deleteMany({ where: { email } });
     }
   });
