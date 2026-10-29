@@ -38,7 +38,7 @@ O ruleset de `main` exige dois checks verdes antes do merge:
 
 | Check | Workflow | O que faz |
 | --- | --- | --- |
-| `check` | `ci.yml` | `make check` em Ubuntu com shellcheck, actionlint e gitleaks instalados (histórico completo) |
+| `check` | `ci.yml` | `make check` em Ubuntu com Node 26, o pnpm do `packageManager`, as dependências do workspace, shellcheck, actionlint e gitleaks instalados (histórico completo) |
 | `pr-title` | `pr-title.yml` | Título do PR no padrão do hook `commit-msg` |
 
 Para adicionar uma verificação:
@@ -69,9 +69,12 @@ Actions em `.github/workflows/` ficam fixadas por SHA completo com comentário d
 ([por quê](https://docs.github.com/en/actions/security-for-github-actions/security-guides/security-hardening-for-github-actions#using-third-party-actions));
 ao atualizar, troque SHA e comentário juntos.
 
-`make lint`, `make format`, `make test` e `make build` existem em qualquer projeto gerado. Para
-implementar, crie `scripts/<alvo>.sh` (POSIX sh, pode chamar a ferramenta da stack) e registre a
-escolha da stack em um ADR. Enquanto o script não existe, o alvo avisa e passa.
+`make lint`, `make format`, `make test`, `make build` e `make db-setup` existem em qualquer
+projeto gerado. Para implementar, crie `scripts/<alvo>.sh` (POSIX sh, pode chamar a ferramenta da
+stack) e registre a escolha da stack em um ADR. Enquanto o script não existe, o alvo avisa e passa.
+Neste repositório, `make test` sobe `postgres` e `valkey` do Compose, recria o banco `app_test` e
+aplica as migrações antes dos testes de integração, e `make db-setup` aplica as migrações e cria o
+primeiro admin do `.env` num container do serviço `api`: os dois exigem Docker com Compose v2.
 
 ## Fluxo de trabalho ([GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow))
 

@@ -1,0 +1,172 @@
+# Ambiente local (ADR-0006): api, web, postgres, valkey e mailpit, com o código montado e hot
+# reload. Antes de subir: cp .env.example .env. Subida: docker compose up -d --wait.
+# node_modules (com o store do pnpm) e o dist de Contratos ficam em volumes nomeados; dependência
+# nova exige só reiniciar o serviço. O dist da API fica no bind mount: o nest start --watch o
+# apaga antes de compilar, e um ponto de montagem não pode ser apagado.
+# WATCH_POLLING=true no .env liga o polling de arquivos quando o inotify não chega ao
+# container (repositório em /mnt/c no WSL2); custa CPU, por isso fica desligado por padrão.
+
+# Mesma imagem para api e web, com uma tag por serviço: dois builds da mesma tag em paralelo
+# conflitam, e o segundo sai do cache do primeiro.
+x-dev-build: &dev-build
+  context: .
+  dockerfile: docker/dev.Dockerfile
+  args:
+    # Mesma versão do packageManager do package.json raiz (ADR-0012).
+    PNPM_VERSION: 12.16.1
+
+services:
+  api:
+    build: *dev-build
+    image: app-dev-api:local
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        pnpm install --frozen-lockfile --filter '@app/api...'
+        pnpm --filter @app/contracts build
+        # Cliente Prisma em src/generated (ADR-0008), que o nest start compila junto.
+        pnpm --filter @app/api generate
+        if [ "$${WATCH_POLLING:-false}" = true ]; then export TSC_WATCHFILE=DynamicPriorityPolling; fi
+        # --no-shell: sem ele o nest start roda a app sob sh -c e, na recompilação, mata só o sh
+        # (a imagem não tem ps para o tree-kill), deixando a app antiga presa na porta 3000.
+        exec pnpm --filter @app/api start:dev --no-shell
+    env_file:
+      # Opcional para `docker compose up postgres valkey` (make test) e `exec` funcionarem sem o
+      # .env; sem ele, a API sobe e termina nomeando as variáveis que faltam.
+      - path: .env
+        required: false
+    environment:
+      PORT: 3000
+      WATCH_POLLING: ${WATCH_POLLING:-false}
+    ports:
+      - '3000:3000'
+    extra_hosts:
+      # Deixa um coletor OTLP rodando no host alcançável por OTEL_EXPORTER_OTLP_ENDPOINT
+      # (http://host.docker.internal:4318), como o Docker Desktop já faz.
+      - host.docker.internal:host-gateway
+    volumes:
+      - .:/app
+      - api_root_node_modules:/app/node_modules
+      - api_node_modules:/app/apps/api/node_modules
+      - api_contracts_node_modules:/app/packages/contracts/node_modules
+      - api_contracts_dist:/app/packages/contracts/dist
+    depends_on:
+      postgres:
+        condition: service_healthy
+      valkey:
+        condition: service_healthy
+      mailpit:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:3000/api/health').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      # A primeira subida instala as dependências e compila antes de abrir a porta.
+      start_period: 300s
+
+  web:
+    build: *dev-build
+    image: app-dev-web:local
+    command:
+      - sh
+      - -c
+      - |
+        set -e
+        pnpm install --frozen-lockfile --filter '@app/web...'
+        pnpm --filter @app/contracts build
+        exec pnpm --filter @app/web dev
+    env_file:
+      # Opcional para `docker compose up postgres valkey` (make test) e `exec` funcionarem sem o
+      # .env; sem ele, a API sobe e termina nomeando as variáveis que faltam.
+      - path: .env
+        required: false
+    environment:
+      WATCH_POLLING: ${WATCH_POLLING:-false}
+    ports:
+      - '5173:5173'
+    volumes:
+      - .:/app
+      - web_root_node_modules:/app/node_modules
+      - web_node_modules:/app/apps/web/node_modules
+      - web_contracts_node_modules:/app/packages/contracts/node_modules
+      - web_contracts_dist:/app/packages/contracts/dist
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:5173/').then((r) => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 300s
+
+  postgres:
+    # PostgreSQL 18 (ADR-0007). Credenciais de desenvolvimento, as mesmas de DATABASE_URL no .env.
+    image: postgres:18
+    environment:
+      POSTGRES_USER: app
+      POSTGRES_PASSWORD: app
+      POSTGRES_DB: app
+    ports:
+      - '5432:5432'
+    volumes:
+      # A partir da 18 o volume monta em /var/lib/postgresql, não mais em /var/lib/postgresql/data.
+      - postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U app -d app']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  valkey:
+    # Valkey 9 (ADR-0014): AOF a cada segundo e sem despejo, como o BullMQ exige.
+    image: valkey/valkey:9
+    command:
+      - valkey-server
+      - --appendonly
+      - 'yes'
+      - --appendfsync
+      - everysec
+      - --maxmemory-policy
+      - noeviction
+    ports:
+      - '6379:6379'
+    volumes:
+      - valkey_data:/data
+    healthcheck:
+      test: ['CMD', 'valkey-cli', 'ping']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  mailpit:
+    # Caixa de e-mail local (ADR-0016): SMTP em 1025, interface web e API REST em 8025.
+    image: axllent/mailpit:v1.32
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+    healthcheck:
+      test: ['CMD', '/mailpit', 'readyz']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
+  valkey_data:
+  api_root_node_modules:
+  api_node_modules:
+  api_contracts_node_modules:
+  api_contracts_dist:
+  web_root_node_modules:
+  web_node_modules:
+  web_contracts_node_modules:
+  web_contracts_dist:

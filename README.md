@@ -37,11 +37,71 @@ verificação automática. O que não está no repositório não existe para o a
       request before merging*, *Require status checks* `check` e `pr-title`.
    5. **Template repository**: marcar em General, só no repositório do template.
 
-4. Substitua este README pelo do seu projeto, implemente `scripts/lint.sh`, `format.sh`,
-   `test.sh` e `build.sh` para a sua stack e registre a escolha em um ADR
-   com a skill `/adr-writer`.
+4. Substitua este README pelo do seu projeto. A stack já vem decidida nos ADRs de
+   `docs/architecture/adr/` e implementada em `scripts/lint.sh`, `format.sh`, `test.sh` e
+   `build.sh`; para trocá-la, registre a decisão com a skill `/adr-writer` e reescreva os
+   scripts.
 5. Leia o [guia de contribuição](CONTRIBUTING.md). Agentes de código começam por
    [`CLAUDE.md`](CLAUDE.md).
+
+## Ambiente local
+
+Docker com Compose v2 é o único pré-requisito para rodar o aplicativo: API, SPA, PostgreSQL 18,
+Valkey 9 e Mailpit sobem em containers, com o código montado e hot reload (ADR-0006). Node 26 e
+pnpm 12 só são necessários no host para `make lint`, `make test` e `make build`; `make test`
+também usa o Docker, para subir o PostgreSQL e o Valkey do Compose e recriar o banco `app_test`
+dos testes de integração.
+
+```sh
+make setup                   # uma vez após o clone: ativa os hooks
+cp .env.example .env         # ajuste ADMIN_EMAIL e ADMIN_PASSWORD se quiser
+docker compose up -d --wait  # sobe os cinco serviços e espera os health checks
+make db-setup                # aplica as migrações e cria o primeiro admin do .env
+```
+
+| Serviço | URL |
+| --- | --- |
+| SPA | <http://localhost:5173> |
+| API | <http://localhost:3000/api> (saúde em [`/api/health`](http://localhost:3000/api/health)) |
+| Documento OpenAPI | <http://localhost:3000/api/docs> (só fora de produção) |
+| Mailpit | <http://localhost:8025> (SMTP em `localhost:1025`) |
+
+A primeira subida instala as dependências dentro dos containers, o que leva alguns minutos;
+elas ficam em volumes nomeados, então dependência nova pede só `docker compose restart api web`.
+Editar um arquivo em `apps/api` ou `apps/web` recompila sem reconstruir imagem; se a mudança não
+chegar ao container (repositório em `/mnt/c` no WSL2), ponha `WATCH_POLLING=true` no `.env`. A
+API valida as variáveis na subida e termina nomeando a que faltar (`docker compose logs api`).
+Para zerar o ambiente, inclusive o banco: `docker compose down -v`.
+
+Os logs da API saem em JSON, uma linha por entrada, com um `req.id` único por requisição
+(devolvido no cabeçalho `x-request-id`) e e-mail, nome, senha, cookie e authorization redigidos;
+`LOG_LEVEL` no `.env` muda o nível. Traces e métricas do OpenTelemetry só são exportados com
+`OTEL_EXPORTER_OTLP_ENDPOINT` definido (do Compose, um coletor no host fica em
+`http://host.docker.internal:4318`); sem a variável a instrumentação não faz nada.
+
+## Imagens de produção
+
+Cada app sai como imagem Docker multi-stage (ADR-0005), construída a partir da raiz do monorepo
+porque o `turbo prune` precisa do workspace inteiro. A imagem da API leva só o `dist` e as
+dependências de produção sobre Node 26, e sobe com `node --import ./dist/instrumentation.js
+dist/main.js`; a da SPA serve os estáticos do `vite build` pelo nginx em Alpine, com fallback
+para o `index.html`, sem Node.
+
+```sh
+docker build -f apps/api/Dockerfile -t app-api .
+docker build -f apps/web/Dockerfile --build-arg VITE_API_URL=https://api.exemplo.com -t app-web .
+```
+
+A API lê a configuração do ambiente na subida (as mesmas variáveis do `.env.example`, com
+`NODE_ENV=production`) e termina nomeando a que faltar; as migrações não rodam na imagem, e sim
+por `make db-setup`. A SPA fixa `VITE_API_URL` no bundle em tempo de build (ADR-0004), por isso
+o argumento; sem ele, aponta para `http://localhost:3000`. Para experimentar no local, com o
+`postgres` e o `valkey` do Compose no ar:
+
+```sh
+docker run --rm -p 3000:3000 --network "$(basename "$PWD")_default" --env-file .env -e NODE_ENV=production app-api
+docker run --rm -p 8080:80 app-web   # http://localhost:8080
+```
 
 ## O que está incluído
 

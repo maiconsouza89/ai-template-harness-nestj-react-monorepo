@@ -1,0 +1,20 @@
+{
+  "$schema": "https://turborepo.dev/schema.json",
+  "tasks": {
+    "generate": {
+      "inputs": ["prisma/schema.prisma", "prisma.config.ts"],
+      "outputs": ["src/generated/**"]
+    },
+    "build": {
+      "dependsOn": ["^build", "generate"],
+      "outputs": ["dist/**"]
+    },
+    "test": {
+      "dependsOn": ["^build", "generate"]
+    },
+    "lint": {},
+    "format": {
+      "cache": false
+    }
+  }
+}

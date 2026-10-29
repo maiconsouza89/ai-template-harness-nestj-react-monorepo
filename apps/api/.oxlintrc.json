@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "extends": ["../../.oxlintrc.json"],
+  "env": {
+    "node": true
+  },
+  "ignorePatterns": ["src/generated/**"],
+  "rules": {
+    "typescript/no-extraneous-class": [
+      "warn",
+      {
+        "allowWithDecorator": true
+      }
+    ]
+  }
+}

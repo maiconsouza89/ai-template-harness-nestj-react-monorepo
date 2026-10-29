@@ -2,6 +2,8 @@
 .env
 .env.*
 !.env.example
+# Configuração de teste versionada, só com valores falsos (spec da fundação)
+!.env.test
 *.pem
 
 # Memória local de agentes
@@ -23,3 +25,13 @@ tmp/
 # Bancada de evals do skill-creator (snapshots, saídas e benchmarks por iteração)
 .claude/skills/*-workspace/
 __pycache__/
+
+# Stack Node (pnpm, Turborepo, build e testes)
+node_modules/
+dist/
+.turbo/
+coverage/
+*.tsbuildinfo
+
+# Cliente Prisma gerado por `pnpm generate` (ADR-0008)
+apps/api/src/generated/

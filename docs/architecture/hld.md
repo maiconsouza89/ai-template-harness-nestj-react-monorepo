@@ -1,6 +1,6 @@
 # HLD: Template de aplicação web com contas e tarefas
 
-Versão: 0.2.2
+Versão: 0.2.3
 Data: 2026-10-29
 Responsável: Maicon Souza (hipótese)
 PRD: docs/product/prd.md versão 0.1.0
@@ -353,6 +353,10 @@ ADRs associados
 - ADR-0018 Usar nestjs-pino para logs estruturados: JSON por linha, `requestId` e redação dos dados pessoais.
 - ADR-0019 Usar OpenTelemetry para métricas e tracing: OTLP ligado só com endpoint configurado.
 - ADR-0020 Usar @nestjs/swagger com plugin CLI e TypeScript 6: documento `/api/docs` e TypeScript do monorepo na major 6.
+- ADR-0021 Usar ESM com Vitest como runner de testes: API, SPA e Contratos em ES modules, com um runner único de testes.
+- ADR-0022 Usar oxlint sem lint de tipos e Prettier: lint e formatação do monorepo, sem compilador do TypeScript 7.
+- ADR-0023 Usar Zod 4 para validação em Contratos: esquemas compartilhados por API e SPA e validação das variáveis de ambiente.
+- ADR-0024 Usar @playwright/cli para verificar as telas: navegador dos itens de UI dos contratos, sem suíte E2E versionada.
 
 Decisões pendentes de ADR
 - Nenhuma: todas as tecnologias principais têm ADR aceito.

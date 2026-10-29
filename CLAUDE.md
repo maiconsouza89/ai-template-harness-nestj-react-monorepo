@@ -17,6 +17,7 @@ make check           # todas as verificações; a CI roda exatamente este alvo
 make check-<nome>    # uma verificação isolada (check-hooks, check-adr, ...; lista em make help)
 CI=true make check   # reproduz a CI: falha se shellcheck, actionlint, gitleaks ou python3 faltarem
 make lint|format|test|build   # contrato da stack: roda scripts/<alvo>.sh se existir, senão avisa e passa
+make db-setup        # aplica as migrações e cria o primeiro admin do .env (idempotente; exige Docker)
 ```
 
 ## Como o harness funciona
@@ -29,9 +30,9 @@ make lint|format|test|build   # contrato da stack: roda scripts/<alvo>.sh se exi
 - **Hooks do Claude Code.** `.claude/settings.json` liga os hooks de `.claude/hooks/`: o
   SubagentStop roda `make lint` e `make test` quando o subagente editou código fora de `docs/`. Testados por `scripts/tests/test-claude-hooks.sh`
   (`make check-claude-hooks`), com a mesma regra de um caso aceito e um rejeitado.
-- **Stack por contrato.** `scripts/contract.sh` despacha `lint`, `format`, `test` e `build` para
-  `scripts/<alvo>.sh`. O projeto gerado cria esses scripts e registra a stack em um ADR;
-  `Makefile` e `CLAUDE.md` não mudam.
+- **Stack por contrato.** `scripts/contract.sh` despacha `lint`, `format`, `test`, `build` e
+  `db-setup` para `scripts/<alvo>.sh`. O projeto gerado cria esses scripts e registra a stack em
+  um ADR; `Makefile` e `CLAUDE.md` não mudam.
 - **Release automática.** `CHANGELOG.md` e `.release-please-manifest.json` são gerados pelo
   release-please a partir dos commits; não edite nenhum dos dois.
 - **Documentação do projeto** em `docs/product/` (o quê e quando) e `docs/architecture/` (como e

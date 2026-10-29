@@ -1,5 +1,5 @@
 #!/bin/sh
-# Executa um alvo do contrato (lint, format, test, build) se scripts/<alvo>.sh existir.
+# Executa um alvo do contrato (lint, format, test, build, db-setup) se scripts/<alvo>.sh existir.
 # Caso contrário avisa e passa: a stack ainda não foi definida.
 set -eu
 cd "$(git rev-parse --show-toplevel)"
