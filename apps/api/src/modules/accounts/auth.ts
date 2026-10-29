@@ -1,3 +1,4 @@
+import type { BetterAuthRateLimitStorage } from '@better-auth/core';
 import { betterAuth, type BetterAuthOptions } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins/admin';
@@ -15,6 +16,7 @@ export type AuthEnv = Pick<
   | 'BETTER_AUTH_URL'
   | 'WEB_ORIGIN'
   | 'COOKIE_DOMAIN'
+  | 'TRUSTED_PROXIES'
 >;
 
 /**
@@ -31,7 +33,29 @@ export interface AuthDependencies {
   sendVerificationEmail?: NonNullable<
     BetterAuthOptions['emailVerification']
   >['sendVerificationEmail'];
+  /**
+   * Armazenamento dos contadores do rate limit no Valkey, com fail-open
+   * (`infra/valkey-rate-limit.storage.ts`). Sem ele (seed), o rate limit fica desligado, em vez
+   * de cair no balde em memória da biblioteca.
+   */
+  rateLimitStorage?: BetterAuthRateLimitStorage;
 }
+
+/** Janela padrão do rate limit por IP em `/api/auth`: 100 requisições a cada 10 s (HLD). */
+const RATE_LIMIT_DEFAULT = { window: 10, max: 100 } as const;
+
+/** Sign-up, sign-in e recuperação: 5 requisições a cada 60 s por IP (HLD, Interfaces públicas). */
+const RATE_LIMIT_SENSITIVE = { window: 60, max: 5 } as const;
+
+/**
+ * Regras por caminho, relativas ao `basePath`; sobrescrevem a regra especial da biblioteca para
+ * `/sign-up` e `/sign-in` (10 s e 3). `/send-verification-email` fica no padrão dela (60 s e 3).
+ */
+export const RATE_LIMIT_CUSTOM_RULES = {
+  '/sign-up/email': RATE_LIMIT_SENSITIVE,
+  '/sign-in/email': RATE_LIMIT_SENSITIVE,
+  '/request-password-reset': RATE_LIMIT_SENSITIVE,
+} as const;
 
 /** Prazo do link de confirmação de e-mail: 24 horas (PRD, Segurança e autorização). */
 export const EMAIL_VERIFICATION_EXPIRES_IN_SECONDS = 24 * 60 * 60;
@@ -51,9 +75,9 @@ export const EMAIL_VERIFICATION_EXPIRES_IN_SECONDS = 24 * 60 * 60;
  *   `sendVerificationEmail` recebido em `deps`, que enfileira o e-mail no Módulo E-mail. A regra do cadastro fica no hook `before` recebido
  *   em `deps`. Quem registrar o e-mail de `ADMIN_EMAIL` antes do `make db-setup` ganha só uma
  *   conta comum: o seed recusa promovê-la (`SeedAdminConflictError`).
- * - Rate limit desligado (`rateLimit.enabled = false`): o padrão em produção é um balde em
- *   memória por processo, que não vale com réplicas e, sem `trustedProxies`, escreve um aviso
- *   fora do JSON no log. O RF-001 liga com armazenamento no Valkey e `trustedProxies`.
+ * - Rate limit por IP com os contadores no Valkey (`rateLimitStorage` recebido em `deps`, com
+ *   fail-open) e o IP lido do `X-Forwarded-For` atrás dos proxies de `TRUSTED_PROXIES`; sem
+ *   `deps.rateLimitStorage` (seed), fica desligado.
  */
 export function createAuth(
   env: AuthEnv,
@@ -78,8 +102,14 @@ export function createAuth(
     },
     hooks: { before: deps.beforeHook },
     session: { cookieCache: { enabled: false } },
-    rateLimit: { enabled: false },
+    rateLimit: {
+      enabled: deps.rateLimitStorage !== undefined,
+      ...RATE_LIMIT_DEFAULT,
+      customRules: RATE_LIMIT_CUSTOM_RULES,
+      customStorage: deps.rateLimitStorage,
+    },
     advanced: {
+      ipAddress: { trustedProxies: env.TRUSTED_PROXIES },
       useSecureCookies: env.NODE_ENV === 'production',
       crossSubDomainCookies: env.COOKIE_DOMAIN
         ? { enabled: true, domain: env.COOKIE_DOMAIN }

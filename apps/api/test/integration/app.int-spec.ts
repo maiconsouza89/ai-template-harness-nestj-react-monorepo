@@ -4,6 +4,7 @@ import { App } from 'supertest/types.js';
 import { ENV } from '../../src/platform/config/config.module.js';
 import type { Env } from '../../src/platform/config/env.js';
 import { createTestApp } from '../create-test-app.js';
+import { withClientIp } from '../http/client-ip.js';
 
 describe('App (integração)', () => {
   let app: INestApplication<App>;
@@ -62,8 +63,7 @@ describe('App (integração)', () => {
   });
 
   it('monta o Better Auth em /api/auth, anônimo: GET /api/auth/ok responde 200', async () => {
-    await request(app.getHttpServer())
-      .get('/api/auth/ok')
+    await withClientIp(request(app.getHttpServer()).get('/api/auth/ok'))
       .expect(200)
       .expect({ ok: true });
   });

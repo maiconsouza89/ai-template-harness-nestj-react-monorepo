@@ -95,7 +95,10 @@ docker build -f apps/web/Dockerfile --build-arg VITE_API_URL=https://api.exemplo
 A API lê a configuração do ambiente na subida (as mesmas variáveis do `.env.example`, com
 `NODE_ENV=production`) e termina nomeando a que faltar; as migrações não rodam na imagem, e sim
 por `make db-setup`. A SPA fixa `VITE_API_URL` no bundle em tempo de build (ADR-0004), por isso
-o argumento; sem ele, aponta para `http://localhost:3000`. Para experimentar no local, com o
+o argumento; sem ele, aponta para `http://localhost:3000`. O rate limit de `/api/auth` conta por
+IP do cliente lido do `X-Forwarded-For`: em produção, ponha a API atrás de um proxy que reescreva
+esse cabeçalho e liste o proxy em `TRUSTED_PROXIES` (IPs ou CIDRs separados por vírgula); exposta
+direto, o cliente escolhe o próprio IP e contorna o limite. Para experimentar no local, com o
 `postgres` e o `valkey` do Compose no ar:
 
 ```sh

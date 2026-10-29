@@ -84,4 +84,35 @@ describe('loadEnv', () => {
       );
     }
   });
+
+  it('deixa TRUSTED_PROXIES ausente no .env.example e trata vazio como ausente', () => {
+    expect(loadEnv(envExample).TRUSTED_PROXIES).toBeUndefined();
+    expect(
+      loadEnv({ ...envExample, TRUSTED_PROXIES: ' , ' }).TRUSTED_PROXIES,
+    ).toBeUndefined();
+  });
+
+  it('lê TRUSTED_PROXIES como lista de IPs e faixas CIDR separados por vírgula', () => {
+    const env = loadEnv({
+      ...envExample,
+      TRUSTED_PROXIES: '10.0.0.0/8, 172.16.0.5,2001:db8::/32 ,::1',
+    });
+    expect(env.TRUSTED_PROXIES).toEqual([
+      '10.0.0.0/8',
+      '172.16.0.5',
+      '2001:db8::/32',
+      '::1',
+    ]);
+  });
+
+  it('recusa TRUSTED_PROXIES com entrada que não é IP nem CIDR, sem ecoá-la', () => {
+    let message = '';
+    try {
+      loadEnv({ ...envExample, TRUSTED_PROXIES: '10.0.0.1, proxy.interno' });
+    } catch (caught) {
+      message = (caught as Error).message;
+    }
+    expect(message).toMatch(/TRUSTED_PROXIES \(inválida/);
+    expect(message).not.toContain('proxy.interno');
+  });
 });

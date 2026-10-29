@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import request, { type Response } from 'supertest';
 import type { App } from 'supertest/types.js';
+import { withClientIp } from '../http/client-ip.js';
 import { adminInicial, type AdminInicial } from './user.factory.js';
 
 export interface SessaoAdmin extends AdminInicial {
@@ -24,8 +25,9 @@ export async function sessaoAdmin(
   app: INestApplication<App>,
 ): Promise<SessaoAdmin> {
   const admin = await adminInicial(app);
-  const signIn = await request(app.getHttpServer())
-    .post('/api/auth/sign-in/email')
+  const signIn = await withClientIp(
+    request(app.getHttpServer()).post('/api/auth/sign-in/email'),
+  )
     .send({ email: admin.email, password: admin.password })
     .expect(200);
   return { ...admin, cookie: cookieHeaderFrom(signIn), signIn };

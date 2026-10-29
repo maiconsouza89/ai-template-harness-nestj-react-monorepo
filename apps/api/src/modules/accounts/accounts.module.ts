@@ -1,12 +1,15 @@
 import { Logger, Module } from '@nestjs/common';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
+import type { Redis } from 'ioredis';
 import { ENV } from '../../platform/config/config.module.js';
 import type { Env } from '../../platform/config/env.js';
 import { PrismaService } from '../../platform/prisma/prisma.service.js';
+import { REDIS } from '../../platform/redis/redis.module.js';
 import { EmailQueue } from '../email/email-queue.js';
 import { EmailModule } from '../email/email.module.js';
 import { createAuth } from './auth.js';
 import { GetSessionController } from './get-session/get-session.controller.js';
+import { createValkeyRateLimitStorage } from './infra/valkey-rate-limit.storage.js';
 import { createSendVerificationEmail } from './sign-up/send-verification-email.js';
 import { signUpBeforeHook } from './sign-up/sign-up.hook.js';
 
@@ -15,23 +18,29 @@ import { signUpBeforeHook } from './sign-up/sign-up.hook.js';
  * recusa com 401 toda rota sem sessão, salvo as marcadas com `@AllowAnonymous()`. Os casos de
  * uso do módulo ficam em pastas próprias (`get-session/`, `sign-up/`); as rotas de cadastro,
  * entrar, sair e recuperação são do próprio Better Auth e entram pelos RF-001 a RF-005 como
- * configuração. Importa o Módulo E-mail para o callback de envio do link de confirmação.
+ * configuração. Importa o Módulo E-mail para o callback de envio do link de confirmação e usa a
+ * conexão compartilhada com o Valkey para os contadores do rate limit.
  */
 @Module({
   imports: [
     AuthModule.forRootAsync({
       imports: [EmailModule],
-      inject: [ENV, PrismaService, EmailQueue],
+      inject: [ENV, PrismaService, EmailQueue, REDIS],
       useFactory: (
         env: Env,
         prisma: PrismaService,
         emailQueue: EmailQueue,
+        redis: Redis,
       ) => ({
         auth: createAuth(env, prisma, {
           beforeHook: signUpBeforeHook,
           sendVerificationEmail: createSendVerificationEmail(
             emailQueue,
             new Logger('SignUp'),
+          ),
+          rateLimitStorage: createValkeyRateLimitStorage(
+            redis,
+            new Logger('RateLimit'),
           ),
         }),
       }),

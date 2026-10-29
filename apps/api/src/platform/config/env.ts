@@ -6,6 +6,23 @@ const optionalString = () =>
   z.preprocess(emptyToUndefined, z.string().optional());
 const optionalUrl = () => z.preprocess(emptyToUndefined, z.url().optional());
 
+/** Um IP (v4 ou v6) ou uma faixa CIDR, como `advanced.ipAddress.trustedProxies` aceita. */
+const ipOrCidr = z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()]);
+
+/**
+ * Lista separada por vírgula (`10.0.0.0/8, 172.16.0.5`) que vira array; vazio conta como ausente.
+ * Entrada inválida derruba a subida, em vez do aviso do Better Auth que só a ignora.
+ */
+const optionalIpList = () =>
+  z.preprocess((value) => {
+    if (typeof value !== 'string') return value;
+    const entries = value
+      .split(',')
+      .map((entry) => entry.trim())
+      .filter(Boolean);
+    return entries.length > 0 ? entries : undefined;
+  }, z.array(ipOrCidr).optional());
+
 /**
  * Variáveis de ambiente da API (spec da fundação, "Variáveis de ambiente"). Validadas com Zod 4
  * na subida (ADR-0023): falta ou valor inválido derruba o processo nomeando a variável.
@@ -19,6 +36,7 @@ export const envSchema = z.object({
   BETTER_AUTH_URL: z.url(),
   WEB_ORIGIN: z.url(),
   COOKIE_DOMAIN: optionalString(),
+  TRUSTED_PROXIES: optionalIpList(),
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535),
   SMTP_FROM: z.string().min(1),
