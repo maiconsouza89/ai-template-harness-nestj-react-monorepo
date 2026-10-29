@@ -24,3 +24,7 @@
 | [0018](0018-usar-nestjs-pino-para-logs-estruturados.md) | Usar nestjs-pino para logs estruturados | accepted | 2026-10-29 |
 | [0019](0019-usar-opentelemetry-para-metricas-e-tracing.md) | Usar OpenTelemetry para métricas e tracing | accepted | 2026-10-29 |
 | [0020](0020-usar-nestjs-swagger-com-plugin-cli-e-typescript-6.md) | Usar @nestjs/swagger com plugin CLI e TypeScript 6 | accepted | 2026-10-29 |
+| [0021](0021-usar-esm-com-vitest-como-runner-de-testes.md) | Usar ESM com Vitest como runner de testes | accepted | 2026-10-29 |
+| [0022](0022-usar-oxlint-sem-lint-de-tipos-e-prettier.md) | Usar oxlint sem lint de tipos e Prettier | accepted | 2026-10-29 |
+| [0023](0023-usar-zod-4-para-validacao-em-contratos.md) | Usar Zod 4 para validação em Contratos | accepted | 2026-10-29 |
+| [0024](0024-usar-playwright-cli-para-verificar-as-telas.md) | Usar @playwright/cli para verificar as telas | accepted | 2026-10-29 |
