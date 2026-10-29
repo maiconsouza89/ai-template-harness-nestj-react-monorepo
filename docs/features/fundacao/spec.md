@@ -64,7 +64,8 @@ Regras
 - O Valkey roda com `appendonly yes`, `appendfsync everysec` e `maxmemory-policy noeviction` (ADR-0014).
 - O preparo do banco é idempotente: rodar `make db-setup` de novo não duplica o admin nem falha (PRD, Decisão primeiro admin criado na instalação).
 - O primeiro admin nasce com papel admin, e-mail verificado, sem banimento, e a senha de `ADMIN_PASSWORD` gravada com o hash do Better Auth, nunca em texto puro (PRD, Segurança e autorização).
-- Se a conta de `ADMIN_EMAIL` já existe com papel admin e e-mail verificado, o seed não muda nada nela, nem a senha. Se existe sem papel admin ou sem e-mail verificado, o seed termina com código diferente de zero dizendo que já há conta com esse e-mail sem papel admin, e não altera a conta: promover em silêncio uma conta criada antes do `make db-setup` entregaria o admin a quem registrou o e-mail primeiro.
+- `ADMIN_PASSWORD` segue a regra de senha do PRD (mínimo de 8 caracteres, com letra e número; PRD, Decisão regra de senha): o seed grava o hash por `ctx.password.hash`, que não passa pela validação do Better Auth, então confere a regra ele mesmo antes de tocar no banco.
+- Se a conta de `ADMIN_EMAIL` já existe com papel admin, e-mail verificado e sem banimento em vigor, o seed não muda nada nela, nem a senha. Se existe com papel admin mas banida (`banned` verdadeiro e `banExpires` nulo ou no futuro), o seed termina com código diferente de zero dizendo que a conta do admin está banida, e não a altera: desbanir em silêncio desfaria a decisão de um admin. Banimento com `banExpires` vencido não conta, porque o plugin admin o retira na próxima criação de sessão. Se existe sem papel admin ou sem e-mail verificado, o seed termina com código diferente de zero dizendo que já há conta com esse e-mail sem papel admin, e não altera a conta: promover em silêncio uma conta criada antes do `make db-setup` entregaria o admin a quem registrou o e-mail primeiro.
 - `prisma` e `@prisma/client` ficam em `^7` e o `ioredis` em `^5`, e o TypeScript na major 6 em todo o monorepo (ADR-0008, ADR-0014, ADR-0020).
 - O pnpm é instalado na versão do `packageManager` do `package.json` raiz em Compose, imagens e CI, nunca por `corepack enable` (ADR-0012, ADR-0013).
 
@@ -140,6 +141,7 @@ Variáveis de ambiente (`.env.example`)
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | sim no `make db-setup` | Primeiro admin; a API não as lê |
 | `OTEL_EXPORTER_OTLP_ENDPOINT` | não | Liga a exportação OTLP |
 | `LOG_LEVEL` | não | Nível do pino, padrão `info` |
+| `PORT` | não | Porta HTTP da API, inteiro de 1 a 65535, padrão 3000; o health check da imagem lê a mesma variável |
 | `VITE_API_URL` | sim na SPA | URL da API vista pelo navegador |
 
 Nomes das variáveis (hipótese)
@@ -157,7 +159,7 @@ Migração inicial `apps/api/prisma/migrations/<timestamp>_init/`, com o schema 
 
 O e-mail em minúsculas e a situação pendente/ativa/desativada do HLD se expressam por `email` normalizado no cadastro (RF-001), `emailVerified` e `banned`; a coluna de situação anterior para a reativação é do RF-013.
 
-O seed procura a conta de `ADMIN_EMAIL` em `user`. Sem conta, cria em `user` e `account` (provider `credential`) com `role = "admin"`, `emailVerified = true` e `banned = false`, usando o hasher do Better Auth (`ctx.password.hash` da instância). Com conta já admin e verificada, não grava nada. Com conta sem papel admin ou sem e-mail verificado, termina com código diferente de zero sem gravar.
+O seed procura a conta de `ADMIN_EMAIL` em `user`. Sem conta, cria em `user` e `account` (provider `credential`) com `role = "admin"`, `emailVerified = true` e `banned = false`, usando o hasher do Better Auth (`ctx.password.hash` da instância). Com conta já admin, verificada e sem banimento em vigor, não grava nada. Com conta sem papel admin ou sem e-mail verificado, ou admin com banimento em vigor, termina com código diferente de zero sem gravar.
 
 ---
 
@@ -165,12 +167,14 @@ O seed procura a conta de `ADMIN_EMAIL` em `user`. Sem conta, cria em `user` e `
 
 | Erro | Onde é detectado | Resposta do sistema | O que a pessoa vê |
 | --- | --- | --- | --- |
-| Variável obrigatória ausente ou inválida | API NestJS, validação da config na subida | Processo termina com código diferente de zero antes de abrir a porta | Mensagem no log com o nome da variável, sem valores |
+| Variável obrigatória ausente, ou qualquer variável inválida (inclusive `PORT` fora de 1 a 65535) | API NestJS, validação da config na subida | Processo termina com código diferente de zero antes de abrir a porta | Mensagem no log com o nome da variável, sem valores |
 | PostgreSQL fora do ar | API NestJS, health check | `GET /api/health` responde 503 com `postgres: down` | Corpo JSON com o estado de cada dependência |
 | Valkey fora do ar | API NestJS, health check | `GET /api/health` responde 503 com `valkey: down`; a API continua no ar | Corpo JSON com o estado de cada dependência |
 | Requisição sem sessão a rota protegida | Módulo Contas, guard global | 401 | SPA mostra o estado anônimo |
 | `ADMIN_EMAIL` ou `ADMIN_PASSWORD` ausente | PostgreSQL, seed do `make db-setup` | Seed termina com código diferente de zero, sem gravar nada | Mensagem nomeando a variável |
+| `ADMIN_PASSWORD` fora da regra de senha (menos de 8 caracteres, sem letra ou sem número) | Seed do `make db-setup`, antes de abrir o banco | Seed termina com código diferente de zero, sem gravar nada | Mensagem nomeando `ADMIN_PASSWORD`, sem o valor |
 | Conta de `ADMIN_EMAIL` já existe sem papel admin ou sem e-mail verificado | PostgreSQL, seed do `make db-setup` | Seed termina com código diferente de zero, sem alterar a conta | Mensagem dizendo que já existe conta com esse e-mail sem papel admin |
+| Conta admin de `ADMIN_EMAIL` com banimento em vigor | PostgreSQL, seed do `make db-setup` | Seed termina com código diferente de zero, sem alterar a conta | Mensagem dizendo que a conta do admin está banida, sem o e-mail |
 | Cadastro por e-mail e senha em `/api/auth/sign-up/email` | Módulo Contas, Better Auth | 400 com código `EMAIL_PASSWORD_SIGN_UP_DISABLED`, sem criar conta | Nada na fundação; o RF-001 monta a tela |
 | Migração falha | PostgreSQL, `prisma migrate deploy` | `make db-setup` termina com código diferente de zero | Saída do Prisma |
 | Coletor OTLP inacessível | API NestJS, exportador OTLP | Exportação descartada com aviso no log; requisições seguem | nada |
@@ -208,9 +212,9 @@ Verificação por superfície
 - Estrutura de pastas: API em `apps/api/src/modules/<funcionalidade>/`, com uma pasta por caso de uso (`create-task/` com controller, handler, DTO e `*.spec.ts`), `domain/` e `infra/` (ADR-0011); handler de fila em `apps/api/src/modules/<funcionalidade>/infra/queue/<fila>.processor.ts`; infraestrutura transversal em `apps/api/src/platform/`; tela em `apps/web/src/routes/<rota>/` com `route.tsx`, `loader.ts` e `action.ts`; esquemas compartilhados em `packages/contracts/src/<funcionalidade>.ts`.
 - Testes: Vitest em todo o monorepo; unidade em `*.spec.ts` ao lado do código; integração da API em `apps/api/test/integration/**/*.int-spec.ts` com `apps/api/vitest.integration.config.ts`; sem suíte E2E de navegador versionada.
 - Estado persistido: factories em `apps/api/test/factories/<entidade>.factory.ts` gravando pelo Prisma Client no banco `app_test`, que o `scripts/test.sh` recria e migra a cada execução; o estado que o contrato pede no ambiente local sai do seed `apps/api/prisma/seed.ts` (configurado em `migrations.seed` do `prisma.config.ts`), que cada RF estende com funções idempotentes.
-- Entradas estáticas: `apps/api/test/fixtures/` e `apps/web/test/fixtures/`.
+- Entradas estáticas: `apps/api/test/fixtures/` e `apps/web/test/fixtures/`, caminhos reservados que o primeiro RF com fixture cria; a fundação não versiona pasta vazia.
 - Configuração de teste: `apps/api/.env.test` versionado, só com valores falsos e de baixa entropia, lido pelos dois `vitest.config.ts` da API; o modo de teste que um RF precisar entra como variável nesse arquivo e no esquema de config.
-- Dependências externas: dublês em `apps/api/test/doubles/`, ligados por `overrideProvider()` do `@nestjs/testing`; o SMTP (DEP-1) é o Mailpit do Compose na integração e no ambiente local, lido pela API REST dele (ADR-0016).
+- Dependências externas: dublês em `apps/api/test/doubles/` (caminho reservado, criado pelo primeiro RF com dublê), ligados por `overrideProvider()` do `@nestjs/testing`; o SMTP (DEP-1) é o Mailpit do Compose na integração e no ambiente local, lido pela API REST dele (ADR-0016).
 
 ---
 
@@ -231,6 +235,7 @@ Decisões
 - Revisão de 2026-10-29, após a primeira avaliação: a SPA anônima continua lendo `GET /api/v1/session` e recebendo 401; o item de UI passa a tolerar só a mensagem de rede que o navegador registra para esse 401, porque o Chromium registra todo 4xx de `fetch` como erro de console e a SPA não tem como suprimir isso. Alternativa descartada: responder 200 com sessão nula ao anônimo, que esconderia a borda que API-BORDA-02 prova.
 - Revisão de 2026-10-29, achados da revisão de segurança: cadastro fechado com `emailAndPassword.disableSignUp` (doc do Better Auth, Options, `emailAndPassword`: bloqueia só a rota pública de sign-up; `createUser` do plugin admin segue); seed que recusa conta pré-existente sem papel admin, em vez de promovê-la (regra do projeto; a doc do Better Auth não cobre seed); query string fora do log de acesso (`serializers.req` do pino-http) e `url.query` redigido no span de servidor (`startIncomingSpanHook` da `@opentelemetry/instrumentation-http`; a versão 0.300 emite só `url.path` e `url.query` no span de servidor, conferido no código da instrumentação).
 - Revisão de 2026-10-29, rate limit: desligado na fundação. Doc do Better Auth, Options, `rateLimit`: `enabled` padrão `true` em produção, `window` 10 s, `max` 100, `storage` padrão `memory`; sem `advanced.ipAddress.trustedProxies` a biblioteca cai num balde único por caminho e avisa no stderr. O RF-001 liga com `storage: "secondary-storage"` no Valkey (HLD) e `trustedProxies`. Alternativa descartada: manter o padrão, que não funciona com réplicas e suja o log JSON.
+- Revisão de 2026-10-29, achados da revisão de código do PR 4: o seed recusa admin com banimento em vigor sem alterá-lo (plugin admin do better-auth 1.7.14, `dist/plugins/admin/admin.mjs`: na criação de sessão, `banned` com `banExpires` vencido é retirado; sem `banExpires`, o banimento não vence); alternativa descartada: desbanir em silêncio. O seed exige a regra de senha do PRD em `ADMIN_PASSWORD`; alternativa descartada: só o tamanho, deixando o primeiro admin fora da regra das outras contas. `PORT` entra no esquema de config (ADR-0023), opcional com padrão 3000; alternativa descartada: porta fixa, que tira o ajuste do Compose e de plataformas que definem a porta. As pastas de fixtures e dublês ficam reservadas, sem `.gitkeep`. Os decorators `@Session()` e `@AllowAnonymous()` são importados direto do `@thallesp/nestjs-better-auth`, como a biblioteca documenta; o Módulo Contas não os reexporta.
 
 Hipóteses
 - Pacotes `@app/api`, `@app/web` e `@app/contracts` (hipótese)

@@ -11,6 +11,7 @@
 - `admin-inicial`: conta com o e-mail de ADMIN_EMAIL, papel admin, e-mail verificado, sem banimento e credencial de senha igual a ADMIN_PASSWORD. Usado por: CLI-ADMIN-02, CLI-LOGS-03, API-ADMIN-01
 - `sessao-admin`: sessão válida da conta `admin-inicial`, com o cookie de sessão correspondente. Usado por: API-BORDA-04, UI-INICIO-02
 - `conta-comum-com-email-do-admin`: conta com o e-mail de ADMIN_EMAIL, sem papel admin, e-mail não verificado e credencial de senha diferente de ADMIN_PASSWORD. Usado por: CLI-ADMIN-04
+- `admin-banido`: conta com o e-mail de ADMIN_EMAIL, papel admin, e-mail verificado, banida sem data de expiração e credencial de senha igual a ADMIN_PASSWORD. Usado por: CLI-ADMIN-05
 
 ### Configuração
 - Arquivo `.env` copiado do `.env.example`, com ADMIN_EMAIL e ADMIN_PASSWORD preenchidos com uma senha de 8 ou mais caracteres com letra e número, NODE_ENV igual a development e OTEL_EXPORTER_OTLP_ENDPOINT ausente, salvo onde o item diz outra coisa.
@@ -34,9 +35,9 @@ Cada gate precisa passar para a feature ser considerada pronta.
 | Monorepo: workspaces do pnpm 12 orquestrados pelo Turborepo, com apps/api, apps/web e packages/contracts, Node 26 e TypeScript 6 (ADR-0002, ADR-0012, ADR-0013, ADR-0020). | CLI-MONOREPO-01 |
 | Scripts do contrato da stack: scripts/lint.sh, scripts/format.sh, scripts/test.sh e scripts/build.sh delegando ao Turborepo (ADR-0002). | CLI-STACK-01, CLI-STACK-02, CLI-STACK-03, CLI-STACK-04, CLI-STACK-05 |
 | Ambiente local: Docker Compose com api, web, postgres, valkey e mailpit, com o código montado e hot reload (ADR-0006, ADR-0014, ADR-0016). | CLI-AMBIENTE-01, CLI-AMBIENTE-02, CLI-AMBIENTE-03, UI-RECARGA-01 |
-| Configuração e segredos: .env.example versionado e validação das variáveis na subida da API, que falha se faltar alguma (HLD, Gestão de segredos). | CLI-CONFIG-01, CLI-CONFIG-02 |
+| Configuração e segredos: .env.example versionado e validação das variáveis na subida da API, que falha se faltar alguma (HLD, Gestão de segredos). | CLI-CONFIG-01, CLI-CONFIG-02, CLI-CONFIG-03 |
 | Banco: PostgreSQL 18 com Prisma 7 e a migração inicial com as tabelas do Better Auth e os campos do plugin admin (ADR-0007, ADR-0008, ADR-0010). | CLI-BANCO-01, CLI-BANCO-02 |
-| Preparo do banco: alvo make db-setup que aplica as migrações e cria o primeiro admin a partir do .env, de forma idempotente (PRD, Decisão primeiro admin criado na instalação). | CLI-ADMIN-01, CLI-ADMIN-02, CLI-ADMIN-03, CLI-ADMIN-04 |
+| Preparo do banco: alvo make db-setup que aplica as migrações e cria o primeiro admin a partir do .env, de forma idempotente (PRD, Decisão primeiro admin criado na instalação). | CLI-ADMIN-01, CLI-ADMIN-02, CLI-ADMIN-03, CLI-ADMIN-04, CLI-ADMIN-05, CLI-ADMIN-06 |
 | Autenticação na borda: Better Auth montado em /api/auth no Módulo Contas, com o guard global que recusa requisição sem sessão (ADR-0010). | API-BORDA-01, API-BORDA-02, API-BORDA-03, API-BORDA-04, API-BORDA-05, API-ADMIN-01, API-CORS-01, API-CORS-02 |
 | Saúde: rota anônima de health check que informa o estado do PostgreSQL e do Valkey (HLD, Observabilidade). | API-SAUDE-01, API-SAUDE-02, API-SAUDE-03 |
 | Logs: nestjs-pino com JSON por linha, requestId único e redação de dados pessoais (ADR-0018). | CLI-LOGS-01, CLI-LOGS-02, CLI-LOGS-03, CLI-LOGS-04 |
@@ -274,6 +275,13 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
   - o `.env` é ignorado pelo git
   - o `.env.example` não traz segredo real, só valores de desenvolvimento
 
+#### CLI-CONFIG-03
+- **Dado:** os demais serviços no ar.
+- **Quando:** sobe-se o serviço api com a variável PORT igual a 70000 no ambiente do processo.
+- **Então:**
+  - o processo da api termina com código diferente de 0
+  - a saída nomeia PORT
+
 ### Banco
 
 #### CLI-BANCO-01
@@ -330,6 +338,25 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
   - essa conta continua sem papel admin e com o e-mail não verificado
   - a credencial de senha dessa conta não muda
   - continua existindo exatamente uma conta com o e-mail de ADMIN_EMAIL
+
+#### CLI-ADMIN-05
+- **Dado:** `admin-banido`.
+- **Quando:** `make db-setup`.
+- **Então:**
+  - o código de saída é diferente de 0
+  - a saída diz que a conta admin com o e-mail de ADMIN_EMAIL está banida
+  - a saída não contém o texto de ADMIN_EMAIL
+  - essa conta continua banida e com papel admin
+  - a credencial de senha dessa conta não muda
+
+#### CLI-ADMIN-06
+- **Dado:** o ambiente no ar com o banco vazio e ADMIN_PASSWORD no `.env` com 8 ou mais caracteres e sem nenhum número.
+- **Quando:** `make db-setup`.
+- **Então:**
+  - o código de saída é diferente de 0
+  - a saída nomeia ADMIN_PASSWORD
+  - a saída não contém o texto de ADMIN_PASSWORD
+  - nenhuma conta existe no banco
 
 ### Logs estruturados
 
