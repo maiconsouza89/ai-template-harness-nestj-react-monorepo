@@ -2,8 +2,8 @@
 
 *Gerado pela skill implement-and-evaluate. Cada execução sobrescreve este arquivo; o histórico está no git.*
 
-- Execução: 2026-10-29T18-47-14Z
-- Branch: feat/fundacao
+- Execução: 2026-10-30T15-10-00Z
+- Branch: refactor/api-clean-arch
 - Status: sucesso
 - Orçamento: 3 ciclos de correção
 - Autorizado: commits sim, fechamento sim
@@ -13,22 +13,20 @@
 
 | Ciclo | Skill | Status | Resultado | Commit |
 | --- | --- | --- | --- | --- |
-| 0 | spec-writer (revisão) | concluída | contrato revisado com os achados da revisão do PR 4, 52 itens | f131f1d |
-| 0 | implement-feature | pronto para avaliar | fases 5/5 já commitadas; pré-requisito admin-banido produzido e newId deduplicado | 87ef54a |
-| 0 | evaluator | reprovado | passou 49, falhou 3, bloqueado 0, manual 0 | |
-| 1 | fix-runner | corrigido | CLI-CONFIG-03, CLI-ADMIN-05, CLI-ADMIN-06 | f1806bb |
-| 1 | evaluator | limpo | passou 52, manual 0 | |
-| 2 | fix-runner (achado) | corrigido | CI do PR #4, check-secrets: fingerprint do cookie inventado em .gitleaksignore | 26b9f16 |
+| 0 | implement-feature | pronto para avaliar | fase 5/5 (passos 22 a 24; fases 1 a 4 e passos 20 e 21 já na main) | e609931 |
+| 0 | evaluator | abortado no item CLI-IMAGEM-03 | passou 54, falhou 0, bloqueado 6 (dono ambiente: daemon do Docker caiu com SIGBUS no build da imagem da SPA), manual 0 | |
+| 0 | evaluator (só os bloqueados) | pendente | passou 6 (CLI-IMAGEM-03, UI-INICIO-01 a 04, UI-RECARGA-01), pulado 54 | |
+| 0 | evaluator | limpo | passou 60, falhou 0, bloqueado 0, manual 0; critérios 15 de 15 | |
 
 ## Mudanças entre ciclos
 
-- Ciclo 1: passaram CLI-CONFIG-03, CLI-ADMIN-05, CLI-ADMIN-06; continuam falhando: nenhum
+- Nenhum ciclo de correção: a avaliação completa do ciclo 0 saiu limpa. As rodadas anteriores pararam por ambiente (sessão interrompida e queda do Docker), não por código.
 
 ## Resultado
 
 - Status final: sucesso
-- Ciclos de correção: 2 (1 pela avaliação, 1 pela CI)
-- Commits: 0 de fase nesta execução (5 das anteriores), 1 de revisão da spec, 1 de pré-requisito, 2 de correção, 2 de registro
+- Ciclos de correção: 0
+- Commits: 1 de fase (e609931), 0 de correção, 1 de registro; mais a revisão da spec (0dde3b3) e os limites do Compose (0872c9f)
 - Pendentes no fim: Nenhum.
 - Manuais a revisar: Nenhum.
 
@@ -36,14 +34,15 @@
 
 - Merge de origin/main: já atualizado
 - Reavaliação depois do merge: não precisou
-- Push: feito para origin/feat/fundacao
-- PR: https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/pull/4 existente atualizado
-- CI: vermelha em check (check-secrets): gitleaks marcou como generic-api-key o cookie de sessão inventado do API-BORDA-03 na evidência do avaliacao.md (8917949, linha 160); corrigida pela /fix-runner modo achado no ciclo 2 (26b9f16); depois dela, verde (jobs check e pr-title), PR fora de rascunho, mergeStateStatus CLEAN
+- Push: em andamento
+- PR: em andamento
+- CI: em andamento
 
 ## Avisos
 
-- Terceira execução sobre a fundação: as 5 fases já estão commitadas (7bd9fab, 7418157, 8a9835f, 5c70769, 6b5e485). A /spec-writer revisou spec e contrato com os achados da revisão de código do PR 4 (itens novos CLI-ADMIN-05, CLI-ADMIN-06, CLI-CONFIG-03 e pré-requisito admin-banido).
-- Servidor estático da SPA ainda pendente de ADR; seguido por ordem explícita da pessoa, como nas execuções anteriores.
-- A primeira /evaluator do ciclo 0 foi interrompida junto com a sessão, sem gravar veredito; a trava se perdeu com o /tmp e foi recriada na retomada, e a /evaluator foi despachada de novo do zero.
-- Sem nova /evaluator depois do 26b9f16: a correção só acrescenta um fingerprint ao .gitleaksignore, sem tocar código nem superfície do contrato; o gate make check foi rodado de novo e passou, e o gitleaks sobre o histórico não acha nada.
-- A evidência do API-BORDA-03 registra o valor do cookie inventado, que tem cara de token e dispara o gitleaks a cada avaliação nova. Sugestão para a /evaluator: mascarar valores de cookie nas evidências, como já faz com o cookie real da sessao-admin.
+- Revisão da spec, do plano e do contrato commitada antes do ciclo 0 (0dde3b3), para o laço partir de uma árvore limpa.
+- Pendente de ADR na spec (servidor estático da imagem da SPA) não bloqueou: afeta só o passo 20, já implementado na main por decisão explícita da pessoa.
+- A regra "*.spec.ts seguem as mesmas regras" vai barrar um `application/*.spec.ts` que importe `@nestjs/testing`; o primeiro RF com caso de uso decide a exceção (/spec-writer).
+- A primeira avaliação do ciclo 0 foi interrompida junto com a sessão, sem gravar avaliacao.md. Na retomada, o working tree tinha limites de CPU e memória no compose.yaml e no .env.example; por decisão da pessoa, entraram em commit próprio (0872c9f) e a avaliação foi refeita do zero sobre o HEAD novo. A trava em /tmp tinha sumido com o reinício e foi recriada.
+- Avaliação do ciclo 0 abortada por ambiente: o Docker Desktop caiu durante o build de apps/web/Dockerfile. Ficaram bloqueados CLI-IMAGEM-03 e UI-INICIO-01 a 04 e UI-RECARGA-01; os 8 itens novos (CLI-CAMADAS-01 a 08) passaram. Sobras a limpar com o Docker de volta: banco eval_fundacao_2026_10_30t15_24_00z, imagem eval-fundacao-api:2026-10-30t15-24-00z e os containers do Compose. Laço pausado à espera da pessoa reiniciar o Docker.
+- Com o Docker de volta (VM com 6 GB), a sobra eval_fundacao_2026_10_30t15_24_00z foi apagada e os 6 bloqueados passaram numa avaliação filtrada, que sobrescreveu o avaliacao.md com status pendente. Por decisão da pessoa, uma avaliação completa sem filtro roda sobre o mesmo HEAD para o registro sair limpo.
