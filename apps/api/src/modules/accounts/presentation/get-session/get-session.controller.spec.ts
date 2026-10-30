@@ -1,5 +1,5 @@
 import type { UserSession } from '@thallesp/nestjs-better-auth';
-import type { Auth } from '../auth.js';
+import type { Auth } from '../../auth.js';
 import { GetSessionController } from './get-session.controller.js';
 
 /** Sessão como o guard a anexa à requisição, com só os campos que o controller lê. */

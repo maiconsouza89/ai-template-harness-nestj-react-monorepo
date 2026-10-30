@@ -1,8 +1,8 @@
 import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins/admin';
-import type { PrismaClient } from '../../generated/prisma/client.js';
 import type { Env } from '../../platform/config/env.js';
+import type { PrismaClient } from '../../platform/prisma/prisma.service.js';
 
 /** Caminho em que o Better Auth atende; fica fora do prefixo `/api` e do versionamento do Nest. */
 export const AUTH_BASE_PATH = '/api/auth';
@@ -18,10 +18,12 @@ export type AuthEnv = Pick<
 >;
 
 /**
- * Instância do Better Auth (ADR-0010) do Módulo Contas: sessão em cookie gravada no PostgreSQL
- * pelo adapter Prisma e o plugin admin para papéis e banimento. Na fundação só a borda existe;
+ * Instância do Better Auth (ADR-0010) do Módulo Contas, arquivo de composição na raiz do módulo
+ * (ADR-0025): sessão em cookie gravada no PostgreSQL pelo adapter Prisma e o plugin admin para
+ * papéis e banimento. Na fundação só a borda existe;
  * envio de e-mail, bloqueio e rate limit entram pelos RFs. Este arquivo só importa pacotes e
- * tipos para o seed (`prisma/seed.ts`) carregá-lo direto no Node, sem compilar.
+ * tipos para o seed (`prisma/seed.ts`) carregá-lo direto no Node, sem compilar; o tipo do
+ * cliente Prisma vem de `platform/`, porque só `infra/` e `platform/` importam o cliente gerado.
  *
  * - `trustedOrigins` e o CORS da API usam a mesma origem da SPA, `WEB_ORIGIN`.
  * - Cookie `httpOnly` (padrão), `secure` fora do ambiente local e, com `COOKIE_DOMAIN`,

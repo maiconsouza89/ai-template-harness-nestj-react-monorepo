@@ -5,6 +5,12 @@ import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
 
 /**
+ * Tipo do cliente gerado, para quem fora de `infra/` e `platform/` precisa dele (a composição do
+ * Better Auth em `modules/accounts/auth.ts`) sem importar `src/generated/` (ADR-0025).
+ */
+export type { PrismaClient };
+
+/**
  * Cliente Prisma 7 (ADR-0008) ligado ao PostgreSQL (ADR-0007) pelo driver adapter `pg`, apontado
  * para `DATABASE_URL`. Conecta na primeira consulta, não na subida: a API fica no ar com o banco
  * fora e `GET /api/health` informa `postgres: down`. O adapter trata os erros do pool, então uma
