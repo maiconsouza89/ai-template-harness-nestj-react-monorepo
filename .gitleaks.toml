@@ -4,8 +4,11 @@
 useDefault = true
 
 # Cookies de sessão inventados (sem assinatura) da evidência de API-BORDA-03 em
-# docs/features/fundacao/avaliacao.md, que o item usa para provar o 401 (um valor por versão do arquivo); não são segredo.
-# Ignorados pelo valor exato e só naquele arquivo (condição AND), sem depender do SHA do commit:
+# docs/features/fundacao/avaliacao.md, que o item usa para provar o 401; não são segredo.
+# O contrato não fixa o valor, e a evaluator o troca a cada avaliação; por isso o padrão aceita
+# qualquer valor que comece com "inventado" (por exemplo inventado123.abcdef), e só naquele
+# arquivo (condição AND). Valor sem esse prefixo continua acusado: ou ele é mascarado na
+# evidência (relatorio.md da evaluator), ou o prefixo vale. Não depende do SHA do commit:
 # o fingerprint do .gitleaksignore leva o SHA, que o squash do PR troca.
 [[rules]]
 id = "generic-api-key"
@@ -14,7 +17,4 @@ id = "generic-api-key"
     description = "cookie inventado da evidência de API-BORDA-03"
     condition = "AND"
     paths = ['''^docs/features/fundacao/avaliacao\.md$''']
-    regexes = [
-      '''^inventado123\.abcdef$''',
-      '''^inventado\.valorqualquer123$''',
-    ]
+    regexes = ['''^inventado[A-Za-z0-9._-]*$''']

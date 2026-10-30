@@ -7,6 +7,8 @@
 # container (repositório em /mnt/c no WSL2); custa CPU, por isso fica desligado por padrão.
 # Cada serviço tem teto de CPU e memória para o ambiente não esgotar a VM do WSL2 (ou do Docker
 # Desktop) e travar a máquina; api e web, os mais pesados, aceitam ajuste por variável no .env.
+# O Docker recusa um teto de CPU acima das CPUs da VM ("range of CPUs is from 0.01 to N"): com
+# menos de 2 CPUs, baixe API_CPUS e WEB_CPUS no .env (ex.: 1) antes do docker compose up.
 # Estourar a memória mata só o container (OOM), que aparece como exit 137 em docker compose ps.
 
 # Mesma imagem para api e web, com uma tag por serviço: dois builds da mesma tag em paralelo

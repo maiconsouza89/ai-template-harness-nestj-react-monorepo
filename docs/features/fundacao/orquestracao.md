@@ -29,7 +29,7 @@
 - Status final: sucesso
 - Ciclos de correção: 1 (CI do PR)
 - Commits: 1 de fase (e609931), 1 de correção (f4a6610), 2 de registro; mais a revisão da spec (0dde3b3) e os limites do Compose (0872c9f)
-- Pendentes no fim: Nenhum.
+- Pendentes no fim: o contrato de API-BORDA-03 não fixa o valor do cookie inventado (ver Avisos); a allowlist do gitleaks aceita o prefixo "inventado" até a /spec-writer fixar o literal.
 - Manuais a revisar: Nenhum.
 
 ## Fechamento
@@ -38,7 +38,7 @@
 - Reavaliação depois do merge: não precisou
 - Push: feito
 - PR: https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/pull/8 (aberto em rascunho)
-- CI: vermelha em check (check-secrets) na primeira rodada, corrigida no ciclo 1; segunda rodada em andamento
+- CI: vermelha em check (check-secrets) na primeira rodada, corrigida no ciclo 1; segunda rodada verde (check e pr-title)
 
 ## Avisos
 
@@ -49,5 +49,5 @@
 - Avaliação do ciclo 0 abortada por ambiente: o Docker Desktop caiu durante o build de apps/web/Dockerfile. Ficaram bloqueados CLI-IMAGEM-03 e UI-INICIO-01 a 04 e UI-RECARGA-01; os 8 itens novos (CLI-CAMADAS-01 a 08) passaram. Sobras a limpar com o Docker de volta: banco eval_fundacao_2026_10_30t15_24_00z, imagem eval-fundacao-api:2026-10-30t15-24-00z e os containers do Compose. Laço pausado à espera da pessoa reiniciar o Docker.
 - Com o Docker de volta (VM com 6 GB), a sobra eval_fundacao_2026_10_30t15_24_00z foi apagada e os 6 bloqueados passaram numa avaliação filtrada, que sobrescreveu o avaliacao.md com status pendente. Por decisão da pessoa, uma avaliação completa sem filtro roda sobre o mesmo HEAD para o registro sair limpo.
 - O PR foi marcado como pronto por engano com a CI vermelha (o `gh pr checks --watch` saiu com código 0) e voltou a rascunho em seguida.
-- Sem nova avaliação completa depois do ciclo 1: a correção só toca .gitleaks.toml e .gitleaksignore, conferidos por CI=true make check.
-- Lacuna do contrato apontada pela fix-runner: API-BORDA-03 não fixa o valor do cookie inventado; se a evaluator gravar outro valor, ele precisa entrar no .gitleaks.toml (/spec-writer pode fixar o literal).
+- Sem nova avaliação completa depois do ciclo 1: a correção só toca .gitleaks.toml, conferido por CI=true make check e pela segunda rodada verde da CI.
+- Lacuna do contrato apontada pela fix-runner: API-BORDA-03 não fixa o valor do cookie inventado; a allowlist do .gitleaks.toml aceita qualquer valor com prefixo "inventado"; outro prefixo volta a ser acusado (/spec-writer pode fixar o literal no contrato).
