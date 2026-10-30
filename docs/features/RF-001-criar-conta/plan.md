@@ -9,6 +9,8 @@ Spec: spec.md. Contrato: contract.md.
 - Fundação implementada (`docs/features/fundacao/`): Better Auth em `/api/auth`, conexão com o Valkey, `PrismaService`, pacote Contratos e o roteador da SPA.
 - DEP-1 no ambiente local: o Mailpit do Compose recebendo SMTP e expondo a API REST.
 - Nenhum RF no fecho de dependências.
+- ADR-0027 (Tailwind CSS 4) e ADR-0028 (Inter auto-hospedada) aceitos, para a fase 4.
+- `DESIGN.md` na raiz, sem a marca de terceiros e com as contradições resolvidas (spec, Decisões).
 
 ---
 
@@ -34,13 +36,16 @@ Spec: spec.md. Contrato: contract.md.
 12. **Módulo Contas:** compor no `accounts.module.ts` as dependências de `auth.ts` a partir do Valkey, do Módulo E-mail e do logger.
 13. **Módulo Contas:** substituir a integração da fundação que provava o cadastro fechado pela do cadastro aberto, acrescentar a factory de conta pendente, limpar os contadores de rate limit na subida da aplicação de integração e dar um IP próprio aos casos existentes que entram com o admin.
 
-## Fase 4: tela de cadastro
+## Fase 4: base visual e tela de cadastro
 
-14. **SPA Web:** criar a rota `/cadastro` com o formulário de nome, e-mail e senha, a `action` que valida pelo esquema de Contratos e chama a API, e as mensagens por campo.
-15. **SPA Web:** mostrar, depois do cadastro aceito, a mensagem de link enviado com o e-mail informado e o botão de reenvio, e tratar e-mail existente (com os links para entrar e recuperar a senha), limite excedido e servidor fora.
-16. **SPA Web:** pendurar a rota `/cadastro` no roteador como filha da raiz e ligar a página inicial anônima a ela.
+14. **SPA Web:** acrescentar o Tailwind CSS 4 com o plugin do Vite (ADR-0027) e a fonte Inter auto-hospedada (ADR-0028).
+15. **SPA Web:** criar a folha de estilo global com os tokens do `DESIGN.md`, sem a paleta padrão do Tailwind, e as classes dos componentes que a tela usa (spec, Regras visuais).
+16. **SPA Web:** criar a barra de navegação com os links de entrar e criar conta e aplicá-la, com os tokens, à rota raiz e à página de erro.
+17. **SPA Web:** criar a rota `/cadastro` com o formulário de nome, e-mail e senha no card do `DESIGN.md`, a `action` que valida pelo esquema de Contratos e chama a API, e as mensagens por campo no estado de erro em preto e branco.
+18. **SPA Web:** mostrar, depois do cadastro aceito, a mensagem de link enviado com o e-mail informado e o botão de reenvio, e tratar e-mail existente (com os links para entrar e recuperar a senha), limite excedido e servidor fora.
+19. **SPA Web:** pendurar a rota `/cadastro` no roteador como filha da raiz e ligar a página inicial anônima a ela.
 
 ## Fase 5: privacidade e fechamento
 
-17. **Módulo Contas:** conferir que o cadastro, o worker e o callback não escrevem senha, nome, e-mail nem token em log, cobrindo isso na integração de logs (spec, Estratégia de testes).
-18. **Módulo E-mail:** ajustar o README na parte de e-mail e da caixa de teste local e o `.env.example` na de proxies, e rodar os gates do contrato.
+20. **Módulo Contas:** conferir que o cadastro, o worker e o callback não escrevem senha, nome, e-mail nem token em log, cobrindo isso na integração de logs (spec, Estratégia de testes).
+21. **Módulo E-mail:** ajustar o README na parte de e-mail e da caixa de teste local e o `.env.example` na de proxies, e rodar os gates do contrato.

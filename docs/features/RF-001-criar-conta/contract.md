@@ -8,8 +8,8 @@
 - API NestJS (com o worker do Módulo E-mail no mesmo processo), SPA Web, PostgreSQL, Redis (serviço Valkey) e Mailpit no Docker Compose, salvo onde o item para um deles.
 
 ### Estado persistido
-- `conta-pendente-ana`: conta com o e-mail ana@example.com, nome Ana Souza, papel usuário, e-mail não verificado, sem banimento e credencial de senha, criada pelo cadastro. Usado por: API-DUPLICADO-01, API-DUPLICADO-02, API-SIGILO-03, WRK-EMAIL-05, UI-DUPLICADO-01, UI-SIGILO-01
-- `janela-de-cadastro-livre`: nenhum contador de rate limit de cadastro no Valkey para o IP de onde o item envia o cadastro. Usado por: API-LIMITE-01, UI-CADASTRO-01, UI-REENVIO-01, UI-DUPLICADO-01, UI-SIGILO-01, E2E-CADASTRO-01
+- `conta-pendente-ana`: conta com o e-mail ana@example.com, nome Ana Souza, papel usuário, e-mail não verificado, sem banimento e credencial de senha, criada pelo cadastro. Usado por: API-DUPLICADO-01, API-DUPLICADO-02, API-SIGILO-03, WRK-EMAIL-05, UI-DUPLICADO-01, UI-SIGILO-01, UI-VISUAL-06
+- `janela-de-cadastro-livre`: nenhum contador de rate limit de cadastro no Valkey para o IP de onde o item envia o cadastro. Usado por: API-LIMITE-01, UI-CADASTRO-01, UI-REENVIO-01, UI-DUPLICADO-01, UI-SIGILO-01, UI-VISUAL-06, E2E-CADASTRO-01
 
 ### Configuração
 - Arquivo `.env` copiado do `.env.example`, com NODE_ENV igual a development e TRUSTED_PROXIES vazia, e o `make db-setup` aplicado.
@@ -209,7 +209,7 @@ Modo de verificação: requisições HTTP contra a API em execução no ambiente
 
 ## UI
 
-Modo de verificação: navegador dirigido contra a SPA em execução no ambiente local, observando o conteúdo da página, os atributos dos campos, a URL e as requisições de rede.
+Modo de verificação: navegador dirigido contra a SPA em execução no ambiente local, observando o conteúdo da página, os atributos dos campos, o estilo computado dos elementos, as fontes carregadas no documento, a URL e as requisições de rede.
 
 ### Tela de cadastro
 
@@ -270,6 +270,90 @@ Modo de verificação: navegador dirigido contra a SPA em execução no ambiente
   - o texto visível da página não contém Oculta123
   - a URL não contém Oculta123
   - a requisição de cadastro leva a senha no corpo, nunca na URL
+
+### Barra de navegação
+
+Dado comum: o navegador sem cookie.
+
+#### UI-LAYOUT-01
+- **Dado:** a SPA no ar.
+- **Quando:** abre-se a raiz da SPA.
+- **Então:**
+  - o topo da página tem a barra de navegação com o nome do app como link para /
+  - a barra tem o link "Criar conta" para /cadastro
+  - a barra tem o link "Entrar" para /entrar
+  - a página continua mostrando, em português do Brasil, que não há sessão aberta
+
+#### UI-LAYOUT-02
+- **Dado:** a raiz da SPA aberta.
+- **Quando:** a pessoa clica em "Criar conta" na barra de navegação.
+- **Então:**
+  - a URL passa a /cadastro
+  - o formulário de cadastro está visível
+  - a barra de navegação continua no topo da página
+
+#### UI-LAYOUT-03
+- **Dado:** a SPA no ar.
+- **Quando:** abre-se o endereço /nao-existe na SPA.
+- **Então:**
+  - a página mostra, em português do Brasil, que a página não foi encontrada
+  - o font-family computado do texto da página começa com "Inter Variable"
+
+### Identidade visual
+
+Dado comum: o navegador sem cookie e a janela com 1280 por 800 pixels, salvo onde o item diz outra largura.
+
+#### UI-VISUAL-01
+- **Dado:** a SPA no ar.
+- **Quando:** abre-se /cadastro.
+- **Então:**
+  - o botão "Criar conta" do formulário tem fundo computado rgb(0, 0, 0) e cor rgb(255, 255, 255)
+  - esse botão tem border-radius computado de 999px
+  - o rótulo desse botão tem font-size de 16px e font-weight 500
+  - esse botão tem pelo menos 44px de altura
+
+#### UI-VISUAL-02
+- **Dado:** a SPA no ar.
+- **Quando:** abre-se /cadastro.
+- **Então:**
+  - a fonte "Inter Variable" consta como carregada nas fontes do documento
+  - o font-family computado do body começa com "Inter Variable"
+  - o título "Crie sua conta" tem font-weight 700, font-size de 32px e letter-spacing normal
+  - toda requisição de arquivo de fonte vai à origem da SPA
+
+#### UI-VISUAL-03
+- **Dado:** a SPA no ar.
+- **Quando:** abre-se /cadastro.
+- **Então:**
+  - o card do formulário tem fundo computado rgb(255, 255, 255), border-radius de 16px e box-shadow none
+  - o card tem no máximo 490px de largura
+  - os campos de nome, e-mail e senha têm fundo computado rgb(239, 239, 239) e border-radius de 8px
+  - cada campo tem um rótulo visível associado a ele
+
+#### UI-VISUAL-04
+- **Dado:** a SPA no ar.
+- **Quando:** a pessoa abre /cadastro, preenche nome Zeca Brum, e-mail zeca@ e senha Segura123 e envia.
+- **Então:**
+  - o campo de e-mail tem aria-invalid igual a true
+  - o aria-describedby do campo de e-mail aponta para o elemento com a mensagem de e-mail inválido
+  - o campo de e-mail tem borda computada de 2px na cor rgb(0, 0, 0)
+  - a mensagem tem cor computada rgb(0, 0, 0) e um ícone antes do texto
+
+#### UI-VISUAL-05
+- **Dado:** a SPA no ar e a janela com 375 por 812 pixels.
+- **Quando:** abre-se /cadastro.
+- **Então:**
+  - a largura de rolagem do documento não passa de 375px
+  - o card do formulário fica a 16px de cada borda da janela
+  - os links "Entrar" e "Criar conta" da barra de navegação estão visíveis
+
+#### UI-VISUAL-06
+- **Dado:** `conta-pendente-ana` e `janela-de-cadastro-livre`.
+- **Quando:** a pessoa abre /cadastro, preenche nome Outra Ana, e-mail ana@example.com e senha Segura123 e envia.
+- **Então:**
+  - o aviso de e-mail já cadastrado aparece acima do formulário com role igual a alert
+  - o aviso tem fundo computado rgb(239, 239, 239) e border-radius de 16px
+  - nenhum elemento visível da página tem cor de texto, fundo ou borda fora da paleta do DESIGN.md, sem contar o transparente
 
 ## Worker
 

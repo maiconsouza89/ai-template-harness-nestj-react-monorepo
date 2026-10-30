@@ -1,7 +1,7 @@
 # Spec: RF-001 Criar conta
 
 PRD: docs/product/prd.md versão 0.1.0
-HLD: docs/architecture/hld.md versão 0.2.5
+HLD: docs/architecture/hld.md versão 0.2.6
 Complexidade: complexa
 
 ---
@@ -19,6 +19,9 @@ Incluído
 - Tela de "link enviado" com o botão de reenvio sempre visível, pela rota nativa `POST /api/auth/send-verification-email`, o que cobre a falha no envio prevista no RF.
 - Rate limit do Better Auth ligado, com contadores no Valkey: 100 requisições a cada 10 segundos por IP e caminho, e 5 cadastros a cada 60 segundos por IP.
 - Logs do Better Auth encaminhados ao logger pino da API, para passarem pela mesma redação de dados pessoais.
+- Base visual da SPA a partir do `DESIGN.md` da raiz: os tokens de cor, tipografia, raio e espaçamento num bloco `@theme` do Tailwind CSS 4, com a paleta padrão do Tailwind removida, e a fonte Inter auto-hospedada.
+- Layout da rota raiz no `DESIGN.md`: barra de navegação (`nav-bar`) com o nome do app e, sem sessão, os links "Entrar" (`button-secondary`) e "Criar conta" (`button-primary`); a página de erro passa a usar os mesmos tokens.
+- Tela `/cadastro` montada com os componentes do `DESIGN.md`: card de autenticação branco, campos `text-input`, botão primário em pílula, estado de erro de campo em preto e branco e avisos de servidor em `card-soft-tinted`.
 
 Entradas
 - nenhuma: o RF-001 não depende de outro RF. Da fundação, usa a instância do Better Auth em `apps/api/src/modules/accounts/auth.ts`, a conexão `REDIS` de `apps/api/src/platform/redis/`, o `PrismaService` e o pacote Contratos.
@@ -31,12 +34,14 @@ Saídas
 - `passwordSchema` e as mensagens da regra de senha em Contratos: RF-005 e RF-007 aplicam a mesma regra à senha nova.
 - O rate limit ligado com armazenamento no Valkey, onde RF-003 e RF-005 acrescentam as regras de sign-in e recuperação.
 - A tela `/cadastro`, com os links "Entrar" e "Recuperar a senha" para as rotas `/entrar` e `/recuperar-senha`, que RF-003 e RF-005 constroem.
+- A base visual em `apps/web/src/styles/app.css` (tokens do `DESIGN.md` no `@theme`) e a barra de navegação da rota raiz: RF-002, RF-003, RF-005 e os demais RFs com tela usam as mesmas classes e penduram as telas abaixo da barra.
 
 Fora desta spec
 - Abrir o link, ativar a conta, as telas de link vencido ou inválido e a invalidação dos links anteriores no reenvio: RF-002.
 - Entrar, bloqueio por tentativas e as regras de rate limit de sign-in: RF-003.
 - Recuperação de senha e a regra de rate limit da recuperação: RF-005.
 - Revisão do contrato da fundação: o item API-BORDA-05 dela exige o cadastro fechado, que este RF abre (ver Decisões).
+- Componentes do `DESIGN.md` que o cadastro não usa (rodapé, faixas promocionais, cards ilustrados, chips de categoria): entram no RF que tiver a primeira tela que precise deles.
 
 ---
 
@@ -59,6 +64,19 @@ Regras
 - Rate limit por IP: 5 cadastros a cada 60 segundos em `/sign-up/email` e 100 requisições a cada 10 segundos nas demais rotas de `/api/auth`, que passam a valer também em development e test; o pedido além do limite recebe 429 (HLD, Interfaces públicas).
 - O IP do rate limit vem do `X-Forwarded-For`, resolvido com `TRUSTED_PROXIES` quando definida; sem ela, vale um `X-Forwarded-For` de um valor só e, sem cabeçalho, o endereço local em development e test (comportamento do `@better-auth/core` 1.7.14, `utils/ip.mjs`).
 - Com o Valkey fora do ar, o rate limit libera a requisição (fail-open) e registra o erro, e o cadastro cria a conta mesmo sem enfileirar o e-mail (HLD, Técnicas aplicadas).
+
+Regras visuais (`DESIGN.md`)
+- A paleta é só a do `DESIGN.md`: `--color-*: initial` no `@theme` remove as cores padrão do Tailwind, e as utilidades de cor existem só para `primary`, `on-primary`, `ink`, `body`, `mute`, `hairline-mid`, `canvas`, `canvas-soft`, `canvas-softer`, `surface-pressed`, `link`, `on-dark` e `black-elevated` (tailwindcss.com/docs/theme, Overriding the default theme).
+- Toda a SPA usa a família `Inter Variable`, servida pela própria SPA a partir de `@fontsource-variable/inter`, com o fallback `system-ui, Helvetica Neue, Arial, sans-serif`; nenhuma fonte é pedida a outra origem.
+- Títulos em peso 700 na escala `display-*`, sem `letter-spacing`; texto, rótulos e botões em 400 e 500 na escala `body-*` e `button-*`; o título da tela de cadastro usa `display-lg` (32px, linha de 40px).
+- Todo botão e link de ação usa raio de pílula (999px): "Criar conta" do formulário e da barra é `button-primary` (fundo `#000`, texto `#fff`, rótulo de 16px em peso 500, padding de 12px), e "Entrar" e "Reenviar o link" são `button-secondary`.
+- O card do formulário é `card-content`: fundo `#fff`, raio de 16px, padding de 24px, sem sombra, largura máxima de 490px no desktop e largura total no mobile, com margem lateral de 16px abaixo de 600px e de 32px a partir daí.
+- Os campos são `text-input`: fundo `#efefef`, texto `#000`, raio de 8px, padding de 16px, `body-md`; o placeholder usa `mute` `#afafaf`, e o rótulo fica visível acima do campo, nunca só no placeholder.
+- Campo com erro ganha borda de 2px `ink`, `aria-invalid` verdadeiro e `aria-describedby` apontando para a mensagem; a mensagem fica logo abaixo, em `body-sm` `ink`, precedida de um ícone de alerta, para o erro não depender só de cor (WCAG 1.4.1).
+- Aviso que não é de um campo (e-mail já cadastrado, limite excedido, servidor fora) aparece acima do formulário num `card-soft-tinted` (fundo `#efefef`, raio de 16px) com `role="alert"`.
+- Todo elemento focável mostra o foco com contorno de 2px `ink` afastado 2px (hipótese).
+- A barra de navegação é `nav-bar`: fundo `canvas`, links em `body-md-strong`, padding de 16px por 32px, que cai para 16px nas laterais abaixo de 600px; os dois links continuam visíveis no mobile, sem menu recolhido (hipótese).
+- Em 375px de largura nenhuma tela tem rolagem horizontal.
 
 Fluxo técnico do caso principal
 1. A SPA Web, em `/cadastro`, valida o formulário com `signUpSchema` de Contratos e envia `POST /api/auth/sign-up/email` com nome, e-mail e senha pelo `apiFetch`.
@@ -87,7 +105,10 @@ Fluxo técnico do caso principal
 | Módulo E-mail | `apps/api/src/modules/email/infra/queue/email-send.processor.ts`, `apps/api/src/modules/email/infra/queue/bullmq-email.queue.ts`, `apps/api/src/modules/email/infra/smtp/nodemailer-email.transport.ts`, `apps/api/src/modules/email/infra/prisma-email-recipients.repository.ts` | Novo. Worker de `email.send` (`WorkerHost` do `@nestjs/bullmq`), produtor com 5 tentativas, backoff e retenção, transporte Nodemailer pelas variáveis SMTP e leitura de nome e e-mail pelo Prisma. |
 | Redis | `apps/api/src/platform/queue/queue.module.ts`, `apps/api/src/app.module.ts` | Novo `queue.module.ts` com o `BullModule.forRootAsync` a partir de `REDIS_URL`, numa conexão própria do BullMQ, separada da conexão `REDIS` compartilhada; registrado no `AppModule` junto com o `EmailModule`. |
 | Redis | `apps/api/src/platform/config/env.ts`, `.env.example`, `apps/api/.env.test` | Variável opcional `TRUSTED_PROXIES`, lista de CIDRs separada por vírgula, vazia no local e no teste, com o aviso de produção no `.env.example`. |
-| SPA Web | `apps/web/src/routes/cadastro/route.tsx`, `apps/web/src/routes/cadastro/action.ts`, `apps/web/src/main.tsx` | Nova rota `/cadastro` filha da raiz: formulário, `action` que valida e chama a API, estado de link enviado com o botão de reenvio, mensagens de erro por campo e os links para `/entrar` e `/recuperar-senha`. |
+| SPA Web | `apps/web/src/routes/cadastro/route.tsx`, `apps/web/src/routes/cadastro/action.ts`, `apps/web/src/main.tsx` | Nova rota `/cadastro` filha da raiz: formulário, `action` que valida e chama a API, estado de link enviado com o botão de reenvio, mensagens de erro por campo e os links para `/entrar` e `/recuperar-senha`, com as classes do `DESIGN.md`. |
+| SPA Web | `apps/web/package.json`, `apps/web/vite.config.ts` | Dependências `tailwindcss` e `@tailwindcss/vite` 4.3 (peer `vite` ^8) e `@fontsource-variable/inter` 5; o plugin `tailwindcss()` entra em `plugins` ao lado do `react()`. |
+| SPA Web | `apps/web/src/styles/app.css`, `apps/web/src/main.tsx` | Novo `app.css` com `@import "tailwindcss"`, o `@theme` dos tokens do `DESIGN.md` (cores, `--font-sans`, escala tipográfica, raios `md`, `lg`, `xl` e `pill`, sombras dos níveis 1 a 3) e as classes de componente em `@layer components` (`btn-primary`, `btn-secondary`, `text-input`, `field-error`, `card-content`, `card-soft-tinted`, `nav-bar`); o `main.tsx` importa `@fontsource-variable/inter/wght.css` e o `app.css`. |
+| SPA Web | `apps/web/src/components/nav-bar.tsx`, `apps/web/src/components/alert-icon.tsx`, `apps/web/src/routes/root/route.tsx`, `apps/web/src/routes/error-page.tsx` | Novos: barra de navegação e ícone de alerta em SVG inline, sem biblioteca de ícones. A rota raiz passa a renderizar a barra acima do conteúdo, e a página de erro usa os tokens. |
 | PostgreSQL | `apps/api/prisma/schema.prisma` | Sem mudança: as tabelas `user` e `account` da fundação já têm o que o cadastro grava, inclusive a constraint única em `email`. |
 
 ---
@@ -138,7 +159,8 @@ E-mail de confirmação (Módulo E-mail para o Servidor SMTP)
 - Remetente `SMTP_FROM`, destinatário o e-mail da conta, assunto "Confirme seu e-mail", corpo em texto e HTML em pt-BR com a saudação pelo nome, o link e a frase "O link vale por 24 horas.".
 
 Rotas da SPA Web
-- `/cadastro`: formulário e, depois do 200, a mensagem "Enviamos um link de confirmação para <e-mail>. Confirme o e-mail antes de entrar." com o botão "Reenviar o link".
+- `/` (rota raiz): `nav-bar` com o nome do app como link para `/` e, sem sessão, os links "Entrar" para `/entrar` e "Criar conta" para `/cadastro`; com sessão, a barra mostra só o nome do app (hipótese). O conteúdo da fundação (estado da sessão) e o `Outlet` ficam abaixo da barra.
+- `/cadastro`: filha da raiz, sob a barra. Título "Crie sua conta", card com nome, e-mail e senha e o botão "Criar conta"; depois do 200, o card troca o formulário pela mensagem "Enviamos um link de confirmação para <e-mail>. Confirme o e-mail antes de entrar." com o botão "Reenviar o link".
 
 ---
 
@@ -181,6 +203,7 @@ Unidade (Vitest, `*.spec.ts` ao lado do código)
 - `apps/api/src/modules/email/domain/verify-email.template.spec.ts`: assunto, nome, link e a frase das 24 horas no texto e no HTML.
 - `apps/api/src/modules/email/application/send-email/send-email.use-case.spec.ts`: lê o destinatário, entrega pelo transporte dublê e descarta conta inexistente.
 - `apps/web/src/routes/cadastro/action.spec.ts`: a `action` devolve erros por campo sem chamar a API, o estado de link enviado no 200, a mensagem de e-mail existente no 422 e a de servidor fora com `fetch` dublê.
+- O estilo não ganha teste unitário: o Vitest da SPA roda em `environment: 'node'`, sem CSS computado. O `make build` prova que o Tailwind compila o `@theme`, e a aparência é conferida pela superfície UI.
 
 Integração (Vitest, `apps/api/test/integration/**/*.int-spec.ts`, banco `app_test` e Valkey e Mailpit do Compose)
 - `sign-up.int-spec.ts` (substitui o da fundação, que provava o cadastro fechado): cadastro válido cria a conta pendente sem cookie; e-mail com maiúsculas é gravado em minúsculas; duplicado em outra caixa é recusado com 422; senha e campos fora da regra respondem 400 sem criar conta; o sexto cadastro do mesmo IP em 60 s responde 429. Cada caso manda um `X-Forwarded-For` próprio, e o `createTestApp` apaga as chaves `rate-limit:*` na subida.
@@ -196,7 +219,7 @@ Verificação por superfície
 | --- | --- | --- |
 | API HTTP | requisições HTTP contra a API em execução no Compose, consulta ao PostgreSQL e às chaves do Valkey, leitura dos logs do serviço api | fundação |
 | Worker | leitura da caixa do Mailpit pela API REST dele e das chaves da fila `email.send` no Valkey, com serviços do Compose parados e religados | ADR-0016 |
-| UI | navegador dirigido pelo `@playwright/cli` contra a SPA em execução | ADR-0024 |
+| UI | navegador dirigido pelo `@playwright/cli` contra a SPA em execução, lendo o estilo computado, `document.fonts` e as requisições de rede, com a janela redimensionada nos itens de largura | ADR-0024 |
 | E2E | navegador dirigido pelo `@playwright/cli` na SPA, mais a caixa do Mailpit e os logs da API | ADR-0024 |
 
 ---
@@ -215,6 +238,12 @@ Decisões
 - O BullMQ usa conexão própria a partir de `REDIS_URL`, e não a conexão `REDIS` da plataforma, porque o worker exige `maxRetriesPerRequest` nulo (BullMQ 6.5.1, `classes/redis-connection.js`) e a conexão compartilhada usa 1. O produtor usa `enableOfflineQueue` falso para falhar rápido com o Valkey fora, como recomenda o guia de produção do BullMQ (docs.bullmq.io, Going to production), em vez de segurar a resposta do cadastro.
 - `createAuth` recebe as dependências novas num parâmetro opcional, e não por import em `auth.ts`, porque o seed carrega `auth.ts` direto no Node sem compilar (comentário de `auth.ts`), e o seed segue chamando `createAuth(env, prisma)` sem fila nem rate limit.
 - Ligar o rate limit no RF-001 faz valer o padrão do Better Auth de 3 sign-ins a cada 10 segundos até o RF-003 definir os 5 a cada 60 segundos do HLD (`api/rate-limiter/index.mjs`, `getDefaultSpecialRules`); os testes de integração existentes que entram com o admin passam a mandar `X-Forwarded-For` próprio.
+- A SPA segue o `DESIGN.md` da raiz, sem a marca de terceiros que ele trazia, escolhido na entrevista; as três contradições dele se resolveram assim: o campo tem raio de 8px (prosa e tabela de Shapes contra o YAML, corrigido), o card de autenticação é branco com campos `#efefef` (o `ex-auth-form-card` cinza escondia os campos de mesmo fundo, corrigido) e o erro de campo fica em preto e branco com borda, ícone e ARIA (convenção nova no `DESIGN.md`). Alternativas descartadas: card cinza com campos brancos e um token vermelho de erro, que o próprio `DESIGN.md` proíbe.
+- Tokens no `@theme` do Tailwind CSS 4 (ADR-0027), escolhido na entrevista, com `--color-*: initial` para só existirem as cores do `DESIGN.md` (tailwindcss.com/docs/theme) e o plugin `@tailwindcss/vite`, que a doc indica no lugar do PostCSS para Vite (tailwindcss.com/docs/installation/using-vite). A escala de espaçamento padrão do Tailwind (`--spacing` de 0,25rem) já é a base de 4px do `DESIGN.md` e fica como está. Alternativas descartadas: CSS Modules com variáveis, que não traria dependência, e CSS global sem escopo.
+- Inter auto-hospedada por `@fontsource-variable/inter` (ADR-0028), escolhido na entrevista, importada como `wght.css` no `main.tsx` e usada como `Inter Variable` (fontsource.org/docs/guides/vite): a fonte sai da origem da SPA e nenhum IP de quem usa vai a terceiros. A UberMove do `DESIGN.md` é proprietária. Alternativas descartadas: só a pilha do sistema e o Google Fonts.
+- O RF-001 aplica o `DESIGN.md` também à rota raiz e à página de erro, escolhido na entrevista, porque é a primeira tela com estilo e a barra é por onde se chega ao `/cadastro`.
+- O restante da feature segue coberto por ADR aceito: Better Auth (ADR-0010), BullMQ (ADR-0015), Mailpit (ADR-0016), Nodemailer (ADR-0017), Zod (ADR-0023), `@playwright/cli` (ADR-0024), Tailwind CSS 4 (ADR-0027) e Inter (ADR-0028).
+- O contrato verifica o estilo só pelo que se mede no navegador (estilo computado, fontes carregadas, ARIA, largura), escolhido na entrevista; alternativa descartada: um item subjetivo de revisão manual.
 - O contrato da fundação precisa de revisão com `/spec-writer` depois deste RF: API-BORDA-05 dela exige 400 `EMAIL_PASSWORD_SIGN_UP_DISABLED`, e a spec da fundação já dizia que o RF-001 reabre o cadastro. A proteção contra pré-registro do e-mail de `ADMIN_EMAIL` continua no seed, que recusa conta existente sem papel admin (CLI-ADMIN-04 da fundação).
 
 Hipóteses
@@ -223,9 +252,13 @@ Hipóteses
 - Os logs do Better Auth vão para o logger pino da API por `logger.log`, no nível `warn` padrão da biblioteca, para sair em JSON e passar pela redação (hipótese)
 - Mensagens da tela e do e-mail com o texto de Contratos de interface (hipótese)
 - Os textos e códigos de erro vivem em `packages/contracts/src/accounts.ts`, para a SPA e a API usarem as mesmas mensagens (hipótese)
+- Foco visível com contorno de 2px `ink` afastado 2px, que o `DESIGN.md` não define (hipótese)
+- Barra de navegação sem menu recolhido no mobile, porque só tem dois links; com sessão ela mostra só o nome do app até existir o RF de sair (hipótese)
+- Título da tela "Crie sua conta" em `display-lg` e avisos de servidor em `card-soft-tinted` com `role="alert"` (hipótese)
+- Classes de componente em `@layer components` no `app.css`, com os nomes do `DESIGN.md`, em vez de utilidades repetidas em cada tela (hipótese)
 
 Pendentes de ADR
-- nenhuma: Better Auth (ADR-0010), BullMQ (ADR-0015), Mailpit (ADR-0016), Nodemailer (ADR-0017), Zod (ADR-0023) e `@playwright/cli` (ADR-0024) cobrem a feature.
+- nenhuma: o estilo e a fonte da SPA, pendentes na primeira versão desta revisão, estão registrados no ADR-0027 (Tailwind CSS 4) e no ADR-0028 (Inter auto-hospedada).
 
 ---
 
@@ -242,3 +275,4 @@ Pendentes de ADR
 | HLD, Fluxo Cadastro e confirmação | Regras e fluxos (fluxo técnico) |
 | HLD, Interfaces públicas (API de autenticação, Fila de e-mail) | Contratos de interface |
 | RF-001 Criar conta: SPA Web, Módulo Contas, Módulo E-mail, PostgreSQL, Redis; API de autenticação, Fila de e-mail | Componentes |
+| `DESIGN.md` (tokens, componentes, Do's and Don'ts) | Regras e fluxos (Regras visuais), Componentes, Contratos de interface (Rotas da SPA Web) |
