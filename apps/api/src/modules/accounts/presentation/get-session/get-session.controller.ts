@@ -2,7 +2,7 @@ import { sessionResponseSchema } from '@app/contracts';
 import { Controller, Get } from '@nestjs/common';
 import { ApiCookieAuth } from '@nestjs/swagger';
 import { Session, type UserSession } from '@thallesp/nestjs-better-auth';
-import type { Auth } from '../auth.js';
+import type { Auth } from '../../auth.js';
 import { SessionResponseDto } from './session-response.dto.js';
 
 /**

@@ -75,6 +75,9 @@ stack) e registre a escolha da stack em um ADR. Enquanto o script não existe, o
 Neste repositório, `make test` sobe `postgres` e `valkey` do Compose, recria o banco `app_test` e
 aplica as migrações antes dos testes de integração, e `make db-setup` aplica as migrações e cria o
 primeiro admin do `.env` num container do serviço `api`: os dois exigem Docker com Compose v2.
+Na API, `make lint` também roda o dependency-cruiser com a regra de dependência entre camadas e
+módulos (ADR-0025, ADR-0026), configurada em `apps/api/.dependency-cruiser.cjs`; a violação sai
+com o nome da regra e o par de arquivos.
 
 ## Fluxo de trabalho ([GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow))
 

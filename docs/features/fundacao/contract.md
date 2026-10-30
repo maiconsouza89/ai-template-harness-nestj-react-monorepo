@@ -46,6 +46,7 @@ Cada gate precisa passar para a feature ser considerada pronta.
 | SPA Web: Vite com React Router em modo data, rota inicial que lê a sessão pela API e consumo do pacote Contratos (ADR-0004, ADR-0012). | CLI-MONOREPO-02, UI-INICIO-01, UI-INICIO-02, UI-INICIO-03, UI-INICIO-04 |
 | Imagens Docker multi-stage da API e da SPA com turbo prune (ADR-0005). | CLI-IMAGEM-01, CLI-IMAGEM-02, CLI-IMAGEM-03 |
 | CI: o workflow instala o que o make check passa a exigir, com actions fixadas por SHA (HLD, Ambiente de implantação). | CLI-CI-01, CLI-CI-02 |
+| Regra de dependência na API: Módulo Contas nas camadas da Clean Architecture e dependency-cruiser no lint de apps/api barrando import entre camadas, entre módulos e ciclos (ADR-0025, ADR-0026). | CLI-CAMADAS-01, CLI-CAMADAS-02, CLI-CAMADAS-03, CLI-CAMADAS-04, CLI-CAMADAS-05, CLI-CAMADAS-06, CLI-CAMADAS-07, CLI-CAMADAS-08 |
 
 ## API HTTP
 
@@ -94,7 +95,7 @@ Modo de verificação: requisições HTTP contra a API em execução no ambiente
 
 #### API-BORDA-03
 - **Dado:** o ambiente no ar.
-- **Quando:** uma requisição pede GET /api/v1/session com um cookie de sessão de valor inventado.
+- **Quando:** uma requisição pede GET /api/v1/session com o cookie better-auth.session_token igual a sessao-inventada.
 - **Então:**
   - a resposta é 401
 
@@ -457,6 +458,73 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
   - o arquivo instala Node na major 26 antes do passo make check
   - o arquivo instala o pnpm na versão do packageManager antes do passo make check
   - toda action do arquivo está fixada por SHA completo com comentário da versão
+
+### Regra de dependência na API
+
+Dado comum: um clone limpo com as dependências instaladas pelo pnpm; cada arquivo de violação citado no `Dado` existe só durante o item.
+
+#### CLI-CAMADAS-01
+- **Dado:** a árvore sem alteração.
+- **Quando:** inspeciona-se a pasta do Módulo Contas em apps/api/src/modules/accounts.
+- **Então:**
+  - o controller de GET /api/v1/session fica em presentation/get-session
+  - a raiz do módulo tem só o accounts.module.ts, o auth.ts e pastas de camada
+  - não há pasta além de domain, application, infra e presentation no módulo
+
+#### CLI-CAMADAS-02
+- **Dado:** a árvore sem alteração.
+- **Quando:** `make lint`.
+- **Então:**
+  - o código de saída é 0
+  - a saída mostra a análise de dependências de @app/api sem violação
+
+#### CLI-CAMADAS-03
+- **Dado:** a árvore com um arquivo novo em domain/ do Módulo Contas que importa, só como tipo, o cliente gerado do Prisma.
+- **Quando:** `make lint`.
+- **Então:**
+  - o código de saída é diferente de 0
+  - a saída nomeia a regra violada
+  - a saída cita o arquivo novo de domain/
+
+#### CLI-CAMADAS-04
+- **Dado:** a árvore com um arquivo novo em application/ do Módulo Contas que importa o PrismaService de platform/.
+- **Quando:** `make lint`.
+- **Então:**
+  - o código de saída é diferente de 0
+  - a saída nomeia a regra violada
+  - a saída cita o arquivo novo de application/
+
+#### CLI-CAMADAS-05
+- **Dado:** a árvore com um arquivo novo em infra/ do Módulo Contas e o controller de GET /api/v1/session importando esse arquivo.
+- **Quando:** `make lint`.
+- **Então:**
+  - o código de saída é diferente de 0
+  - a saída nomeia a regra violada
+  - a saída cita o controller de presentation/get-session
+
+#### CLI-CAMADAS-06
+- **Dado:** a árvore com um segundo módulo em apps/api/src/modules cujo arquivo em presentation/ importa o controller de presentation/get-session do Módulo Contas.
+- **Quando:** `make lint`.
+- **Então:**
+  - o código de saída é diferente de 0
+  - a saída nomeia a regra violada
+  - a saída cita o arquivo do segundo módulo
+
+#### CLI-CAMADAS-07
+- **Dado:** a árvore com um arquivo novo em platform/ que importa o accounts.module.ts.
+- **Quando:** `make lint`.
+- **Então:**
+  - o código de saída é diferente de 0
+  - a saída nomeia a regra violada
+  - a saída cita o arquivo novo de platform/
+
+#### CLI-CAMADAS-08
+- **Dado:** a árvore com dois arquivos novos em platform/ que importam um ao outro.
+- **Quando:** `make lint`.
+- **Então:**
+  - o código de saída é diferente de 0
+  - a saída nomeia a regra de ciclo
+  - a saída cita os dois arquivos novos
 
 ## UI
 
