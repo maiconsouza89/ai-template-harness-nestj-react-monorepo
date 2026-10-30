@@ -18,17 +18,19 @@
 | 0 | evaluator (só os bloqueados) | pendente | passou 6 (CLI-IMAGEM-03, UI-INICIO-01 a 04, UI-RECARGA-01), pulado 54 | |
 | 0 | evaluator | limpo | passou 60, falhou 0, bloqueado 0, manual 0; critérios 15 de 15 | |
 | 1 | fix-runner (achado, CI do PR #8, job check) | corrigido | gitleaks acusou o cookie inventado de API-BORDA-03; allowlist por caminho e valor em .gitleaks.toml | f4a6610 |
+| 2 | fix-runner (achado, revisão do PR #8) | corrigido | allowlist do gitleaks aceita o prefixo "inventado" só no avaliacao.md; compose.yaml e .env.example explicam o teto de CPU acima das CPUs da VM | c675d0c |
 
 ## Mudanças entre ciclos
 
 - Ciclo 0: a avaliação completa saiu limpa; as rodadas anteriores pararam por ambiente (sessão interrompida e queda do Docker), não por código.
+- Ciclo 2: correções da revisão do PR #8, feitas pela pessoa com a fix-runner; conferidas com CI=true make check, um teste do escopo da allowlist num repositório temporário e o erro real do Docker com --cpus acima das CPUs da VM.
 - Ciclo 1: a CI do PR #8 falhou em check-secrets; a correção mexe só na configuração do gitleaks, sem código da aplicação, e foi conferida com CI=true make check (o comando de CLI-CI-01), sem nova avaliação completa.
 
 ## Resultado
 
 - Status final: sucesso
-- Ciclos de correção: 1 (CI do PR)
-- Commits: 1 de fase (e609931), 1 de correção (f4a6610), 2 de registro; mais a revisão da spec (0dde3b3) e os limites do Compose (0872c9f)
+- Ciclos de correção: 2 (CI do PR e revisão do PR)
+- Commits: 1 de fase (e609931), 2 de correção (f4a6610, c675d0c), 3 de registro; mais a revisão da spec (0dde3b3) e os limites do Compose (0872c9f)
 - Pendentes no fim: o contrato de API-BORDA-03 não fixa o valor do cookie inventado (ver Avisos); a allowlist do gitleaks aceita o prefixo "inventado" até a /spec-writer fixar o literal.
 - Manuais a revisar: Nenhum.
 
@@ -37,8 +39,8 @@
 - Merge de origin/main: já atualizado
 - Reavaliação depois do merge: não precisou
 - Push: feito
-- PR: https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/pull/8 (aberto em rascunho)
-- CI: vermelha em check (check-secrets) na primeira rodada, corrigida no ciclo 1; segunda rodada verde (check e pr-title)
+- PR: https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/pull/8 (aberto em rascunho, marcado como pronto com a CI verde)
+- CI: vermelha em check (check-secrets) na primeira rodada, corrigida no ciclo 1; segunda rodada verde (check e pr-title); depois do ciclo 2, a CI roda de novo sobre o push
 
 ## Avisos
 
