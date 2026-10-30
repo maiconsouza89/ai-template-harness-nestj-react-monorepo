@@ -43,7 +43,10 @@ Spec: spec.md. Contrato: contract.md.
 18. **API NestJS:** criar o arquivo de instrumentação do OpenTelemetry com auto-instrumentação de HTTP, Nest e Prisma, carregado por `--import` no Compose e na imagem, exportando só com `OTEL_EXPORTER_OTLP_ENDPOINT`.
 19. **API NestJS:** montar o documento OpenAPI em `/api/docs` depois do versionamento, com o plugin CLI do `@nestjs/swagger` no `nest-cli.json`, publicado só fora de produção.
 
-## Fase 5: Imagens e CI
+## Fase 5: Imagens, CI e regra de dependência
 
 20. **Imagens:** escrever os Dockerfiles multi-stage da API e da SPA com `turbo prune --docker`, pnpm na versão do `packageManager` e Node 26, a da SPA servindo os estáticos pelo servidor que o ADR pendente escolher.
 21. **CI:** acrescentar ao `ci.yml` a instalação de Node 26 e do pnpm antes do `make check`, com actions fixadas por SHA e comentário da versão, e conferir que `CI=true make check` passa local.
+22. **Módulo Contas:** mover o controller e o DTO de `GET /api/v1/session` para `presentation/get-session/`, deixar `auth.ts` e o `accounts.module.ts` na raiz do módulo e fazer os comentários do módulo citarem o ADR-0025 (spec, Componentes).
+23. **API NestJS:** instalar o dependency-cruiser como devDependency de `apps/api`, escrever a configuração com as regras de "Regra de dependência na API" da spec e chamá-lo no script `lint` do pacote, para entrar no `make lint` pelo Turborepo.
+24. **API NestJS:** conferir que a árvore passa sem violação e que um import proibido de cada regra faz `make lint` falhar com o nome da regra, desfazendo os arquivos de prova.

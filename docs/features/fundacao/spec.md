@@ -1,7 +1,7 @@
 # Spec: fundação
 
 PRD: docs/product/prd.md versão 0.1.0
-HLD: docs/architecture/hld.md versão 0.2.3
+HLD: docs/architecture/hld.md versão 0.2.5
 Complexidade: complexa
 
 ---
@@ -23,6 +23,7 @@ Incluído
 - SPA Web: Vite com React Router em modo data, rota inicial que lê a sessão pela API e consumo do pacote Contratos (ADR-0004, ADR-0012).
 - Imagens Docker multi-stage da API e da SPA com turbo prune (ADR-0005).
 - CI: o workflow instala o que o make check passa a exigir, com actions fixadas por SHA (HLD, Ambiente de implantação).
+- Regra de dependência na API: Módulo Contas nas camadas da Clean Architecture e dependency-cruiser no lint de apps/api barrando import entre camadas, entre módulos e ciclos (ADR-0025, ADR-0026).
 
 Entradas
 - nenhuma: a fundação não depende de RF.
@@ -34,6 +35,7 @@ Saídas
 - `GET /api/v1/session` e o esquema da resposta em Contratos, que a SPA usa nas rotas protegidas de todos os RFs com tela.
 - O pacote Contratos (`@app/contracts`), onde cada RF acrescenta os próprios esquemas.
 - O roteador da SPA com a rota raiz e a página de erro, onde cada RF pendura as próprias rotas.
+- A configuração do dependency-cruiser em `apps/api/.dependency-cruiser.cjs`, que cobre todo módulo novo em `apps/api/src/modules/` sem edição, porque as regras capturam o nome do módulo pelo caminho.
 - As convenções de pastas, testes, seed, fixtures, configuração de teste e dublês da seção "Convenções para as features".
 
 Fora desta spec
@@ -41,7 +43,7 @@ Fora desta spec
 - Módulo E-mail, fila `email.send` e o callback de envio do Better Auth (RF-001).
 - Rate limit por IP com armazenamento no Valkey e bloqueio por e-mail (RF-001, RF-003).
 - Perfil em `/api/v1/me` (RF-006) e troca de senha (RF-007).
-- Módulo Tarefas e o padrão de vertical slice com domínio e repositório (RF-008 a RF-011).
+- Módulo Tarefas, o módulo de referência com domínio, casos de uso e repositório (RF-008 a RF-011).
 - Módulo Usuários, situação anterior para reativação e trilha de auditoria (RF-012, RF-013).
 - Suíte E2E versionada no repositório: decisão da entrevista, a verificação de tela fica no contrato.
 
@@ -69,6 +71,19 @@ Regras
 - `prisma` e `@prisma/client` ficam em `^7` e o `ioredis` em `^5`, e o TypeScript na major 6 em todo o monorepo (ADR-0008, ADR-0014, ADR-0020).
 - O pnpm é instalado na versão do `packageManager` do `package.json` raiz em Compose, imagens e CI, nunca por `corepack enable` (ADR-0012, ADR-0013).
 
+Regra de dependência na API (ADR-0025, ADR-0026)
+- Todo módulo em `apps/api/src/modules/<funcionalidade>/` tem só as pastas de camada `domain/`, `application/`, `infra/` e `presentation/`, cada uma criada quando o módulo precisa dela, e na raiz o `<funcionalidade>.module.ts` e os arquivos de composição de biblioteca que ele monta (no Módulo Contas, `auth.ts`).
+- `domain/` não importa nada fora do próprio `domain/` (ADR-0025).
+- `application/` importa só o `domain/` do próprio módulo e, do framework, `@nestjs/common` para o `@Injectable()` (ADR-0025).
+- `presentation/` não importa `infra/` de módulo nenhum; pode importar o `domain/` e o `application/` do próprio módulo, os arquivos da raiz do próprio módulo, `platform/` e Contratos.
+- Nenhum arquivo de um módulo importa as pastas de camada de outro módulo; a fronteira pública de um módulo é o `<funcionalidade>.module.ts`.
+- `platform/` é infraestrutura transversal: `infra/`, `presentation/` e a raiz dos módulos podem importá-la; `domain/` e `application/` não; `platform/` nunca importa `modules/`.
+- O cliente gerado do Prisma (`apps/api/src/generated/`) só é importado por `infra/` e `platform/`.
+- Nenhum ciclo de import em `apps/api/src/`.
+- Import só de tipo conta como import: a análise roda com `tsPreCompilationDeps` ligado, para um `import type` do Prisma em `domain/` também falhar.
+- Os arquivos `*.spec.ts` ao lado do código seguem as mesmas regras do arquivo que testam. (hipótese)
+- Violação faz `make lint` terminar com código diferente de zero, com o nome da regra e o par de arquivos na saída (ADR-0026).
+
 Fluxo técnico da subida local
 1. `make setup` e `cp .env.example .env`; o dev ajusta `ADMIN_EMAIL` e `ADMIN_PASSWORD` se quiser.
 2. `docker compose up -d` sobe postgres, valkey, mailpit, api e web; api e web montam o código e rodam em watch.
@@ -83,8 +98,8 @@ Fluxo técnico da subida local
 
 | Componente do HLD | Caminho | O que muda nesta feature |
 | --- | --- | --- |
-| API NestJS | `apps/api/src/main.ts`, `apps/api/src/app.module.ts`, `apps/api/src/platform/` | Novo. Bootstrap ESM gerado por `nest new --type esm --skip-git`, com config validada, logger, health, CORS, versionamento e OpenAPI em `platform/`. |
-| Módulo Contas | `apps/api/src/modules/accounts/` | Novo. `auth.ts` com a instância do Better Auth (adapter Prisma, plugin admin, `trustedOrigins`, cookie), o módulo Nest que a registra com o guard global e o controller de `GET /api/v1/session`. |
+| API NestJS | `apps/api/src/main.ts`, `apps/api/src/app.module.ts`, `apps/api/src/platform/`, `apps/api/.dependency-cruiser.cjs`, `apps/api/package.json` | Bootstrap ESM gerado por `nest new --type esm --skip-git`, com config validada, logger, health, CORS, versionamento e OpenAPI em `platform/`. Na revisão de 2026-10-30, o dependency-cruiser entra como devDependency, com a configuração das regras de dependência e a chamada no script `lint`. |
+| Módulo Contas | `apps/api/src/modules/accounts/accounts.module.ts`, `apps/api/src/modules/accounts/auth.ts`, `apps/api/src/modules/accounts/presentation/get-session/` | `auth.ts` na raiz do módulo com a instância do Better Auth (adapter Prisma, plugin admin, `trustedOrigins`, cookie), o módulo Nest que a registra com o guard global e, em `presentation/get-session/`, o controller e o DTO de `GET /api/v1/session`, sem `application/` (ADR-0025). Na revisão de 2026-10-30, `get-session/` sai da raiz do módulo para `presentation/`. |
 | PostgreSQL | `apps/api/prisma/schema.prisma`, `apps/api/prisma/migrations/`, `apps/api/prisma.config.ts`, `apps/api/prisma/seed.ts`, `apps/api/src/platform/prisma/` | Novo. Schema com `user`, `session`, `account` e `verification` gerados pela CLI do Better Auth, migração inicial, seed do primeiro admin e o `PrismaService` com `@prisma/adapter-pg`. |
 | Redis | `compose.yaml` (serviço `valkey`), `apps/api/src/platform/redis/` | Novo. Serviço Valkey 9 com AOF e `noeviction`, e o provider `ioredis` 5 compartilhado. |
 | Contratos | `packages/contracts/src/` | Novo. Pacote ESM com o esquema da resposta de sessão e o esquema das variáveis de ambiente públicas da SPA. |
@@ -191,6 +206,10 @@ Unidade (Vitest, `*.spec.ts` ao lado do código)
 - `apps/api/src/platform/health/health.controller.spec.ts`: 200 e 503 com os checks trocados por dublês via `overrideProvider()`.
 - `packages/contracts/src/session.spec.ts`: o esquema aceita `user` e `admin` e recusa outros papéis.
 - `apps/web/src/routes/root.spec.ts`: o `loader` devolve o estado anônimo com 401 e o estado da sessão com 200, com `fetch` trocado por dublê.
+- `apps/api/src/modules/accounts/presentation/get-session/get-session.controller.spec.ts`: o controller devolve id e papel da sessão e cai em `user` com papel nulo.
+
+Regra de dependência (dependency-cruiser no `make lint`)
+- Sem teste próprio: a configuração roda sobre `apps/api/src/` em todo `make lint`, e a árvore da fundação passa sem violação. A prova de que cada regra barra o import errado é de quem exercita o contrato, com arquivos de violação temporários.
 
 Integração (Vitest, `apps/api/test/integration/**/*.int-spec.ts`, banco `app_test` no PostgreSQL do Compose)
 - `app.int-spec.ts`: a aplicação inteira sobe com `createNestApplication()` e Supertest; rota protegida responde 401; `GET /api/auth/ok` responde 200; `/api/docs-json` tem `/api/v1/session`.
@@ -209,7 +228,7 @@ Verificação por superfície
 
 ## Convenções para as features
 
-- Estrutura de pastas: API em `apps/api/src/modules/<funcionalidade>/`, com `domain/` (entidades, value objects, erros e portas como classe abstrata), `application/<caso>/` (`create-task/create-task.use-case.ts` e `*.spec.ts`), `infra/` (implementações Prisma) e `presentation/<caso>/` (controller e DTO), na regra de dependência do ADR-0025 fiscalizada pelo ADR-0026; handler de fila em `apps/api/src/modules/<funcionalidade>/infra/queue/<fila>.processor.ts`; infraestrutura transversal em `apps/api/src/platform/`; tela em `apps/web/src/routes/<rota>/` com `route.tsx`, `loader.ts` e `action.ts`; esquemas compartilhados em `packages/contracts/src/<funcionalidade>.ts`.
+- Estrutura de pastas: API em `apps/api/src/modules/<funcionalidade>/`, com `domain/` (entidades, value objects, erros e portas como classe abstrata), `application/<caso>/` (`create-task/create-task.use-case.ts` e `*.spec.ts`), `infra/` (implementações Prisma) e `presentation/<caso>/` (controller e DTO), e na raiz o `<funcionalidade>.module.ts` que liga cada porta por `useClass`, na regra de dependência do ADR-0025 fiscalizada pelo ADR-0026 (regras em "Regra de dependência na API"); caso de uso sem regra de domínio nem porta, como `GET /api/v1/session`, fica só em `presentation/<caso>/`; handler de fila em `apps/api/src/modules/<funcionalidade>/infra/queue/<fila>.processor.ts`; infraestrutura transversal em `apps/api/src/platform/`; tela em `apps/web/src/routes/<rota>/` com `route.tsx`, `loader.ts` e `action.ts`; esquemas compartilhados em `packages/contracts/src/<funcionalidade>.ts`.
 - Testes: Vitest em todo o monorepo; unidade em `*.spec.ts` ao lado do código; integração da API em `apps/api/test/integration/**/*.int-spec.ts` com `apps/api/vitest.integration.config.ts`; sem suíte E2E de navegador versionada.
 - Estado persistido: factories em `apps/api/test/factories/<entidade>.factory.ts` gravando pelo Prisma Client no banco `app_test`, que o `scripts/test.sh` recria e migra a cada execução; o estado que o contrato pede no ambiente local sai do seed `apps/api/prisma/seed.ts` (configurado em `migrations.seed` do `prisma.config.ts`), que cada RF estende com funções idempotentes.
 - Entradas estáticas: `apps/api/test/fixtures/` e `apps/web/test/fixtures/`, caminhos reservados que o primeiro RF com fixture cria; a fundação não versiona pasta vazia.
@@ -237,6 +256,12 @@ Decisões
 - Revisão de 2026-10-29, rate limit: desligado na fundação. Doc do Better Auth, Options, `rateLimit`: `enabled` padrão `true` em produção, `window` 10 s, `max` 100, `storage` padrão `memory`; sem `advanced.ipAddress.trustedProxies` a biblioteca cai num balde único por caminho e avisa no stderr. O RF-001 liga com `storage: "secondary-storage"` no Valkey (HLD) e `trustedProxies`. Alternativa descartada: manter o padrão, que não funciona com réplicas e suja o log JSON.
 - Revisão de 2026-10-29, achados da revisão de código do PR 4: o seed recusa admin com banimento em vigor sem alterá-lo (plugin admin do better-auth 1.7.14, `dist/plugins/admin/admin.mjs`: na criação de sessão, `banned` com `banExpires` vencido é retirado; sem `banExpires`, o banimento não vence); alternativa descartada: desbanir em silêncio. O seed exige a regra de senha do PRD em `ADMIN_PASSWORD`; alternativa descartada: só o tamanho, deixando o primeiro admin fora da regra das outras contas. `PORT` entra no esquema de config (ADR-0023), opcional com padrão 3000; alternativa descartada: porta fixa, que tira o ajuste do Compose e de plataformas que definem a porta. As pastas de fixtures e dublês ficam reservadas, sem `.gitkeep`. Os decorators `@Session()` e `@AllowAnonymous()` são importados direto do `@thallesp/nestjs-better-auth`, como a biblioteca documenta; o Módulo Contas não os reexporta.
 
+- Revisão de 2026-10-30, ADR-0025, que substitui o vertical slice, e ADR-0026: a fundação passa a entregar a regra de dependência, escolhido na revisão; alternativa descartada: só atualizar a documentação e deixar a ferramenta para o primeiro RF, que herdaria a mudança de estrutura junto com o produto.
+- Revisão de 2026-10-30, `auth.ts` na raiz do Módulo Contas, como arquivo de composição ao lado do `accounts.module.ts`: escolhido na revisão, porque o controller de `presentation/` importa dele o tipo da sessão com o papel do plugin admin. Alternativas descartadas: `infra/` com a regra presentation para infra ignorando import só de tipo (`dependencyTypesNot: ["type-only"]`, dependency-cruiser, rules-reference), exceção que valeria para todo módulo; e `infra/` com um tipo de sessão escrito à mão, que duplica o que a biblioteca infere.
+- Revisão de 2026-10-30, `GET /api/v1/session` só em `presentation/get-session/`, sem caso de uso: escolhido na revisão; não há regra de domínio nem porta, e o caso de uso só repassaria a sessão. Alternativa descartada: `application/get-session/` por uniformidade.
+- Revisão de 2026-10-30, `platform/` como infraestrutura transversal nas regras do dependency-cruiser: escolhido na revisão. Alternativas descartadas: deixar `platform/` fora das regras, que deixaria um caso de uso importar o `PrismaService`; e dar camadas a `platform/`, que forçaria a estrutura em código só de infraestrutura.
+- Compatibilidade do dependency-cruiser conferida em 2026-10-30 no registro npm: a 18.7.0 declara `engines.node` `^22||^24||>=26` (Node 26.13 local) e `supportedTranspilers.typescript` `>=2.0.0 <7.0.0` (catálogo `~6.0.3`, ADR-0020). Sem conflito. `tsPreCompilationDeps` diferente de `false` é o que faz o import `type-only` aparecer no grafo (dependency-cruiser, rules-reference, `dependencyTypes`).
+
 Hipóteses
 - Pacotes `@app/api`, `@app/web` e `@app/contracts` (hipótese)
 - Portas locais: api 3000, web 5173, postgres 5432, valkey 6379, mailpit 1025 (SMTP) e 8025 (web), com SPA e API em `localhost`, o mesmo site para o cookie (hipótese)
@@ -247,6 +272,7 @@ Hipóteses
 - A imagem da API roda `node --import ./dist/instrumentation.js dist/main.js` (hipótese)
 - Cookie sem domínio no local (host-only) e `COOKIE_DOMAIN` só fora dele (hipótese)
 - Servidor estático da imagem da SPA: nginx oficial com fallback para `index.html` (hipótese)
+- Configuração do dependency-cruiser em `apps/api/.dependency-cruiser.cjs`, o nome que o `depcruise --init` gera, em CommonJS por o pacote ser ESM (hipótese)
 
 Pendentes de ADR
 - Servidor estático da imagem da SPA, que o ADR-0005 deixou de fora: nginx oficial em Alpine com fallback para `index.html` (hipótese desta spec, já implementada em `apps/web/Dockerfile` e `apps/web/nginx.conf` por decisão explícita da pessoa), Caddy, ou `serve` em Node; critério, imagem pequena sem runtime Node. ESM com Vitest, oxlint com Prettier, `@playwright/cli` e Zod 4, pendentes na primeira versão desta spec, estão registrados nos ADR-0021 a ADR-0024.
@@ -266,4 +292,5 @@ Pendentes de ADR
 | HLD, Versionamento e retenção (jobs do BullMQ) | Decisões e hipóteses |
 | PRD, Decisão primeiro admin criado na instalação | Modelo de dados, Regras e fluxos |
 | PRD, Compliance (LGPD nos logs) | Regras e fluxos |
-| ADRs 0002 a 0020 | Escopo, Decisões e hipóteses |
+| HLD, Padrões adotados (Clean Architecture com casos de uso por pasta) | Regras e fluxos, Componentes, Convenções para as features |
+| ADRs 0002 a 0010 e 0012 a 0026 | Escopo, Decisões e hipóteses |
