@@ -1,0 +1,20 @@
+# Configuração do gitleaks, lida automaticamente da raiz por `gitleaks git .` (make check-secrets).
+# Estende as regras padrão do binário; nada é desativado.
+[extend]
+useDefault = true
+
+# Cookies de sessão inventados (sem assinatura) da evidência de API-BORDA-03 em
+# docs/features/fundacao/avaliacao.md, que o item usa para provar o 401 (um valor por versão do arquivo); não são segredo.
+# Ignorados pelo valor exato e só naquele arquivo (condição AND), sem depender do SHA do commit:
+# o fingerprint do .gitleaksignore leva o SHA, que o squash do PR troca.
+[[rules]]
+id = "generic-api-key"
+
+    [[rules.allowlists]]
+    description = "cookie inventado da evidência de API-BORDA-03"
+    condition = "AND"
+    paths = ['''^docs/features/fundacao/avaliacao\.md$''']
+    regexes = [
+      '''^inventado123\.abcdef$''',
+      '''^inventado\.valorqualquer123$''',
+    ]
