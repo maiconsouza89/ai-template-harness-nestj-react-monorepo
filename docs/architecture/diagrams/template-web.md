@@ -1,8 +1,8 @@
 # C4: Template de aplicação web com contas e tarefas
 
-Fonte: docs/architecture/hld.md versão 0.2.2
-ADRs: 0003, 0004, 0005, 0007, 0008, 0010, 0012, 0013, 0014, 0015, 0016, 0017
-Data: 2026-10-29
+Fonte: docs/architecture/hld.md versão 0.2.5
+ADRs: 0003, 0004, 0005, 0007, 0008, 0010, 0012, 0013, 0014, 0015, 0016, 0017, 0025
+Data: 2026-10-30
 
 ---
 
@@ -13,7 +13,7 @@ Data: 2026-10-29
 | C1 System Context | `template-web-c1.puml` | Produto e negócio | Pessoa usuária e admin usando o sistema, que envia e-mails por um servidor SMTP externo |
 | C2 Container | `template-web-c2.puml` | Arquitetura e liderança técnica | SPA Web, API NestJS, PostgreSQL e Redis (Valkey), com tecnologia e protocolo de cada ligação |
 | C3 Component | `template-web-c3.puml` | Quem implementa o container | Os quatro módulos da API NestJS (Contas, Usuários, Tarefas, E-mail) e o pacote Contratos |
-| C4 Code Level | pulado | Quem implementa | O HLD dá a organização de pastas do vertical slice (`domain/`, `infra/`, repositório abstrato) mas nenhuma assinatura, classe ou campo; o nível depende de uma spec por RF ou do código |
+| C4 Code Level | pulado | Quem implementa | O HLD dá a organização de pastas da Clean Architecture por módulo (`domain/`, `application/<caso>/`, `infra/`, `presentation/<caso>/`, porta como classe abstrata) mas nenhuma assinatura, classe ou campo; o nível depende de uma spec por RF ou do código |
 
 Para ver: `sh .claude/skills/c4-writer/scripts/render.sh docs/architecture/diagrams` gera SVG ao
 lado de cada `.puml` (precisa de plantuml local ou docker).
@@ -35,7 +35,7 @@ lado de cada `.puml` (precisa de plantuml local ou docker).
 | Contratos | C3 | HLD, Componentes e responsabilidades e Padrões adotados (tipos compartilhados); ADR-0012 |
 | Módulo Contas | C3 | HLD, Componentes e responsabilidades; ADR-0010 |
 | Módulo Usuários | C3 | HLD, Componentes e responsabilidades; ADR-0010 (plugin admin) |
-| Módulo Tarefas | C3 | HLD, Componentes e responsabilidades; ADR-0008, ADR-0011 |
+| Módulo Tarefas | C3 | HLD, Componentes e responsabilidades; ADR-0008, ADR-0025 |
 | Módulo E-mail | C3 | HLD, Componentes e responsabilidades e Interfaces (fila `email.send`); ADR-0015, ADR-0017 |
 
 ---

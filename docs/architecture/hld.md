@@ -1,7 +1,7 @@
 # HLD: Template de aplicação web com contas e tarefas
 
-Versão: 0.2.3
-Data: 2026-10-29
+Versão: 0.2.5
+Data: 2026-10-30
 Responsável: Maicon Souza (hipótese)
 PRD: docs/product/prd.md versão 0.1.0
 
@@ -9,7 +9,7 @@ PRD: docs/product/prd.md versão 0.1.0
 
 ## Objetivo técnico
 
-Monorepo com uma API NestJS e uma SPA React, sobre PostgreSQL, que entrega contas de usuário (RF-001 a RF-007, RF-012, RF-013) e um cadastro de tarefas (RF-008 a RF-011) prontos para um projeto novo. O ambiente local inteiro sobe com um `docker compose up` mais um comando de preparo do banco, e o módulo de tarefas é o padrão de vertical slice que o dev copia para cada entidade nova. Os e-mails transacionais saem por SMTP genérico, para trocar a caixa de teste local por um provedor real só com configuração.
+Monorepo com uma API NestJS e uma SPA React, sobre PostgreSQL, que entrega contas de usuário (RF-001 a RF-007, RF-012, RF-013) e um cadastro de tarefas (RF-008 a RF-011) prontos para um projeto novo. O ambiente local inteiro sobe com um `docker compose up` mais um comando de preparo do banco, e o módulo de tarefas é o padrão de Clean Architecture com casos de uso por pasta que o dev copia para cada entidade nova. Os e-mails transacionais saem por SMTP genérico, para trocar a caixa de teste local por um provedor real só com configuração.
 
 Problemas técnicos endereçados
 - Cada projeto novo gasta de 1 a 3 dias montando monorepo, autenticação com confirmação por e-mail, papéis e um primeiro CRUD antes da primeira feature real (PRD).
@@ -88,7 +88,7 @@ Tecnologias principais
 | Docker Compose | Ambiente de desenvolvimento completo | ADR-0006 |
 
 Padrões adotados
-- Vertical slice com DDD tático na API (ADR-0011): um módulo por funcionalidade, uma pasta por caso de uso, repositório como classe abstrata em `domain/` e implementação Prisma em `infra/`; é o padrão que o dev copia.
+- Clean Architecture com casos de uso por pasta na API (ADR-0025): um módulo por funcionalidade com `domain/`, `application/<caso>/`, `infra/` e `presentation/<caso>/`, portas como classe abstrata no domínio e implementação Prisma em `infra/`, com a regra de dependência barrada no lint pelo dependency-cruiser (ADR-0026); é o padrão que o dev copia.
 - REST/JSON com versão maior na URL (`/api/v1`) para as rotas do template; as rotas do Better Auth ficam em `/api/auth`, no formato da biblioteca.
 - Tipos compartilhados: DTOs e esquemas de validação num pacote do monorepo (Contratos), usados pela API e pela SPA, para o contrato HTTP não divergir entre os dois lados.
 - Envio de e-mail assíncrono: a requisição só enfileira, e a falha do SMTP nunca derruba o cadastro (RF-001 cria a conta mesmo se o envio falhar).
@@ -104,7 +104,7 @@ Padrões adotados
 | Contratos | DTOs e esquemas de validação compartilhados (regra de senha, título obrigatório, filtros e paginação). Só existe em tempo de build. | nenhuma |
 | Módulo Contas | Monta o Better Auth: cadastro, confirmação, sessão, saída, recuperação e troca de senha; perfil (`/api/v1/me`); bloqueio de 5 erros seguidos por e-mail em hooks antes e depois do sign-in. Persiste usuário, sessão, credencial e verificação. | PostgreSQL, Redis, Módulo E-mail |
 | Módulo Usuários | Listagem e busca de contas para admin; promover, rebaixar, desativar e reativar com as travas (si mesmo, último admin ativo); grava a trilha de auditoria na mesma transação da mudança. | Módulo Contas (plugin admin do Better Auth), PostgreSQL |
-| Módulo Tarefas | CRUD das tarefas da pessoa logada com filtro por situação e paginação; todo acesso filtra pela dona. É o slice de referência do template. | PostgreSQL |
+| Módulo Tarefas | CRUD das tarefas da pessoa logada com filtro por situação e paginação; todo acesso filtra pela dona. É o módulo de referência do template. | PostgreSQL |
 | Módulo E-mail | Recebe pedidos de envio, cria jobs no BullMQ, consome a fila no mesmo processo da API, lê o endereço do usuário, renderiza o e-mail em pt-BR e envia por SMTP; orquestra retry e jobs que esgotaram as tentativas. | Redis, PostgreSQL, Servidor SMTP |
 | PostgreSQL | Fonte de verdade de contas, sessões, verificações, tarefas e auditoria. | nenhuma |
 | Redis | Fila de e-mail do BullMQ, persistida com AOF a cada segundo e `maxmemory-policy noeviction`; contadores com TTL de falhas de login por e-mail e de rate limit. Fonte de verdade só dos jobs pendentes. | nenhuma |
@@ -124,8 +124,8 @@ Padrões adotados
 ### Fluxo: CRUD de tarefa isolado (RF-008 a RF-011)
 - A SPA Web chama `/api/v1/tasks` (criar, listar com `?status=&page=`, editar, concluir, excluir) com o cookie de sessão.
 - O guard global do Better Auth resolve a sessão no PostgreSQL; sem sessão válida, a API responde 401 e a SPA leva para entrar, guardando a página pedida.
-- O controller do slice valida o corpo com o esquema de Contratos e passa ao handler o `ownerId` da sessão, nunca um id vindo do cliente.
-- O handler chama o repositório abstrato do domínio; a implementação Prisma inclui `owner_id` no `WHERE` de toda leitura, alteração e exclusão.
+- O controller em `presentation/` valida o corpo com o esquema de Contratos e passa ao caso de uso em `application/` o `ownerId` da sessão, nunca um id vindo do cliente.
+- O caso de uso chama a porta do repositório no domínio; a implementação Prisma inclui `owner_id` no `WHERE` de toda leitura, alteração e exclusão.
 - Tarefa inexistente ou de outra conta resulta em zero linhas e a API responde 404 "tarefa não encontrada", sem distinguir os dois casos.
 - A listagem devolve no máximo 20 itens, mais recentes primeiro, com o total para a paginação; a SPA revalida o `loader` depois de cada `action`.
 
@@ -343,7 +343,7 @@ ADRs associados
 - ADR-0008 Usar Prisma como ORM: acesso a dados em `infra/` e migrações.
 - ADR-0009 Usar Nest CLI para as operações com o Nest: build e geração da API.
 - ADR-0010 Usar Better Auth para autenticação: sessão em cookie no banco, plugin admin, confirmação e recuperação.
-- ADR-0011 Usar vertical slice com DDD tático na API: organização interna de todos os módulos.
+- ADR-0025 Usar Clean Architecture com casos de uso por pasta na API: organização interna de todos os módulos.
 - ADR-0012 Usar pnpm como gerenciador de pacotes: workspaces, lockfile e dependência `workspace:` do pacote Contratos.
 - ADR-0013 Usar Node.js 26 LTS como runtime: imagem base, Compose e `engines.node`.
 - ADR-0014 Usar Valkey para fila e contadores: o serviço que o HLD chama de Redis, com AOF e `noeviction`, e o `ioredis` 5.
@@ -357,6 +357,7 @@ ADRs associados
 - ADR-0022 Usar oxlint sem lint de tipos e Prettier: lint e formatação do monorepo, sem compilador do TypeScript 7.
 - ADR-0023 Usar Zod 4 para validação em Contratos: esquemas compartilhados por API e SPA e validação das variáveis de ambiente.
 - ADR-0024 Usar @playwright/cli para verificar as telas: navegador dos itens de UI dos contratos, sem suíte E2E versionada.
+- ADR-0026 Usar dependency-cruiser para fiscalizar a regra de dependência: imports entre camadas e entre módulos da API barrados no `make lint`.
 
 Decisões pendentes de ADR
 - Nenhuma: todas as tecnologias principais têm ADR aceito.

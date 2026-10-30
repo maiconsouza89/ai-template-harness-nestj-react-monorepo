@@ -1,10 +1,10 @@
 ---
-status: accepted
-date: 2026-10-29
+status: superseded
+date: 2026-10-30
 title: "Usar vertical slice com DDD tático na API"
 description: "Por que um slice por caso de uso dentro do módulo da funcionalidade, com domínio e infraestrutura separados, em vez de módulo por entidade, camadas horizontais ou Clean/hexagonal: o caso de uso novo fica numa pasta só e o Prisma não entra na regra."
 supersedes:
-superseded-by:
+superseded-by: "0025"
 ---
 
 # 0011. Usar vertical slice com DDD tático na API
