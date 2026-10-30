@@ -3,3 +3,7 @@
 494ca78dbbc83a9a9867267f738a0e1e0f27058b:apps/api/test/factories/user.factory.ts:generic-api-key:47
 # Cookie de sessão inventado (sem assinatura) da evidência de API-BORDA-03, que espera 401; não é segredo.
 89179499ec3dbc76b5f65b7755386ee23646bebb:docs/features/fundacao/avaliacao.md:generic-api-key:160
+# O mesmo cookie inventado depois do squash do PR #4 na main: o fingerprint leva o SHA do commit, e o squash troca o SHA.
+4a668c7bdae9288b03836955ba4bcdb9cf79d978:docs/features/fundacao/avaliacao.md:generic-api-key:160
+# Senha falsa do teste de integração do RF-001 no branch feat/rf-001-criar-conta (PR #6 fechado), que a CI varre com fetch-depth 0.
+38519c486dbb1d719a9e5ff5847f5557d90b0902:apps/api/test/integration/sign-up-email.int-spec.ts:generic-api-key:105

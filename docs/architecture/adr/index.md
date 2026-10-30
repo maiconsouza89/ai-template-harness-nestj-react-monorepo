@@ -14,7 +14,7 @@
 | [0008](0008-usar-prisma-como-orm.md) | Usar Prisma como ORM | accepted | 2026-10-28 |
 | [0009](0009-usar-nest-cli-para-as-operacoes-com-o-nest.md) | Usar Nest CLI para as operações com o Nest | accepted | 2026-10-29 |
 | [0010](0010-usar-better-auth-para-autenticacao.md) | Usar Better Auth para autenticação | accepted | 2026-10-29 |
-| [0011](0011-usar-vertical-slice-com-ddd-tatico-na-api.md) | Usar vertical slice com DDD tático na API | accepted | 2026-10-29 |
+| [0011](0011-usar-vertical-slice-com-ddd-tatico-na-api.md) | Usar vertical slice com DDD tático na API | superseded | 2026-10-30 |
 | [0012](0012-usar-pnpm-como-gerenciador-de-pacotes.md) | Usar pnpm como gerenciador de pacotes | accepted | 2026-10-29 |
 | [0013](0013-usar-node-26-lts-como-runtime.md) | Usar Node.js 26 LTS como runtime | accepted | 2026-10-29 |
 | [0014](0014-usar-valkey-para-fila-e-contadores.md) | Usar Valkey para fila e contadores | accepted | 2026-10-29 |
@@ -28,3 +28,5 @@
 | [0022](0022-usar-oxlint-sem-lint-de-tipos-e-prettier.md) | Usar oxlint sem lint de tipos e Prettier | accepted | 2026-10-29 |
 | [0023](0023-usar-zod-4-para-validacao-em-contratos.md) | Usar Zod 4 para validação em Contratos | accepted | 2026-10-29 |
 | [0024](0024-usar-playwright-cli-para-verificar-as-telas.md) | Usar @playwright/cli para verificar as telas | accepted | 2026-10-29 |
+| [0025](0025-usar-clean-architecture-com-casos-de-uso-por-pasta-na-api.md) | Usar Clean Architecture com casos de uso por pasta na API | accepted | 2026-10-30 |
+| [0026](0026-usar-dependency-cruiser-para-fiscalizar-a-regra-de-dependencia.md) | Usar dependency-cruiser para fiscalizar a regra de dependência | accepted | 2026-10-30 |

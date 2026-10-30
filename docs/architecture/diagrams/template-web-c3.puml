@@ -11,7 +11,7 @@ Container(ctr, "Contratos", "Pacote TypeScript do monorepo, workspace do pnpm", 
 Container_Boundary(api, "API NestJS") {
   Component(contas, "Módulo Contas", "NestJS, Better Auth 1", "Cadastro, confirmação, sessão, recuperação e troca de senha; perfil em /api/v1/me; bloqueio por e-mail")
   Component(usuarios, "Módulo Usuários", "NestJS, plugin admin do Better Auth, Prisma 7", "Lista e busca contas; muda papel e situação com travas e auditoria")
-  Component(tarefas, "Módulo Tarefas", "NestJS, Prisma 7", "CRUD das tarefas da pessoa logada; slice de referência do template")
+  Component(tarefas, "Módulo Tarefas", "NestJS, Prisma 7", "CRUD das tarefas da pessoa logada; módulo de referência do template")
   Component(email, "Módulo E-mail", "NestJS, @nestjs/bullmq, Nodemailer 10", "Cria e consome jobs da fila email.send, renderiza e envia o e-mail")
 }
 
