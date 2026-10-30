@@ -95,7 +95,7 @@ Modo de verificação: requisições HTTP contra a API em execução no ambiente
 
 #### API-BORDA-03
 - **Dado:** o ambiente no ar.
-- **Quando:** uma requisição pede GET /api/v1/session com um cookie de sessão de valor inventado.
+- **Quando:** uma requisição pede GET /api/v1/session com o cookie better-auth.session_token igual a sessao-inventada.
 - **Então:**
   - a resposta é 401
 

@@ -262,6 +262,8 @@ Decisões
 - Revisão de 2026-10-30, `platform/` como infraestrutura transversal nas regras do dependency-cruiser: escolhido na revisão. Alternativas descartadas: deixar `platform/` fora das regras, que deixaria um caso de uso importar o `PrismaService`; e dar camadas a `platform/`, que forçaria a estrutura em código só de infraestrutura.
 - Compatibilidade do dependency-cruiser conferida em 2026-10-30 no registro npm: a 18.7.0 declara `engines.node` `^22||^24||>=26` (Node 26.13 local) e `supportedTranspilers.typescript` `>=2.0.0 <7.0.0` (catálogo `~6.0.3`, ADR-0020). Sem conflito. `tsPreCompilationDeps` diferente de `false` é o que faz o import `type-only` aparecer no grafo (dependency-cruiser, rules-reference, `dependencyTypes`).
 
+- Revisão de 2026-10-30, cookie de API-BORDA-03 fixado em `sessao-inventada`: escolhido na revisão. O contrato não fixava o valor, cada avaliação gravava um cookie diferente na evidência e o gitleaks 8.30.1 acusava como `generic-api-key` valores como `inventado123.abcdef`; `sessao-inventada` tem baixa entropia e não é acusado (testado com `gitleaks dir`), e para o Better Auth é um cookie sem sessão como qualquer outro, então o 401 continua provado. Alternativa descartada: fixar `inventado123.abcdef`, que dependeria para sempre da allowlist do `.gitleaks.toml`.
+
 Hipóteses
 - Pacotes `@app/api`, `@app/web` e `@app/contracts` (hipótese)
 - Portas locais: api 3000, web 5173, postgres 5432, valkey 6379, mailpit 1025 (SMTP) e 8025 (web), com SPA e API em `localhost`, o mesmo site para o cookie (hipótese)
