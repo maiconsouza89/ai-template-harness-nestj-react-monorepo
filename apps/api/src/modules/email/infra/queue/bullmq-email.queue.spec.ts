@@ -79,6 +79,26 @@ describe('BullMqEmailQueue', () => {
     expect(line).not.toContain('detalhe sensível');
   });
 
+  it('registra o erro da conexão da fila sem a mensagem do driver', () => {
+    const { queue } = slowQueue();
+    new BullMqEmailQueue(queue);
+    const [event, listener] = vi.mocked(queue.on).mock.calls[0] as [
+      string,
+      (error: Error) => void,
+    ];
+
+    listener(
+      Object.assign(new Error('connect ECONNREFUSED valkey:6379'), {
+        code: 'ECONNREFUSED',
+      }),
+    );
+
+    expect(event).toBe('error');
+    const [line] = warn.mock.calls[0] as [string];
+    expect(line).toContain('Error (ECONNREFUSED)');
+    expect(line).not.toContain('valkey:6379');
+  });
+
   it('não registra nada quando o add falha antes do limite', async () => {
     const { queue, fail } = slowQueue();
     const enqueued = new BullMqEmailQueue(queue).enqueue(request);

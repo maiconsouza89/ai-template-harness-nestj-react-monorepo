@@ -68,7 +68,7 @@ export class EmailSendProcessor extends WorkerHost {
   @OnWorkerEvent('error')
   onError(error: Error) {
     this.logger.warn(
-      `Worker de ${EMAIL_SEND_QUEUE} indisponível: ${error.message}`,
+      `Worker de ${EMAIL_SEND_QUEUE} indisponível: ${describeError(error)}`,
     );
   }
 }

@@ -60,10 +60,15 @@ describe('ValkeyRateLimitStorage', () => {
     ]);
   });
 
-  it('libera a requisição e registra o erro quando o Valkey falha', async () => {
+  it('libera a requisição e registra só o nome e o código do erro quando o Valkey falha', async () => {
     const redis = {
       status: 'ready',
-      eval: () => Promise.reject(new Error('Connection is closed.')),
+      eval: () =>
+        Promise.reject(
+          Object.assign(new Error('EVAL rate-limit:1.2.3.4 em valkey:6379'), {
+            code: 'ECONNRESET',
+          }),
+        ),
     } as unknown as RateLimitRedis;
     const logged: string[] = [];
     const storage = new ValkeyRateLimitStorage(redis, (message) =>
@@ -75,27 +80,52 @@ describe('ValkeyRateLimitStorage', () => {
       retryAfter: null,
     });
     expect(logged).toHaveLength(1);
-    expect(logged[0]).toContain('Connection is closed.');
+    expect(logged[0]).toContain('Error (ECONNRESET)');
+    expect(logged[0]).not.toContain('1.2.3.4');
+    expect(logged[0]).not.toContain('valkey:6379');
   });
 
-  it('libera sem esperar quando a conexão não está pronta', async () => {
-    const evalSpy = vi.fn();
-    const redis = {
-      status: 'reconnecting',
-      eval: evalSpy,
-    } as unknown as RateLimitRedis;
-    const logged: string[] = [];
-    const storage = new ValkeyRateLimitStorage(redis, (message) =>
-      logged.push(message),
-    );
+  it.each(['wait', 'connecting', 'connect'])(
+    'conta normalmente com a conexão em %s, sem liberar',
+    async (status) => {
+      const { redis } = fakeRedis();
+      (redis as { status: string }).status = status;
+      const logged: string[] = [];
+      const storage = new ValkeyRateLimitStorage(redis, (message) =>
+        logged.push(message),
+      );
 
-    await expect(storage.consume('a|/sign-up/email', rule)).resolves.toEqual({
-      allowed: true,
-      retryAfter: null,
-    });
-    expect(evalSpy).not.toHaveBeenCalled();
-    expect(logged[0]).toContain('reconnecting');
-  });
+      for (let i = 0; i < 5; i++) {
+        await storage.consume('1.2.3.4|/sign-up/email', rule);
+      }
+      await expect(
+        storage.consume('1.2.3.4|/sign-up/email', rule),
+      ).resolves.toEqual({ allowed: false, retryAfter: 60 });
+      expect(logged).toEqual([]);
+    },
+  );
+
+  it.each(['reconnecting', 'close', 'end'])(
+    'libera sem esperar com a conexão em %s',
+    async (status) => {
+      const evalSpy = vi.fn();
+      const redis = {
+        status,
+        eval: evalSpy,
+      } as unknown as RateLimitRedis;
+      const logged: string[] = [];
+      const storage = new ValkeyRateLimitStorage(redis, (message) =>
+        logged.push(message),
+      );
+
+      await expect(storage.consume('a|/sign-up/email', rule)).resolves.toEqual({
+        allowed: true,
+        retryAfter: null,
+      });
+      expect(evalSpy).not.toHaveBeenCalled();
+      expect(logged[0]).toContain(status);
+    },
+  );
 
   it('libera quando o Valkey não responde dentro do tempo', async () => {
     const redis = {

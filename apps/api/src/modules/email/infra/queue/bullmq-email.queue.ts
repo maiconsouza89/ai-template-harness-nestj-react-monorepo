@@ -28,7 +28,7 @@ export class BullMqEmailQueue extends EmailQueue {
     // Sem ouvinte, cada tentativa de reconexão vira um erro impresso no console.
     queue.on('error', (error: Error) =>
       this.logger.warn(
-        `Fila ${EMAIL_SEND_QUEUE} indisponível: ${error.message}`,
+        `Fila ${EMAIL_SEND_QUEUE} indisponível: ${describeError(error)}`,
       ),
     );
   }
