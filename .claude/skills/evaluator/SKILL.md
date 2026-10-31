@@ -1,6 +1,8 @@
 ---
 name: evaluator
 description: Dá o veredito de um RF-NNN (ou da fundação) contra o `contract.md` em `docs/features/RF-NNN-nome/`, exercitando cada item do contrato de verdade (HTTP, navegador, banco, arquivos, fila, comando) num ambiente efêmero, depois de conferir os pré-requisitos e rodar os gates de qualidade. Grava o resultado em `docs/features/RF-NNN-nome/avaliacao.md` (versionado, um por feature, sobrescrito a cada avaliação), com o veredito por item e por critério de aceitação do manifesto, e marca o RF como feito no roadmap quando a avaliação sai limpa. Não edita código. Use sempre que o usuário quiser avaliar, verificar, validar ou conferir se um RF ou a fundação cumpre o contrato ("avalia o RF-003", "o contrato da fundação passa?", "roda o evaluator", "confere se está pronto"), mesmo sem dizer evaluator; depois de uma `/implement-feature` ou `/fix-runner`; ou antes de marcar um RF como feito.
+model:
+  - claude-sonnet-5-5
 ---
 
 # Evaluator
