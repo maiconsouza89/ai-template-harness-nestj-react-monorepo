@@ -62,7 +62,7 @@ Spec: spec.md. Contrato: contract.md.
 
 ## Fase 7: Backend local, painéis e alertas
 
-31. **Backend de observabilidade local:** acrescentar ao `compose.yaml` o serviço no perfil `observability`, com o `grafana/otel-lgtm` do ADR-0029, OTLP HTTP na rede do Compose e a interface web na porta 3001 do host.
-32. **Backend de observabilidade local:** escrever em `docker/observability/` os painéis "API por interface" e "Filas" e montá-los como provisionados no serviço.
+31. **Backend de observabilidade local:** acrescentar ao `compose.yaml` o serviço no perfil `observability`, com o `grafana/otel-lgtm` do ADR-0029, OTLP HTTP na rede do Compose e a interface web na porta 8001 do host, publicada só em `127.0.0.1`.
+32. **Backend de observabilidade local:** escrever em `docker/observability/` os painéis "API por interface" e "Filas" e montá-los como provisionados no serviço, com as rotas do Better Auth identificadas como `/api/auth/*` nas métricas da API (spec, Contratos de interface).
 33. **Backend de observabilidade local:** escrever as quatro regras de alerta do HLD e montá-las como provisionadas, agrupadas por rota, fila e dependência (spec, Regras e fluxos).
 34. **Backend de observabilidade local:** escrever o `collector-destino.yaml` com a amostragem de cauda do HLD e documentar no README como subir o perfil, abrir os painéis e levar os arquivos para o destino.

@@ -52,11 +52,11 @@ Cada gate precisa passar para a feature ser considerada pronta.
 | Regra de dependência na API: Módulo Contas nas camadas da Clean Architecture e dependency-cruiser no lint de apps/api barrando import entre camadas, entre módulos e ciclos (ADR-0025, ADR-0026). | CLI-CAMADAS-01, CLI-CAMADAS-02, CLI-CAMADAS-03, CLI-CAMADAS-04, CLI-CAMADAS-05, CLI-CAMADAS-06, CLI-CAMADAS-07, CLI-CAMADAS-08 |
 | Correlação de logs e traces: com a exportação ligada, as linhas de log da API trazem o trace_id e o span_id do span ativo (ADR-0018, ADR-0019). | CLI-OTEL-04, CLI-OTEL-05 |
 | Tracing de filas: contexto W3C propagado do enfileiramento ao processamento em toda fila do BullMQ, ligado no módulo de filas da plataforma (HLD, Observabilidade; ADR-0015, ADR-0019). | CLI-FILA-01 |
-| Métricas de componente: requisições HTTP por rota e status, pool do PostgreSQL, memória do Valkey, estado do health check e, por fila do BullMQ, jobs por estado, idade do job pendente mais antigo e falhas por tentativa (HLD, Observabilidade; ADR-0019). | CLI-METRICAS-01, CLI-METRICAS-02, CLI-METRICAS-03, CLI-FILA-02, CLI-FILA-03 |
+| Métricas de componente: requisições HTTP por rota e status, pool do PostgreSQL, memória do Valkey, estado do health check e, por fila do BullMQ, jobs por estado, idade do job pendente mais antigo e falhas por tentativa (HLD, Observabilidade; ADR-0019). | CLI-METRICAS-01, CLI-METRICAS-02, CLI-METRICAS-03, CLI-METRICAS-05, CLI-FILA-02, CLI-FILA-03 |
 | Métricas de negócio: Meter da aplicação em platform/ com a convenção de nome app.<domínio>.<medida>, onde cada RF registra as suas (HLD, Observabilidade). | CLI-METRICAS-04 |
 | Fila de diagnóstico: fila e rota anônima POST /api/diagnostics/jobs, ligadas só por DIAGNOSTICS_ENABLED e fora de produção, para exercitar a telemetria de filas sem depender de módulo de funcionalidade (HLD, Observabilidade). | API-DIAG-01, API-DIAG-02, API-DIAG-03, API-DIAG-04 |
 | Backend local de observabilidade: serviço do Compose no perfil observability que recebe OTLP da API e guarda traces, métricas e logs com amostragem de 100 por cento (HLD, Observabilidade; ADR-0029). | CLI-BACKEND-01, CLI-BACKEND-02, CLI-BACKEND-03, CLI-AMOSTRAGEM-01 |
-| Painéis e alertas como código: painel por interface, painel das filas e os quatro alertas do HLD, provisionados no backend local a partir de arquivos versionados (HLD, Dashboards e alertas; ADR-0029). | CLI-PAINEIS-01, CLI-ALERTAS-01, CLI-ALERTAS-02, CLI-ALERTAS-03, CLI-ALERTAS-04 |
+| Painéis e alertas como código: painel por interface, painel das filas e os quatro alertas do HLD, provisionados no backend local a partir de arquivos versionados (HLD, Dashboards e alertas; ADR-0029). | CLI-PAINEIS-01, CLI-PAINEIS-02, CLI-ALERTAS-01, CLI-ALERTAS-02, CLI-ALERTAS-03, CLI-ALERTAS-04 |
 | Amostragem do destino: configuração de referência do coletor com 10 por cento dos traces e 100 por cento dos traces com erro (HLD, Tracing). | CLI-AMOSTRAGEM-02 |
 
 ## API HTTP
@@ -524,6 +524,13 @@ Dado comum: a api no ar com OTEL_EXPORTER_OTLP_ENDPOINT apontando para o recepto
   - o escopo de instrumentação dessa métrica se chama app
   - toda métrica recebida com nome começando por app. segue o formato app.<domínio>.<medida> em minúsculas
 
+#### CLI-METRICAS-05
+- **Dado:** a api recém-subida.
+- **Quando:** são enviadas uma requisição GET /api/auth/ok e uma GET /rota-inexistente, fora de /api.
+- **Então:**
+  - em até 90 segundos o receptor registra http.server.request.duration com http.route igual a /api/auth/* e status 200
+  - a série de http.server.request.duration com status 404 não tem http.route igual a /api/auth/*
+
 ### Backend local de observabilidade
 
 #### CLI-BACKEND-01
@@ -532,7 +539,8 @@ Dado comum: a api no ar com OTEL_EXPORTER_OTLP_ENDPOINT apontando para o recepto
 - **Então:**
   - o código de saída é 0
   - os serviços api, web, postgres, valkey, mailpit e o backend de observabilidade estão em execução e saudáveis
-  - a interface web do backend responde em http://localhost:3001
+  - a interface web do backend responde em http://localhost:8001
+  - a porta 8001 do backend está publicada só no endereço 127.0.0.1 do host
 
 #### CLI-BACKEND-02
 - **Dado:** nenhum container do projeto em execução.
@@ -579,6 +587,14 @@ Dado comum: o backend de observabilidade no ar e a api exportando para ele.
   - os dois painéis constam como provisionados de arquivo
   - cada painel corresponde a um arquivo versionado em docker/observability
 
+#### CLI-PAINEIS-02
+- **Dado:** o backend recém-subido, sem edição pela interface.
+- **Quando:** abre-se a definição do painel API por interface.
+- **Então:**
+  - a legenda das séries mostra o último valor e a média, sem o máximo
+  - a linha de limiar de 300 ms aparece só no p95 das rotas /api/v1
+  - as rotas de autenticação são selecionadas por http.route igual a /api/auth/*
+
 #### CLI-ALERTAS-01
 - **Dado:** o backend recém-subido, sem edição pela interface.
 - **Quando:** consulta-se a lista de regras de alerta do backend.
@@ -622,7 +638,7 @@ Dado comum: o backend de observabilidade no ar e a api exportando para ele.
 
 #### CLI-IMAGEM-02
 - **Dado:** a imagem da API construída e os serviços postgres e valkey do Compose no ar.
-- **Quando:** sobe-se um container dessa imagem com as variáveis do `.env` e NODE_ENV igual a production, e pede-se GET /api/auth/ok nele.
+- **Quando:** sobe-se um container dessa imagem com as variáveis do `.env`, NODE_ENV igual a production e TRUSTED_PROXIES igual a 172.16.0.0/12, e pede-se GET /api/auth/ok nele.
 - **Então:**
   - o container segue em execução
   - o log do container tem a linha JSON de subida da API sem erro
