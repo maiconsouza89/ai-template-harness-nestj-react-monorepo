@@ -2,9 +2,9 @@
 
 *Gerado pela skill evaluator. Cada avaliação sobrescreve este arquivo; o histórico está no git.*
 
-- Execução: 2026-10-31T02-25-42Z
+- Execução: 2026-10-31T03-16-53Z
 - Branch: feat/rf-001-criar-conta
-- Commit: 7cafbf5
+- Commit: 5f60996
 - Status: limpo
 - Itens: 43 passou, 0 falhou, 0 bloqueado, 0 manual, 0 pulado, de 43
 - Critérios: 4 verificado, 0 reprovado, 0 indeterminado, de 4
@@ -21,17 +21,17 @@
 
 ## Gates de qualidade
 
-- ✓ check: `make check`, código 0 (com `TURBO_FORCE=true`: 5 tarefas sem cache, os 41 testes da API em 5 arquivos de integração e os dos demais pacotes passaram)
+- ✓ check: `make check`, código 0 (com `TURBO_FORCE=true`: 5 tarefas sem cache, 53 testes unitários e 41 de integração da API, 18 de Contratos e 14 da SPA passaram)
 - ✓ build: `make build`, código 0 (com `TURBO_FORCE=true`: 4 tarefas, nenhuma do cache)
 
 ## Pré-requisitos
 
 ### Serviços em execução
-- ✓ api (com o worker do Módulo E-mail): http://localhost:3000, saúde /api/health respondeu 200 `{"status":"ok","checks":{"postgres":"up","valkey":"up"}}`, apontada para o banco efêmero `eval_rf001_2026_10_31t02_25_42z` e para o Valkey no banco lógico 3
-- ✓ web: http://localhost:5173/ respondeu 200
+- ✓ api (com o worker do Módulo E-mail): http://localhost:3000, saúde /api/health respondeu 200 `{"status":"ok","checks":{"postgres":"up","valkey":"up"}}`, apontada para o banco efêmero `eval_rf001_2026_10_31t03_16_53z` e para o Valkey no banco lógico 3
+- ✓ web: http://localhost:5173/ respondeu 200 (container recriado para servir o `@app/contracts` do working tree; ver Avisos)
 - ✓ postgres: `pg_isready` aceitando conexões no Compose (PostgreSQL 18)
 - ✓ valkey: `valkey-cli ping` respondeu PONG no Compose (Valkey 9)
-- ✓ mailpit: http://localhost:8025/api/v1/info respondeu, versão v1.32.0, 0 mensagens
+- ✓ mailpit: http://localhost:8025/api/v1/info respondeu, versão v1.32.0
 
 ### Estado persistido
 - ✓ `conta-pendente-ana`: criado pelo cadastro (POST /api/auth/sign-up/email com Ana Souza, ana@example.com, Segura123 e um X-Forwarded-For próprio) em cada item que o usa; conferido: name Ana Souza, role user, emailVerified falso, banned falso, uma credencial com providerId credential
@@ -41,7 +41,7 @@
 Nenhum.
 
 ### Configuração
-- ✓ `.env` copiado do `.env.example`: mesmos valores, NODE_ENV=development e TRUSTED_PROXIES vazia em vigor no container da api (o contrato pede development e vazia); `make db-setup` aplicado ao banco efêmero (migrações e primeiro admin)
+- ✓ `.env` copiado do `.env.example`: mesmos valores (difere só em comentários), NODE_ENV=development e TRUSTED_PROXIES vazia em vigor no container da api (o contrato pede development e vazia); `make db-setup` aplicado ao banco efêmero (migrações e primeiro admin)
 - ✓ X-Forwarded-For por item: cada requisição de cadastro fora do navegador levou um IP 203.0.113.x exclusivo do item (203.0.113.50 e .51 só nos itens de limite)
 
 ### Dependências externas
@@ -62,8 +62,8 @@ Nenhum.
 <summary>Evidência</summary>
 
 ```
-POST /api/auth/sign-up/email XFF 203.0.113.11 -> HTTP 200 {"token":null,"user":{"name":"Bia Lima","email":"bia@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:28.780Z","updatedAt":"2026-10-31T02:30:28.780Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"dzuijQfIyzENjCEPLUe9kgMIMAls2roq"}}
-headers: {"X-Powered-By": "Express", "Access-Control-Allow-Origin": "http://localhost:5173", "Vary": "Origin", "Access-Control-Allow-Credentials": "true", "content-type": "application/json", "Date": "Sat, 31 Oct 2026 02:30:28 GMT", "Connection": "close", "Transfer-Encoding": "chunked"}
+POST /api/auth/sign-up/email XFF 203.0.113.11 -> HTTP 200 {"token":null,"user":{"name":"Bia Lima","email":"bia@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:06.662Z","updatedAt":"2026-10-31T03:19:06.662Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"TQTxlHfhBO1RFjPLnKVS0brCEl99lr8T"}}
+headers: {"X-Powered-By": "Express", "Access-Control-Allow-Origin": "http://localhost:5173", "Vary": "Origin", "Access-Control-Allow-Credentials": "true", "content-type": "application/json", "Date": "Sat, 31 Oct 2026 03:19:06 GMT", "Connection": "close", "Transfer-Encoding": "chunked"}
 ```
 
 </details>
@@ -79,7 +79,7 @@ headers: {"X-Powered-By": "Express", "Access-Control-Allow-Origin": "http://loca
 <summary>Evidência</summary>
 
 ```
-HTTP 200 {"token":null,"user":{"name":"Caio Rocha","email":"caio@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:29.422Z","updatedAt":"2026-10-31T02:30:29.422Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"3kw2YVJ8IVjPC4a3Y0K9corewkr2cTbi"}}
+HTTP 200 {"token":null,"user":{"name":"Caio Rocha","email":"caio@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:07.468Z","updatedAt":"2026-10-31T03:19:07.468Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"8QvSP2zjwa9jN05vBTRaI3Vc0x4KbC45"}}
 user: [['user', 'f', 'f']]
 account: [['credential', 't']]
 session: 0
@@ -97,7 +97,7 @@ session: 0
 <summary>Evidência</summary>
 
 ```
-HTTP 200 {"token":null,"user":{"name":"Dani Melo","email":"dani.melo@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:30.118Z","updatedAt":"2026-10-31T02:30:30.118Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"CsEWfq45AphQhsAzpl9S1sOuxywnq0Xy"}}
+HTTP 200 {"token":null,"user":{"name":"Dani Melo","email":"dani.melo@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:08.189Z","updatedAt":"2026-10-31T03:19:08.189Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"F32Dfu46SrySpz6xjzGr3GruhBT8Vm5a"}}
 user: [['dani.melo@example.com']]
 ```
 
@@ -113,7 +113,7 @@ user: [['dani.melo@example.com']]
 <summary>Evidência</summary>
 
 ```
-conta-pendente-ana: HTTP 200 {"token":null,"user":{"name":"Ana Souza","email":"ana@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:30.678Z","updatedAt":"2026-10-31T02:30:30.678Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"YktVyh7yjLnlgcaIAH5AF3AdL5HqmKbD"}} [['Ana Souza', 'user', 'f', 'f', 'credential']]
+conta-pendente-ana: HTTP 200 {"token":null,"user":{"name":"Ana Souza","email":"ana@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:08.880Z","updatedAt":"2026-10-31T03:19:08.880Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"Ficyzji5MKJmP1DzMdUhB6417QiYTUn2"}} [['Ana Souza', 'user', 'f', 'f', 'credential']]
 HTTP 422 {"code":"USER_ALREADY_EXISTS","message":"Este e-mail já tem conta. Entre ou recupere a senha."}
 ```
 
@@ -129,7 +129,7 @@ HTTP 422 {"code":"USER_ALREADY_EXISTS","message":"Este e-mail já tem conta. Ent
 <summary>Evidência</summary>
 
 ```
-conta-pendente-ana: HTTP 200 {"token":null,"user":{"name":"Ana Souza","email":"ana@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:31.277Z","updatedAt":"2026-10-31T02:30:31.277Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"Sh7LUmYecpV2LBeuOnVgS6qDQi0U8oJ1"}} [['Ana Souza', 'user', 'f', 'f', 'credential']]
+conta-pendente-ana: HTTP 200 {"token":null,"user":{"name":"Ana Souza","email":"ana@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:09.515Z","updatedAt":"2026-10-31T03:19:09.515Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"OxCywjEtaQsrp8669Nh8pIf2IOyc4klT"}} [['Ana Souza', 'user', 'f', 'f', 'credential']]
 HTTP 422 {"code":"USER_ALREADY_EXISTS","message":"Este e-mail já tem conta. Entre ou recupere a senha."}
 ```
 
@@ -145,8 +145,8 @@ HTTP 422 {"code":"USER_ALREADY_EXISTS","message":"Este e-mail já tem conta. Ent
 <summary>Evidência</summary>
 
 ```
-Davi Um: HTTP 200 {"token":null,"user":{"name":"Davi Um","email":"davi@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:31.859Z","updatedAt":"2026-10-31T02:30:31.859Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"ppLmGT8sQqKT9k3zn8e1FtEySyFX6NWC"}}
 Davi Dois: HTTP 422 {"message":"Failed to create user","code":"FAILED_TO_CREATE_USER"}
+Davi Um: HTTP 200 {"token":null,"user":{"name":"Davi Um","email":"davi@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:10.113Z","updatedAt":"2026-10-31T03:19:10.113Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"mnrlokMP7crfeYo8mlKc2zan7EK054Mb"}}
 user: [['Davi Um']]
 ```
 
@@ -207,7 +207,7 @@ HTTP 400 {"code":"VALIDATION_ERROR","message":"Confira os campos destacados.","f
 <summary>Evidência</summary>
 
 ```
-HTTP 200 {"token":null,"user":{"name":"Heitor Paz","email":"heitor@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:33.877Z","updatedAt":"2026-10-31T02:30:33.877Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"FJ8CW4MTcfPn6tbAWgizxyigmZX5H4Lw"}}
+HTTP 200 {"token":null,"user":{"name":"Heitor Paz","email":"heitor@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:12.166Z","updatedAt":"2026-10-31T03:19:12.166Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"6YZnL11dOxxuvOqaZ5tXUkOlVgwoyHxM"}}
 ```
 
 </details>
@@ -260,15 +260,15 @@ HTTP 400 {"code":"VALIDATION_ERROR","message":"Confira os campos destacados.","f
 #### API-SIGILO-01 *
 - Veredito: passou
 - `*` o corpo da resposta não contém Sigilo123x | interpretado como: busca literal no corpo | observado ausente | passou
-- `*` a credencial de senha da conta no banco não contém Sigilo123x | interpretado como: busca literal em account.password | observado ausente (hash de 161 caracteres, prefixo c495f4...) | passou
+- `*` a credencial de senha da conta no banco não contém Sigilo123x | interpretado como: busca literal em account.password | observado ausente (hash de 161 caracteres, prefixo 392138...) | passou
 - `*` nenhuma coluna da conta em user contém Sigilo123x | interpretado como: busca literal em row_to_json da linha em "user" | observado ausente | passou
 
 <details>
 <summary>Evidência</summary>
 
 ```
-HTTP 200 {"token":null,"user":{"name":"Lia Matos","email":"lia@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:35.933Z","updatedAt":"2026-10-31T02:30:35.933Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"qmwUiNzgi9LbbbXuhM4katBh7EOCoiO6"}}
-user: {"id":"qmwUiNzgi9LbbbXuhM4katBh7EOCoiO6","name":"Lia Matos","email":"lia@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:35.933","updatedAt":"2026-10-31T02:30:35.933","role":"user","banned":false,"banReason":null,"banExpires":null}
+HTTP 200 {"token":null,"user":{"name":"Lia Matos","email":"lia@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:14.230Z","updatedAt":"2026-10-31T03:19:14.230Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"0I4WxXOQqtHvjLNJTx59zHeA4LevKVUY"}}
+user: {"id":"0I4WxXOQqtHvjLNJTx59zHeA4LevKVUY","name":"Lia Matos","email":"lia@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:14.23","updatedAt":"2026-10-31T03:19:14.23","role":"user","banned":false,"banReason":null,"banExpires":null}
 ```
 
 </details>
@@ -293,16 +293,17 @@ linhas capturadas (0):
 #### API-SIGILO-03 *
 - Veredito: passou
 - ✓ a resposta é 422 | esperado 422, observado 422
-- `*` nenhuma linha de log do serviço api escrita durante o item contém Sigilo789z | interpretado como: busca literal nas 0 linhas de docker compose logs api desde o envio | observado 0 linha(s) | passou
-- `*` nenhuma dessas linhas contém ana@example.com | interpretado como: busca literal nas 0 linhas de docker compose logs api desde o envio | observado 0 linha(s) | passou
+- `*` nenhuma linha de log do serviço api escrita durante o item contém Sigilo789z | interpretado como: busca literal nas 1 linhas de docker compose logs api desde o envio | observado 0 linha(s) | passou
+- `*` nenhuma dessas linhas contém ana@example.com | interpretado como: busca literal nas 1 linhas de docker compose logs api desde o envio | observado 0 linha(s) | passou
 
 <details>
 <summary>Evidência</summary>
 
 ```
-conta-pendente-ana: HTTP 200 {"token":null,"user":{"name":"Ana Souza","email":"ana@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:40.253Z","updatedAt":"2026-10-31T02:30:40.253Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"STMncrg982Trs5CEpel8D32qmrCdllh8"}} [['Ana Souza', 'user', 'f', 'f', 'credential']]
+conta-pendente-ana: HTTP 200 {"token":null,"user":{"name":"Ana Souza","email":"ana@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:18.662Z","updatedAt":"2026-10-31T03:19:18.662Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"iaJALEFO9fHSoYzmPgaNRhSjWQmDcWZM"}} [['Ana Souza', 'user', 'f', 'f', 'credential']]
 HTTP 422 {"code":"USER_ALREADY_EXISTS","message":"Este e-mail já tem conta. Entre ou recupere a senha."}
-linhas capturadas (0):
+linhas capturadas (1):
+{"level":30,"time":1793416760464,"pid":214,"hostname":"a9e1023da053","req":{"id":"dfd00edf-4797-4bc1-98ee-e178ca3acf1d","method":"GET","url":"/api/health","headers":{"host":"localhost:3000","connection":"keep-alive","accept":"*/*","accept-language":"*","sec-fetch-mode":"cors","user-agent":"node","ac
 ```
 
 </details>
@@ -319,7 +320,7 @@ linhas capturadas (0):
 
 ```
 antes: exists rate-limit:203.0.113.50|/sign-up/email = 0
-seis requisições em 0.4s: [200, 200, 200, 200, 200, 429]
+seis requisições em 0.5s: [200, 200, 200, 200, 200, 429]
 sexta: X-Retry-After=60 {"message":"Too many requests. Please try again later."}
 ```
 
@@ -335,14 +336,14 @@ sexta: X-Retry-After=60 {"message":"Too many requests. Please try again later."}
 
 ```
 conferência do Dado: nova requisição de 203.0.113.50 -> HTTP 429
-203.0.113.51 -> HTTP 200 {"token":null,"user":{"name":"Teste Limite","email":"limite7@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:45.603Z","updatedAt":"2026-10-31T02:30:45.603Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"B4ubxxBxnyhXn8qx9RyaO1EtYdlJRZbh"}}
+203.0.113.51 -> HTTP 200 {"token":null,"user":{"name":"Teste Limite","email":"limite7@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:24.187Z","updatedAt":"2026-10-31T03:19:24.187Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"IfZK6TjIjG2koBfuGKckMG1Z3IKSCR2d"}}
 ```
 
 </details>
 
 #### API-FALHA-01 *
 - Veredito: passou
-- `*` a resposta é 200 e chega em até 5 segundos | interpretado como: status e tempo da resposta medidos no cliente | observado 200 em 0.11s | passou
+- `*` a resposta é 200 e chega em até 5 segundos | interpretado como: status e tempo da resposta medidos no cliente | observado 200 em 0.10s | passou
 - `*` o banco tem uma conta com o e-mail nina@example.com, papel user e e-mail não verificado | interpretado como: linha em "user" com role e emailVerified | observado [['user', 'f']] | passou
 - `*` o serviço api continua respondendo GET /api/health | interpretado como: GET /api/health devolve uma resposta HTTP (qualquer status), sem erro de transporte, com o Valkey parado | observado HTTP 503 {"status":"error","checks":{"postgres":"up","valkey":"down"}} | passou
 
@@ -352,12 +353,12 @@ conferência do Dado: nova requisição de 203.0.113.50 -> HTTP 429
 ```
 docker compose stop valkey: rc=0
 docker compose up -d --wait valkey: rc=0
-cadastro: HTTP 200 em 0.11s {"token":null,"user":{"name":"Nina Alves","email":"nina@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T02:30:46.727Z","updatedAt":"2026-10-31T02:30:46.727Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"svsU9v498ZkNqgZa3PByvUQ1caGYfFu3"}}
+cadastro: HTTP 200 em 0.10s {"token":null,"user":{"name":"Nina Alves","email":"nina@example.com","emailVerified":false,"image":null,"createdAt":"2026-10-31T03:19:25.392Z","updatedAt":"2026-10-31T03:19:25.392Z","role":"user","banned":false,"banReason":null,"banExpires":null,"id":"m7WoD451XXc9RIAEbMquWu3XQVZcclpE"}}
 health: HTTP 503 {"status":"error","checks":{"postgres":"up","valkey":"down"}}
 log da api:
-{"level":50,"time":1793413846632,"pid":198,"hostname":"66edb912621c","context":"BetterAuth","msg":"Rate limit liberado com o Valkey indisponível: conexão em connecting"}
-{"level":50,"time":1793413846734,"pid":198,"hostname":"66edb912621c","context":"BetterAuth","msg":"Failed to run background task: Error"}
-{"level":30,"time":1793413850280,"pid":198,"hostname":"66edb912621c","req":{"id":"6d894c20-c7c7-4664-aec3-658af4f8fdfe","method":"GET","url":"/api/health","headers":{"accept-encoding":"identity","host":"localhost:3000","user-agent":"Python-urllib/3.13","origin":"http://localhost:5173","connection":"
+{"level":50,"time":1793416765304,"pid":214,"hostname":"a9e1023da053","context":"BetterAuth","msg":"Rate limit liberado com o Valkey indisponível: conexão em reconnecting"}
+{"level":50,"time":1793416765398,"pid":214,"hostname":"a9e1023da053","context":"BetterAuth","msg":"Failed to run background task: Error"}
+{"level":30,"time":1793416768948,"pid":214,"hostname":"a9e1023da053","req":{"id":"52af2e15-d3d5-47f8-abc4-70a3a77fafc1","method":"GET","url":"/api/health","headers":{"accept-encoding":"identity","host":"localhost:3000","user-agent":"Python-urllib/3.13","origin":"http://localhost:5173","connection":"
 ```
 
 </details>
@@ -418,14 +419,14 @@ html <html>: <html lang="pt-BR"
 <summary>Evidência</summary>
 
 ```
-cadastro HTTP 200; mensagem 1BVC6I1Iija1WwDlWb3g26; cabeçalhos: ['Content-Type', 'Date', 'From', 'Message-Id', 'Mime-Version', 'Received', 'Return-Path', 'Subject', 'To']
+cadastro HTTP 200; mensagem 5g7mkBIxI6zCWWkVoL2lyt; cabeçalhos: ['Content-Type', 'Date', 'From', 'Message-Id', 'Mime-Version', 'Received', 'Return-Path', 'Subject', 'To']
 ```
 
 </details>
 
 #### WRK-EMAIL-04 *
 - Veredito: passou
-- `*` a fila email.send tem um job verify-email com o id da conta de rui@example.com | interpretado como: hash bull:email.send:<id> com name verify-email e data.userId igual ao id da conta | observado job 20, name=verify-email, userId=jEPT4yIYrKx88z3feHX0aHyIdmOv3V94 | passou
+- `*` a fila email.send tem um job verify-email com o id da conta de rui@example.com | interpretado como: hash bull:email.send:<id> com name verify-email e data.userId igual ao id da conta | observado job 20, name=verify-email, userId=1jC7iD7UBSq44Ype4pXDVoOsbTgFylaK | passou
 - `*` os dados desse job não contêm Sigilo654v | interpretado como: busca literal no campo data do hash | observado ausente | passou
 - `*` os dados desse job não contêm rui@example.com nem Rui Campos | interpretado como: busca literal no campo data do hash | observado ausentes | passou
 
@@ -433,7 +434,7 @@ cadastro HTTP 200; mensagem 1BVC6I1Iija1WwDlWb3g26; cabeçalhos: ['Content-Type'
 <summary>Evidência</summary>
 
 ```
-conta jEPT4yIYrKx88z3feHX0aHyIdmOv3V94; job 20; data: {"type":"verify-email","userId":"jEPT4yIYrKx88z3feHX0aHyIdmOv3V94","url":"http://localhost:5173/confirmar-email?token=eyJ<mascarado>"}
+conta 1jC7iD7UBSq44Ype4pXDVoOsbTgFylaK; job 20; data: {"type":"verify-email","userId":"1jC7iD7UBSq44Ype4pXDVoOsbTgFylaK","url":"http://localhost:5173/confirmar-email?token=eyJ<mascarado>"}
 ```
 
 </details>
@@ -455,7 +456,7 @@ cadastro HTTP 422 {"code":"USER_ALREADY_EXISTS","message":"Este e-mail já tem c
 
 #### WRK-RETRY-01 *
 - Veredito: passou
-- `*` em até 2 minutos depois de o mailpit voltar, a caixa tem uma mensagem para sara@example.com | interpretado como: mensagens com To igual, consultadas até 120 s depois do mailpit saudável | observado 1 mensagem(ns) em 9.0s | passou
+- `*` em até 2 minutos depois de o mailpit voltar, a caixa tem uma mensagem para sara@example.com | interpretado como: mensagens com To igual, consultadas até 120 s depois do mailpit saudável | observado 1 mensagem(ns) em 7.2s | passou
 - `*` o job verify-email dessa conta fica concluído com mais de uma tentativa registrada | interpretado como: job no zset bull:email.send:completed e campo atm (attemptsMade) maior que 1 no hash | observado estado=completed, atm=3, ats=3 | passou
 
 <details>
@@ -464,14 +465,14 @@ cadastro HTTP 422 {"code":"USER_ALREADY_EXISTS","message":"Este e-mail já tem c
 ```
 docker compose stop mailpit: rc=0
 20 s depois, docker compose up -d --wait mailpit: rc=0
-cadastro HTTP 200; job 23: name=verify-email atm=3 finishedOn=1793414051926
+cadastro HTTP 200; job 22: name=verify-email atm=3 finishedOn=1793416896215
 ```
 
 </details>
 
 #### WRK-RETRY-02 *
 - Veredito: passou
-- `*` em até 3 minutos o job verify-email dessa conta fica no estado falho | interpretado como: job no zset bull:email.send:failed, consultado até 180 s | observado estado=failed em 118.1s | passou
+- `*` em até 3 minutos o job verify-email dessa conta fica no estado falho | interpretado como: job no zset bull:email.send:failed, consultado até 180 s | observado estado=failed em 116.3s | passou
 - `*` o job registra 5 tentativas | interpretado como: campo atm (attemptsMade) do hash | observado 5 | passou
 - `*` a conta de tais@example.com continua no banco, pendente | interpretado como: linha em "user" com emailVerified falso | observado [['user', 'f']] | passou
 
@@ -480,7 +481,7 @@ cadastro HTTP 200; job 23: name=verify-email atm=3 finishedOn=1793414051926
 
 ```
 docker compose stop mailpit: rc=0
-cadastro HTTP 200; job 24: name=verify-email atm=5 failedReason=Connection timeout
+cadastro HTTP 200; job 23: name=verify-email atm=5 failedReason=connect EHOSTUNREACH 172.18.0.3:1025
 docker compose up -d --wait mailpit: rc=0
 ```
 
@@ -502,7 +503,7 @@ docker compose up -d --wait mailpit: rc=0
 ```
 sign-up: 1 requisição(ões)
 texto: App | Entrar | Criar conta | Confirme seu e-mail | Enviamos um link de confirmação para ugo@example.com. Confirme o e-mail antes de entrar. | Reenviar o link
-base visual (final): 8 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-CADASTRO-01-final.png
+base visual (final): 8 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-CADASTRO-01-final.png
 ```
 
 </details>
@@ -520,7 +521,7 @@ base visual (final): 8 elementos conferidos, 0 imagem(ns); screenshot /tmp/evalu
 ```
 Dado: tela de link enviado true
 corpo: {"email":"vera@example.com"}
-base visual (final): 9 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-REENVIO-01-final.png
+base visual (final): 9 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-REENVIO-01-final.png
 ```
 
 </details>
@@ -540,7 +541,7 @@ base visual (final): 9 elementos conferidos, 0 imagem(ns); screenshot /tmp/evalu
 conta-pendente-ana: HTTP 200 via API com XFF 203.0.113.60; banco: Ana Souza|user|f|f|credential
 sign-up: 1 requisição(ões); aviso: Este e-mail já tem conta. Entre ou recupere a senha. |  | Entrar | Recuperar a senha
 contas ana: 1
-base visual (final): 18 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-DUPLICADO-01-final.png
+base visual (final): 18 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-DUPLICADO-01-final.png
 ```
 
 </details>
@@ -556,7 +557,7 @@ base visual (final): 18 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 <summary>Evidência</summary>
 
 ```
-base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-SENHA-01-final.png
+base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-SENHA-01-final.png
 ```
 
 </details>
@@ -572,7 +573,7 @@ base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 <summary>Evidência</summary>
 
 ```
-base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-CAMPOS-01-final.png
+base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-CAMPOS-01-final.png
 ```
 
 </details>
@@ -587,7 +588,7 @@ base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 <summary>Evidência</summary>
 
 ```
-base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-CAMPOS-02-final.png
+base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-CAMPOS-02-final.png
 ```
 
 </details>
@@ -606,7 +607,7 @@ base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 ```
 conta-pendente-ana: HTTP 200 via API com XFF 203.0.113.61; banco: Ana Souza|user|f|f|credential
 URL final http://localhost:5173/cadastro; requisições de sign-up: POST http://localhost:3000/api/auth/sign-up/email
-base visual (final): 18 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-SIGILO-01-final.png
+base visual (final): 18 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-SIGILO-01-final.png
 ```
 
 </details>
@@ -623,7 +624,7 @@ base visual (final): 18 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 <summary>Evidência</summary>
 
 ```
-base visual (final): 9 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-LAYOUT-01-final.png
+base visual (final): 9 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-LAYOUT-01-final.png
 ```
 
 </details>
@@ -639,7 +640,7 @@ base visual (final): 9 elementos conferidos, 0 imagem(ns); screenshot /tmp/evalu
 <summary>Evidência</summary>
 
 ```
-base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-LAYOUT-02-final.png
+base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-LAYOUT-02-final.png
 ```
 
 </details>
@@ -654,7 +655,7 @@ base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 <summary>Evidência</summary>
 
 ```
-base visual (final): 10 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-LAYOUT-03-final.png
+base visual (final): 10 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-LAYOUT-03-final.png
 ```
 
 </details>
@@ -672,7 +673,7 @@ base visual (final): 10 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 
 ```
 {"bg":"rgb(0, 0, 0)","color":"rgb(255, 255, 255)","r":"999px","fs":"16px","fw":"500","h":44}
-base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-VISUAL-01-final.png
+base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-VISUAL-01-final.png
 ```
 
 </details>
@@ -690,7 +691,7 @@ base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 
 ```
 fontes: http://localhost:5173/@fs/app/node_modules/.pnpm/@fontsource-variable+inter@5.3.0/node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2
-base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-VISUAL-02-final.png
+base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-VISUAL-02-final.png
 ```
 
 </details>
@@ -708,7 +709,7 @@ base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 
 ```
 card: {"bg":"rgb(255, 255, 255)","r":"16px","sh":"none","w":490,"cls":"card-content mx-auto w-full max-w-[490px]"}
-base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-VISUAL-03-final.png
+base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-VISUAL-03-final.png
 ```
 
 </details>
@@ -726,7 +727,7 @@ base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 
 ```
 {"inv":"true","db":"cadastro-email-erro","msg":"Informe um e-mail válido.","bw":["2px","2px","2px","2px"],"bc":["rgb(0, 0, 0)","rgb(0, 0, 0)","rgb(0, 0, 0)","rgb(0, 0, 0)"],"bs":"solid","mcolor":"rgb(0, 0, 0)","icon":"svg","iconFirst":true}
-base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-VISUAL-04-final.png
+base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-VISUAL-04-final.png
 ```
 
 </details>
@@ -743,7 +744,7 @@ base visual (final): 14 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 
 ```
 {"sw":375,"l":16,"r":16,"iw":375}
-base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-VISUAL-05-final.png
+base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-VISUAL-05-final.png
 ```
 
 </details>
@@ -761,7 +762,7 @@ base visual (final): 13 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 ```
 conta-pendente-ana: HTTP 200 via API com XFF 203.0.113.62; banco: Ana Souza|user|f|f|credential
 {"above":true,"role":"alert","bg":"rgb(239, 239, 239)","r":"16px","text":"Este e-mail já tem conta. Entre ou recupere a senha.EntrarRecuperar a senha","off":[]}
-base visual (final): 18 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/UI-VISUAL-06-final.png
+base visual (final): 18 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/UI-VISUAL-06-final.png
 ```
 
 </details>
@@ -772,18 +773,19 @@ base visual (final): 18 elementos conferidos, 0 imagem(ns); screenshot /tmp/eval
 - Veredito: passou
 - `*` a tela mostra que o link de confirmação foi enviado para zelia@example.com | interpretado como: texto visível com "link de confirmação" e o e-mail | observado Enviamos um link de confirmação para zelia@example.com. Confirme o e-mail antes de entrar. | passou
 - ✓ base visual mecânica (link-enviado): imagens carregadas, elementos dentro da janela, sem corte por overflow e recebendo o clique | esperado [], observado []
-- `*` em até 2 minutos a caixa tem uma mensagem para zelia@example.com com um link para /confirmar-email?token= | interpretado como: mensagem com To igual na API REST do Mailpit, consultada até 120 s, com link /confirmar-email?token= no texto ou HTML | observado 1 mensagem em 0.1s, link=true | passou
+- `*` em até 2 minutos a caixa tem uma mensagem para zelia@example.com com um link para /confirmar-email?token= | interpretado como: mensagem com To igual na API REST do Mailpit, consultada até 120 s, com link /confirmar-email?token= no texto ou HTML | observado 1 mensagem em 0.0s, link=true | passou
 - `*` o banco tem a conta de zelia@example.com com papel user e e-mail não verificado | interpretado como: linha em "user" com role e emailVerified | observado user|f | passou
-- `*` nem a mensagem nem as linhas de log do serviço api escritas durante a jornada contêm Jornada123 | interpretado como: busca literal no texto, HTML e cabeçalhos da mensagem e nas 1 linhas de docker compose logs api desde o início da jornada | observado mensagem=não contém, log=0 linha(s) | passou
+- `*` nem a mensagem nem as linhas de log do serviço api escritas durante a jornada contêm Jornada123 | interpretado como: busca literal no texto, HTML e cabeçalhos da mensagem e nas 2 linhas de docker compose logs api desde o início da jornada | observado mensagem=não contém, log=0 linha(s) | passou
 - `*` nenhuma dessas linhas de log contém Zélia Dias ou zelia@example.com | interpretado como: busca literal nas mesmas linhas | observado 0 linha(s) | passou
 
 <details>
 <summary>Evidência</summary>
 
 ```
-base visual (link-enviado): 8 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T02-25-42Z/E2E-CADASTRO-01-link-enviado.png
-linhas de log capturadas (1):
-{"level":30,"time":1793414231200,"pid":198,"hostname":"66edb912621c","req":{"id":"9d5c4c77-3e4c-45db-8684-e693a69e884c","method":"GET","url":"/api/v1/session","headers":{"host":"localhost:3000","connection":"keep-alive","sec-ch-ua-platform":"\"Linux\"","user-agent":"Mozilla/5.0 (X11; Linux x86_64) A
+base visual (link-enviado): 8 elementos conferidos, 0 imagem(ns); screenshot /tmp/evaluator-rf001-2026-10-31T03-16-53Z/E2E-CADASTRO-01-link-enviado.png
+linhas de log capturadas (2):
+{"level":30,"time":1793417177683,"pid":214,"hostname":"a9e1023da053","req":{"id":"c76939bb-c31b-4032-8647-b0e069dd354b","method":"GET","url":"/api/v1/session","headers":{"host":"localhost:3000","connection":"keep-alive","sec-ch-ua-platform":"\"Linux\"","user-agent":"Mozilla/5.0 (X11; Linux x86_64) A
+{"level":30,"time":1793417180041,"pid":214,"hostname":"a9e1023da053","req":{"id":"4c1a3665-d282-42e1-89be-1c4f78db9747","method":"GET","url":"/api/health","headers":{"host":"localhost:3000","connection":"keep-alive","accept":"*/*","accept-language":"*","sec-fetch-mode":"cors","user-agent":"node","ac
 ```
 
 </details>
@@ -793,8 +795,8 @@ linhas de log capturadas (1):
 | Decisão | Camada | Fonte |
 | --- | --- | --- |
 | Instalar dependências | 5 | `compose.yaml`: o serviço api instala nos volumes ao subir; `scripts/db-setup.sh` garante as dependências |
-| Ambiente e serviços | 1 e 2 | contrato (Docker Compose) e `compose.yaml`: o ambiente local já no ar, com a api recriada por um arquivo de override do Compose na pasta temporária |
-| Banco efêmero e migração | 5 | `scripts/db-setup.sh`: banco `eval_rf001_2026_10_31t02_25_42z` no postgres do Compose, `DATABASE_URL` da api trocada pelo override (`COMPOSE_FILE`), `make db-setup` migra e cria o admin |
+| Ambiente e serviços | 1 e 2 | contrato (Docker Compose) e `compose.yaml`: o ambiente local já no ar, com a api recriada por um arquivo de override do Compose na pasta temporária e o web recriado para recompilar o `@app/contracts` do working tree |
+| Banco efêmero e migração | 5 | `scripts/db-setup.sh`: banco `eval_rf001_2026_10_31t03_16_53z` no postgres do Compose, `DATABASE_URL` da api trocada pelo override (`COMPOSE_FILE`), `make db-setup` migra e cria o admin |
 | Isolamento do Valkey | 6 | `REDIS_URL=redis://valkey:6379/3` no override: rate limit e fila `email.send` no banco lógico 3, vazio antes da avaliação |
 | Estado persistido | 1 | contrato: `conta-pendente-ana` "criada pelo cadastro", por POST /api/auth/sign-up/email |
 | Limpeza entre itens | 6 | DELETE das contas sem papel admin no banco efêmero (account e session caem em cascata), apagar `rate-limit:*` no Valkey e DELETE /api/v1/messages no Mailpit |
@@ -809,17 +811,18 @@ linhas de log capturadas (1):
 ## Limpeza e ambiente
 
 - Sobras removidas: Nenhuma. Nenhum banco `eval_rf001_*`, nenhuma pasta `evaluator-rf001-*` e nenhum PID de avaliação anterior no início.
-- Derrubada: completa. Nenhum PID no `processos.lock` (os navegadores fecharam com o script); api recriada sem o override, de volta a `DATABASE_URL` do banco `app` e ao Valkey no banco 0, saudável; banco `eval_rf001_2026_10_31t02_25_42z` apagado; banco lógico 3 do Valkey esvaziado; pasta `/tmp/evaluator-rf001-2026-10-31T02-25-42Z` apagada, com os screenshots.
+- Derrubada: completa. O web continua no ar, recriado durante a avaliação, sem override. Nenhum PID no `processos.lock` (os navegadores fecharam com o script); api recriada sem o override, de volta a `DATABASE_URL` do banco `app` e ao Valkey no banco 0, saudável; banco `eval_rf001_2026_10_31t03_16_53z` apagado; banco lógico 3 do Valkey esvaziado; pasta `/tmp/evaluator-rf001-2026-10-31T03-16-53Z` apagada, com os screenshots.
 
 ## Avisos
 
-- Avaliado com 3 arquivos fora de commit: `.claude/skills/evaluator/SKILL.md`, `.claude/skills/fix-runner/SKILL.md` e `docs/features/RF-001-criar-conta/orquestracao.md`, nenhum deles código avaliado.
-- Os gates rodaram antes de a api ser recriada com o override: `make build` no host recompila `apps/api/dist`, que o serviço api usa pelo bind mount, e já derrubou a app em watch numa avaliação anterior. Aqui a api subiu depois dos gates, saudável.
+- Avaliado com 15 arquivos fora de commit: as refatorações em `apps/api` (módulo accounts, storage do rate limit, fila e processor de e-mail, indicador de saúde, novos `platform/async/` e `platform/logging/describe-error.ts`, testes de integração e helpers), em `apps/web` (`routes/cadastro/action.ts` e `route.tsx`) e em `packages/contracts/src/accounts.ts`. O veredito vale para o working tree, não só para o commit 5f60996.
+- O container web estava no ar desde antes das refatorações e servia o `@app/contracts` compilado no volume `web_contracts_dist` quando ele subiu, sem o novo `export const signUpFields`: a SPA quebrava em /cadastro com `The requested module '/@fs/app/packages/contracts/dist/index.js' does not provide an export named 'signUpFields'` e o formulário não renderizava. O comando do web só compila os Contratos na subida, e o volume não acompanha o `make build` do host. Recriado com `docker compose up -d --force-recreate --wait web`, a SPA carregou e todos os itens de UI e E2E rodaram contra o código atual. Quem trabalha com o ambiente no ar precisa recriar o web (e a api) depois de mudar `packages/contracts`.
+- Os gates rodaram antes de a api ser recriada com o override: `make build` no host recompila `apps/api/dist`, que o serviço api usa pelo bind mount. Aqui a api subiu depois dos gates, saudável.
 - API-DUPLICADO-03: a requisição perdedora recebeu 422 com `code` `FAILED_TO_CREATE_USER`, não `USER_ALREADY_EXISTS`; o item pede só o 422.
 - API-FALHA-01: com o Valkey parado, GET /api/health respondeu 503 com `valkey` down (o item pede que a api continue respondendo); a api registrou o aviso do rate limit liberado e a linha `Failed to run background task: Error` do Better Auth, sem dado pessoal.
-- As requisições de cadastro e a entrega do e-mail não geram linha no log da api no nível info; os itens de log (API-SIGILO-02, API-SIGILO-03, E2E-CADASTRO-01) passam pela ausência dos valores em zero linhas capturadas. A captura funciona: em API-FALHA-01 ela trouxe as linhas do mesmo intervalo.
-- WRK-EMAIL-02: a primeira tradução do bullet de português procurou a palavra "Confirme" com maiúscula no texto, que traz "confirme"; foi erro da asserção do avaliador, não da mensagem. O item foi exercitado de novo com frases literais do corpo e passou.
-- Os itens usam o Valkey e o Mailpit compartilhados do ambiente de desenvolvimento: a caixa do Mailpit estava vazia, e os dois serviços foram parados e religados nos itens de falha.
+- As requisições de cadastro e a entrega do e-mail não geram linha no log da api no nível info; os itens de log (API-SIGILO-02, API-SIGILO-03, E2E-CADASTRO-01) passam pela ausência dos valores nas linhas capturadas. A captura funciona: em API-FALHA-01 ela trouxe as linhas do mesmo intervalo.
+- O `.env` difere do `.env.example` só em comentários (o exemplo ganhou texto sobre TRUSTED_PROXIES e SMTP); os valores são os mesmos.
+- Os itens usam o Valkey e o Mailpit compartilhados do ambiente de desenvolvimento: a caixa do Mailpit foi esvaziada nos itens que pedem, e os dois serviços foram parados e religados nos itens de falha.
 - `make check` avisa que os diagramas C4 de `template-web.md` foram gerados do HLD 0.2.5 (o atual é 0.2.6) e que `docs/features/fundacao/spec.md` foi escrita sobre o HLD 0.2.5 e cita o componente 'API NestJS' ausente do HLD.
 
 ## Motivo do aborto

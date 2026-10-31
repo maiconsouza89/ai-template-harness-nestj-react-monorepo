@@ -18,6 +18,7 @@
 | 0 | evaluator | limpo | passou 43, falhou 0, bloqueado 0, manual 0 | |
 | 1 | fix-runner (achado, CI do PR #9) | corrigido | `make test` sobe o Mailpit | 7cafbf5 |
 | 1 | evaluator | limpo | passou 43, falhou 0, bloqueado 0, manual 0 | |
+| extra | evaluator (após /simplify) | limpo | passou 43, falhou 0, bloqueado 0, manual 0 | |
 
 ## Mudanças entre ciclos
 
