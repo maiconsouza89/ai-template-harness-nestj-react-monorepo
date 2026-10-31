@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiUnavailableError } from '../lib/http.js';
-import { rootLoader } from './root/loader.js';
+import { rootLoader, rootShouldRevalidate } from './root/loader.js';
 
 describe('rootLoader', () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -53,5 +53,25 @@ describe('rootLoader', () => {
     fetchMock.mockResolvedValue(new Response(null, { status: 500 }));
 
     await expect(rootLoader()).rejects.toMatchObject({ status: 500 });
+  });
+});
+
+describe('rootShouldRevalidate', () => {
+  it('não relê a sessão depois da action do cadastro', () => {
+    expect(
+      rootShouldRevalidate({
+        formAction: '/cadastro',
+        defaultShouldRevalidate: true,
+      }),
+    ).toBe(false);
+  });
+
+  it('segue o padrão do roteador nas demais navegações', () => {
+    expect(
+      rootShouldRevalidate({
+        formAction: undefined,
+        defaultShouldRevalidate: true,
+      }),
+    ).toBe(true);
   });
 });

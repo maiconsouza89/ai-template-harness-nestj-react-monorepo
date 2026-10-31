@@ -1,0 +1,159 @@
+/*
+ * Base visual da SPA a partir do DESIGN.md da raiz (ADR-0027): os tokens vivem no @theme do
+ * Tailwind CSS 4 e as classes de componente em @layer components, com os nomes do DESIGN.md.
+ * `--color-*: initial` remove a paleta padrão do Tailwind: só existem utilidades de cor para os
+ * tokens abaixo, e uma cor fora do DESIGN.md não gera classe.
+ */
+@import 'tailwindcss';
+
+@theme {
+  /* Cores (DESIGN.md, colors). */
+  --color-*: initial;
+  --color-primary: #000000;
+  --color-on-primary: #ffffff;
+  --color-ink: #000000;
+  --color-body: #5e5e5e;
+  --color-mute: #afafaf;
+  --color-hairline-mid: #4b4b4b;
+  --color-canvas: #ffffff;
+  --color-canvas-soft: #efefef;
+  --color-canvas-softer: #f3f3f3;
+  --color-surface-pressed: #e2e2e2;
+  --color-link: #0000ee;
+  --color-on-dark: #ffffff;
+  --color-black-elevated: #282828;
+
+  /* Família única, auto-hospedada por @fontsource-variable/inter (ADR-0028). */
+  --font-sans: 'Inter Variable', system-ui, 'Helvetica Neue', Arial, sans-serif;
+
+  /* Escala tipográfica (DESIGN.md, typography): tamanho, linha e peso de cada token. */
+  --text-*: initial;
+  --text-display-xxl: 3.25rem;
+  --text-display-xxl--line-height: 4rem;
+  --text-display-xxl--font-weight: 700;
+  --text-display-xl: 2.25rem;
+  --text-display-xl--line-height: 2.75rem;
+  --text-display-xl--font-weight: 700;
+  --text-display-lg: 2rem;
+  --text-display-lg--line-height: 2.5rem;
+  --text-display-lg--font-weight: 700;
+  --text-display-md: 1.5rem;
+  --text-display-md--line-height: 2rem;
+  --text-display-md--font-weight: 700;
+  --text-display-sm: 1.25rem;
+  --text-display-sm--line-height: 1.75rem;
+  --text-display-sm--font-weight: 700;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.5rem;
+  --text-body-lg--font-weight: 500;
+  --text-body-md: 1rem;
+  --text-body-md--line-height: 1.5rem;
+  --text-body-md--font-weight: 400;
+  --text-body-md-strong: 1rem;
+  --text-body-md-strong--line-height: 1.25rem;
+  --text-body-md-strong--font-weight: 500;
+  --text-body-sm: 0.875rem;
+  --text-body-sm--line-height: 1.25rem;
+  --text-body-sm--font-weight: 400;
+  --text-body-sm-strong: 0.875rem;
+  --text-body-sm-strong--line-height: 1rem;
+  --text-body-sm-strong--font-weight: 500;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.25rem;
+  --text-caption--font-weight: 400;
+  --text-button-large: 1.125rem;
+  --text-button-large--line-height: 1.5rem;
+  --text-button-large--font-weight: 500;
+  --text-button-md: 1rem;
+  --text-button-md--line-height: 1.25rem;
+  --text-button-md--font-weight: 500;
+
+  /* Raios (DESIGN.md, rounded). */
+  --radius-*: initial;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 999px;
+
+  /* Sombras dos níveis 1 a 3 (DESIGN.md, Elevation & Depth). */
+  --shadow-*: initial;
+  --shadow-level-1: rgba(0, 0, 0, 0.12) 0px 4px 16px 0px;
+  --shadow-level-2: rgba(0, 0, 0, 0.16) 0px 4px 16px 0px;
+  --shadow-level-3: rgba(0, 0, 0, 0.16) 0px 2px 8px 0px;
+
+  /* Margem lateral de 16px abaixo de 600px e de 32px a partir daí (spec, Regras visuais). */
+  --breakpoint-sm: 37.5rem;
+
+  /* A escala de espaçamento padrão (--spacing de 0,25rem) já é a base de 4px do DESIGN.md. */
+}
+
+@layer base {
+  body {
+    @apply bg-canvas text-body-md text-ink;
+  }
+
+  /* Foco visível em todo elemento focável: contorno de 2px ink afastado 2px (hipótese da spec). */
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+  }
+
+  ::placeholder {
+    color: var(--color-mute);
+  }
+}
+
+@layer components {
+  /* Largura de página: margem lateral de 16px no mobile e 32px a partir de 600px. */
+  .page-gutter {
+    @apply px-4 sm:px-8;
+  }
+
+  .nav-bar {
+    @apply flex items-center justify-between gap-3 bg-canvas px-4 py-4 text-body-md-strong text-ink sm:px-8;
+  }
+
+  .nav-link {
+    @apply text-body-md-strong text-ink;
+  }
+
+  .btn-primary {
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center rounded-pill bg-primary p-3 text-button-md whitespace-nowrap text-on-primary;
+  }
+
+  .btn-secondary {
+    @apply inline-flex min-h-11 cursor-pointer items-center justify-center rounded-pill bg-canvas p-3 text-button-md whitespace-nowrap text-ink hover:bg-surface-pressed active:bg-surface-pressed;
+  }
+
+  .btn-primary:disabled,
+  .btn-secondary:disabled {
+    @apply cursor-wait;
+  }
+
+  /* Campo de texto: a borda transparente de 2px reserva o espaço da borda do estado de erro. */
+  .text-input {
+    @apply block w-full rounded-md border-2 border-transparent bg-canvas-soft p-4 text-body-md text-ink;
+  }
+
+  /* Erro de campo em preto e branco: borda ink, ARIA e ícone, nunca só cor (WCAG 1.4.1). */
+  .text-input[aria-invalid='true'] {
+    @apply border-ink;
+  }
+
+  .field-error {
+    @apply mt-2 flex items-start gap-1 text-body-sm text-ink;
+  }
+
+  /* Nível 0: sem sombra (o padrão do navegador, box-shadow none). */
+  .card-content {
+    @apply rounded-xl bg-canvas p-6 text-body-md text-ink;
+  }
+
+  .card-soft-tinted {
+    @apply rounded-xl bg-canvas-soft p-6 text-body-md text-ink;
+  }
+
+  .text-link {
+    @apply text-ink underline underline-offset-2;
+  }
+}

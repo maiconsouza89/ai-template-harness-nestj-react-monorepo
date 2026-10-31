@@ -1,5 +1,12 @@
-import { isRouteErrorResponse, useRouteError } from 'react-router';
+import {
+  isRouteErrorResponse,
+  Link,
+  useRouteError,
+  useRouteLoaderData,
+} from 'react-router';
+import { NavBar } from '../components/nav-bar.js';
 import { ApiUnavailableError } from '../lib/http.js';
+import type { RootLoaderData } from './root/loader.js';
 
 interface ErrorText {
   title: string;
@@ -35,14 +42,21 @@ function describe(error: unknown): ErrorText {
 export function ErrorPage() {
   const error = useRouteError();
   const text = describe(error);
+  // A sessão só é conhecida quando o loader da raiz chegou a rodar; sem ela, a barra fica anônima.
+  const root = useRouteLoaderData('root') as RootLoaderData | undefined;
 
   return (
-    <main role="alert">
-      <h1>{text.title}</h1>
-      <p>{text.detail}</p>
-      <p>
-        <a href="/">Voltar ao início</a>
-      </p>
-    </main>
+    <>
+      <NavBar anonymous={root?.session == null} />
+      <main role="alert" className="page-gutter py-8">
+        <h1 className="text-display-lg">{text.title}</h1>
+        <p className="mt-2">{text.detail}</p>
+        <p className="mt-6">
+          <Link to="/" className="btn-secondary">
+            Voltar ao início
+          </Link>
+        </p>
+      </main>
+    </>
   );
 }
