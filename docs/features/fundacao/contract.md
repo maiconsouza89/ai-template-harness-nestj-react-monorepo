@@ -6,6 +6,7 @@
 
 ### Serviços em execução
 - API NestJS, SPA Web, PostgreSQL, Redis (serviço Valkey) e Mailpit no Docker Compose, salvo onde o item para um deles.
+- Backend de observabilidade local no perfil observability do Compose, só nos itens que o citam.
 
 ### Estado persistido
 - `admin-inicial`: conta com o e-mail de ADMIN_EMAIL, papel admin, e-mail verificado, sem banimento e credencial de senha igual a ADMIN_PASSWORD. Usado por: CLI-ADMIN-02, CLI-LOGS-03, API-ADMIN-01
@@ -15,11 +16,13 @@
 
 ### Configuração
 - Arquivo `.env` copiado do `.env.example`, com ADMIN_EMAIL e ADMIN_PASSWORD preenchidos com uma senha de 8 ou mais caracteres com letra e número, NODE_ENV igual a development e OTEL_EXPORTER_OTLP_ENDPOINT ausente, salvo onde o item diz outra coisa.
-- OTEL_EXPORTER_OTLP_PROTOCOL igual a http/json só nos itens que o dizem, para o receptor local conseguir ler os atributos dos spans.
+- OTEL_EXPORTER_OTLP_PROTOCOL igual a http/json só nos itens que o dizem, para o receptor local conseguir ler os atributos dos spans e das métricas.
+- DIAGNOSTICS_ENABLED ausente e DIAGNOSTICS_WORKER_ENABLED ausente, salvo onde o item diz outra coisa.
+- Nos itens com o backend local, OTEL_EXPORTER_OTLP_ENDPOINT aponta para o endereço OTLP HTTP do backend na rede do Compose, com o protocolo padrão.
 - Docker com Compose v2, shellcheck, actionlint, gitleaks e python3 instalados na máquina.
 
 ### Dependências externas
-- Coletor OTLP do destino, simulado por um receptor HTTP local que aceita qualquer requisição e registra método, caminho, horário e corpo.
+- Coletor OTLP do destino, simulado por um receptor HTTP local que aceita qualquer requisição e registra método, caminho, horário e corpo, ou pelo backend de observabilidade local nos itens que o citam.
 
 ## Gates de qualidade
 
@@ -38,7 +41,7 @@ Cada gate precisa passar para a feature ser considerada pronta.
 | Configuração e segredos: .env.example versionado e validação das variáveis na subida da API, que falha se faltar alguma (HLD, Gestão de segredos). | CLI-CONFIG-01, CLI-CONFIG-02, CLI-CONFIG-03 |
 | Banco: PostgreSQL 18 com Prisma 7 e a migração inicial com as tabelas do Better Auth e os campos do plugin admin (ADR-0007, ADR-0008, ADR-0010). | CLI-BANCO-01, CLI-BANCO-02 |
 | Preparo do banco: alvo make db-setup que aplica as migrações e cria o primeiro admin a partir do .env, de forma idempotente (PRD, Decisão primeiro admin criado na instalação). | CLI-ADMIN-01, CLI-ADMIN-02, CLI-ADMIN-03, CLI-ADMIN-04, CLI-ADMIN-05, CLI-ADMIN-06 |
-| Autenticação na borda: Better Auth montado em /api/auth no Módulo Contas, com o guard global que recusa requisição sem sessão (ADR-0010). | API-BORDA-01, API-BORDA-02, API-BORDA-03, API-BORDA-04, API-BORDA-05, API-ADMIN-01, API-CORS-01, API-CORS-02 |
+| Autenticação na borda: Better Auth montado em /api/auth no Módulo Contas, com o guard global que recusa requisição sem sessão (ADR-0010). | API-BORDA-01, API-BORDA-02, API-BORDA-03, API-BORDA-04, API-ADMIN-01, API-CORS-01, API-CORS-02 |
 | Saúde: rota anônima de health check que informa o estado do PostgreSQL e do Valkey (HLD, Observabilidade). | API-SAUDE-01, API-SAUDE-02, API-SAUDE-03 |
 | Logs: nestjs-pino com JSON por linha, requestId único e redação de dados pessoais (ADR-0018). | CLI-LOGS-01, CLI-LOGS-02, CLI-LOGS-03, CLI-LOGS-04 |
 | Métricas e tracing: OpenTelemetry carregado antes da aplicação e exportando por OTLP só com endpoint configurado (ADR-0019). | CLI-OTEL-01, CLI-OTEL-02, CLI-OTEL-03 |
@@ -47,10 +50,18 @@ Cada gate precisa passar para a feature ser considerada pronta.
 | Imagens Docker multi-stage da API e da SPA com turbo prune (ADR-0005). | CLI-IMAGEM-01, CLI-IMAGEM-02, CLI-IMAGEM-03 |
 | CI: o workflow instala o que o make check passa a exigir, com actions fixadas por SHA (HLD, Ambiente de implantação). | CLI-CI-01, CLI-CI-02 |
 | Regra de dependência na API: Módulo Contas nas camadas da Clean Architecture e dependency-cruiser no lint de apps/api barrando import entre camadas, entre módulos e ciclos (ADR-0025, ADR-0026). | CLI-CAMADAS-01, CLI-CAMADAS-02, CLI-CAMADAS-03, CLI-CAMADAS-04, CLI-CAMADAS-05, CLI-CAMADAS-06, CLI-CAMADAS-07, CLI-CAMADAS-08 |
+| Correlação de logs e traces: com a exportação ligada, as linhas de log da API trazem o trace_id e o span_id do span ativo (ADR-0018, ADR-0019). | CLI-OTEL-04, CLI-OTEL-05 |
+| Tracing de filas: contexto W3C propagado do enfileiramento ao processamento em toda fila do BullMQ, ligado no módulo de filas da plataforma (HLD, Observabilidade; ADR-0015, ADR-0019). | CLI-FILA-01 |
+| Métricas de componente: requisições HTTP por rota e status, pool do PostgreSQL, memória do Valkey, estado do health check e, por fila do BullMQ, jobs por estado, idade do job pendente mais antigo e falhas por tentativa (HLD, Observabilidade; ADR-0019). | CLI-METRICAS-01, CLI-METRICAS-02, CLI-METRICAS-03, CLI-FILA-02, CLI-FILA-03 |
+| Métricas de negócio: Meter da aplicação em platform/ com a convenção de nome app.<domínio>.<medida>, onde cada RF registra as suas (HLD, Observabilidade). | CLI-METRICAS-04 |
+| Fila de diagnóstico: fila e rota anônima POST /api/diagnostics/jobs, ligadas só por DIAGNOSTICS_ENABLED e fora de produção, para exercitar a telemetria de filas sem depender de módulo de funcionalidade (HLD, Observabilidade). | API-DIAG-01, API-DIAG-02, API-DIAG-03, API-DIAG-04 |
+| Backend local de observabilidade: serviço do Compose no perfil observability que recebe OTLP da API e guarda traces, métricas e logs com amostragem de 100 por cento (HLD, Observabilidade; ADR-0029). | CLI-BACKEND-01, CLI-BACKEND-02, CLI-BACKEND-03, CLI-AMOSTRAGEM-01 |
+| Painéis e alertas como código: painel por interface, painel das filas e os quatro alertas do HLD, provisionados no backend local a partir de arquivos versionados (HLD, Dashboards e alertas; ADR-0029). | CLI-PAINEIS-01, CLI-ALERTAS-01, CLI-ALERTAS-02, CLI-ALERTAS-03, CLI-ALERTAS-04 |
+| Amostragem do destino: configuração de referência do coletor com 10 por cento dos traces e 100 por cento dos traces com erro (HLD, Tracing). | CLI-AMOSTRAGEM-02 |
 
 ## API HTTP
 
-Modo de verificação: requisições HTTP contra a API em execução no ambiente local, inspecionando status, cabeçalhos e corpo, e o estado do banco quando o item o cita.
+Modo de verificação: requisições HTTP contra a API em execução no ambiente local, inspecionando status, cabeçalhos e corpo, e o estado do banco ou das filas no Valkey quando o item o cita.
 
 ### Saúde do sistema
 
@@ -107,14 +118,6 @@ Modo de verificação: requisições HTTP contra a API em execução no ambiente
   - o corpo traz o userId da conta `admin-inicial`
   - o corpo traz role igual a admin
 
-#### API-BORDA-05
-- **Dado:** o ambiente no ar e nenhuma conta com o e-mail novo@example.com.
-- **Quando:** uma requisição sem cookie pede POST /api/auth/sign-up/email com esse e-mail, um nome e uma senha válida.
-- **Então:**
-  - a resposta é 400
-  - o corpo traz o código EMAIL_PASSWORD_SIGN_UP_DISABLED
-  - nenhuma conta com esse e-mail passa a existir no banco
-
 ### Primeiro admin
 
 #### API-ADMIN-01
@@ -163,6 +166,37 @@ Modo de verificação: requisições HTTP contra a API em execução no ambiente
 - **Quando:** uma requisição sem cookie pede GET /api/docs-json.
 - **Então:**
   - a resposta é 404
+
+### Fila de diagnóstico
+
+#### API-DIAG-01
+- **Dado:** o ambiente no ar com DIAGNOSTICS_ENABLED ausente.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a succeed.
+- **Então:**
+  - a resposta é 404
+  - o Valkey não tem fila chamada diagnostics
+
+#### API-DIAG-02
+- **Dado:** o ambiente no ar com DIAGNOSTICS_ENABLED igual a true e NODE_ENV igual a development.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a succeed.
+- **Então:**
+  - a resposta é 202
+  - o corpo traz o jobId
+  - em até 10 segundos o job com esse id está concluído na fila diagnostics do Valkey
+
+#### API-DIAG-03
+- **Dado:** a API em execução com DIAGNOSTICS_ENABLED igual a true e NODE_ENV igual a production.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a succeed.
+- **Então:**
+  - a resposta é 404
+  - o Valkey não tem fila chamada diagnostics
+
+#### API-DIAG-04
+- **Dado:** o ambiente no ar com DIAGNOSTICS_ENABLED igual a true e NODE_ENV igual a development.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a explodir.
+- **Então:**
+  - a resposta é 400
+  - nenhum job novo entra na fila diagnostics
 
 ## CLI
 
@@ -412,6 +446,168 @@ Dado comum: o `.env` copiado do `.env.example` sem alteração além de ADMIN_EM
 - **Então:**
   - em até 30 segundos o receptor registra uma exportação de traces com um span dessa requisição
   - o texto segredo-da-query não aparece em nenhum atributo dos spans recebidos
+
+#### CLI-OTEL-04
+- **Dado:** a api no ar com OTEL_EXPORTER_OTLP_ENDPOINT apontando para o receptor HTTP local e OTEL_EXPORTER_OTLP_PROTOCOL igual a http/json.
+- **Quando:** a api responde a uma requisição GET /api/health.
+- **Então:**
+  - a linha do log da api referente a essa requisição traz trace_id e span_id
+  - em até 30 segundos o receptor registra um span de servidor dessa requisição com o mesmo trace_id da linha de log
+
+#### CLI-OTEL-05
+- **Dado:** a api no ar sem OTEL_EXPORTER_OTLP_ENDPOINT.
+- **Quando:** a api responde a uma requisição GET /api/health.
+- **Então:**
+  - a linha do log da api referente a essa requisição não traz trace_id
+  - a linha do log da api referente a essa requisição não traz span_id
+
+### Telemetria de filas
+
+Dado comum: a api no ar com OTEL_EXPORTER_OTLP_ENDPOINT apontando para o receptor HTTP local, OTEL_EXPORTER_OTLP_PROTOCOL igual a http/json, DIAGNOSTICS_ENABLED igual a true e NODE_ENV igual a development.
+
+#### CLI-FILA-01
+- **Dado:** a fila diagnostics sem job.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a succeed.
+- **Então:**
+  - em até 30 segundos o receptor registra o span de servidor dessa requisição
+  - o receptor registra um span de produtor da fila diagnostics com o mesmo trace_id do span de servidor
+  - o receptor registra um span de consumidor da fila diagnostics com o mesmo trace_id, filho do span de produtor
+  - nenhum atributo desses spans contém o corpo do job
+
+#### CLI-FILA-02
+- **Dado:** a fila diagnostics sem job.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a fail.
+- **Então:**
+  - em até 90 segundos o receptor registra app.queue.job.failures da fila diagnostics com uma falha na tentativa 1 e uma na tentativa 2
+  - o receptor registra app.queue.jobs da fila diagnostics com valor 1 no estado failed
+
+#### CLI-FILA-03
+- **Dado:** a fila diagnostics sem job e DIAGNOSTICS_WORKER_ENABLED igual a false.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a succeed.
+- **Então:**
+  - em até 90 segundos o receptor registra app.queue.jobs da fila diagnostics com valor 1 no estado waiting
+  - a última exportação de app.queue.oldest_job.age da fila diagnostics registra pelo menos 20 segundos
+
+### Métricas
+
+Dado comum: a api no ar com OTEL_EXPORTER_OTLP_ENDPOINT apontando para o receptor HTTP local e OTEL_EXPORTER_OTLP_PROTOCOL igual a http/json.
+
+#### CLI-METRICAS-01
+- **Dado:** a api recém-subida.
+- **Quando:** são enviadas dez requisições GET /api/health e uma GET /api/v1/session sem cookie.
+- **Então:**
+  - em até 90 segundos o receptor registra http.server.request.duration com http.route igual a /api/health e status 200
+  - o receptor registra http.server.request.duration com http.route igual a /api/v1/session e status 401
+  - nenhum atributo dessas métricas contém query string
+
+#### CLI-METRICAS-02
+- **Dado:** todos os serviços no ar.
+- **Quando:** passam 90 segundos desde a subida da api.
+- **Então:**
+  - o receptor registra db.client.connection.count com o atributo db.client.connection.state
+  - o receptor registra app.valkey.memory.used com valor maior que 0
+  - o receptor registra app.health.status igual a 1 para postgres e para valkey
+
+#### CLI-METRICAS-03
+- **Dado:** a api no ar e o serviço valkey parado.
+- **Quando:** passam 90 segundos desde a parada do valkey.
+- **Então:**
+  - o receptor registra app.health.status igual a 0 para valkey
+  - o receptor registra app.health.status igual a 1 para postgres
+  - a api continua respondendo a GET /api/health
+
+#### CLI-METRICAS-04
+- **Dado:** DIAGNOSTICS_ENABLED igual a true, NODE_ENV igual a development e a fila diagnostics sem job.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a succeed.
+- **Então:**
+  - em até 90 segundos o receptor registra app.diagnostics.jobs.processed com valor 1 e outcome igual a succeed
+  - o escopo de instrumentação dessa métrica se chama app
+  - toda métrica recebida com nome começando por app. segue o formato app.<domínio>.<medida> em minúsculas
+
+### Backend local de observabilidade
+
+#### CLI-BACKEND-01
+- **Dado:** nenhum container do projeto em execução.
+- **Quando:** `docker compose --profile observability up -d --wait`.
+- **Então:**
+  - o código de saída é 0
+  - os serviços api, web, postgres, valkey, mailpit e o backend de observabilidade estão em execução e saudáveis
+  - a interface web do backend responde em http://localhost:3001
+
+#### CLI-BACKEND-02
+- **Dado:** nenhum container do projeto em execução.
+- **Quando:** `docker compose up -d --wait`, sem perfil.
+- **Então:**
+  - o código de saída é 0
+  - o backend de observabilidade não está em execução
+  - só os serviços api, web, postgres, valkey e mailpit estão em execução
+
+#### CLI-BACKEND-03
+- **Dado:** o backend de observabilidade no ar e a api exportando para ele.
+- **Quando:** a api responde a uma requisição GET /api/health.
+- **Então:**
+  - em até 90 segundos a consulta de traces do backend acha o trace dessa requisição
+  - a consulta de métricas do backend acha a série de http.server.request.duration com a rota /api/health
+  - a consulta de logs do backend acha a linha dessa requisição com o mesmo trace_id
+
+### Amostragem
+
+#### CLI-AMOSTRAGEM-01
+- **Dado:** o backend de observabilidade no ar e a api exportando para ele.
+- **Quando:** são enviadas vinte requisições GET /api/health.
+- **Então:**
+  - em até 90 segundos a consulta de traces do backend acha vinte traces distintos de GET /api/health enviados depois do início do item
+
+#### CLI-AMOSTRAGEM-02
+- **Dado:** um clone limpo.
+- **Quando:** valida-se o arquivo collector-destino.yaml de docker/observability com o comando de validação do OpenTelemetry Collector contrib.
+- **Então:**
+  - o código de saída é 0
+  - o arquivo tem uma política de amostragem probabilística de 10 por cento
+  - o arquivo tem uma política que guarda todo trace com status de erro
+
+### Painéis e alertas
+
+Dado comum: o backend de observabilidade no ar e a api exportando para ele.
+
+#### CLI-PAINEIS-01
+- **Dado:** o backend recém-subido, sem edição pela interface.
+- **Quando:** consulta-se a lista de painéis do backend.
+- **Então:**
+  - existe o painel API por interface, com vazão, taxa de 5xx e p95 por rota
+  - existe o painel Filas, com jobs por estado, idade do job pendente mais antigo e falhas por tentativa, por fila
+  - os dois painéis constam como provisionados de arquivo
+  - cada painel corresponde a um arquivo versionado em docker/observability
+
+#### CLI-ALERTAS-01
+- **Dado:** o backend recém-subido, sem edição pela interface.
+- **Quando:** consulta-se a lista de regras de alerta do backend.
+- **Então:**
+  - existe a regra de taxa de 5xx acima de 1 por cento por 5 minutos
+  - existe a regra de p95 acima de 300 ms por 5 minutos nas rotas /api/v1
+  - existe a regra, por fila, de job pendente há mais de 2 minutos ou de qualquer job falho
+  - existe a regra, por dependência, de health check do PostgreSQL ou do Valkey falhando por 1 minuto
+  - as quatro regras constam como provisionadas de arquivo
+
+#### CLI-ALERTAS-02
+- **Dado:** o serviço valkey parado.
+- **Quando:** passam 4 minutos desde a parada do valkey.
+- **Então:**
+  - a regra de health check está em disparo para a dependência valkey
+  - a regra de health check não está em disparo para a dependência postgres
+
+#### CLI-ALERTAS-03
+- **Dado:** DIAGNOSTICS_ENABLED igual a true, NODE_ENV igual a development e a fila diagnostics sem job.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a fail.
+- **Então:**
+  - em até 4 minutos a regra de fila está em disparo para a fila diagnostics
+
+#### CLI-ALERTAS-04
+- **Dado:** DIAGNOSTICS_ENABLED igual a true, DIAGNOSTICS_WORKER_ENABLED igual a false, NODE_ENV igual a development e a fila diagnostics sem job.
+- **Quando:** uma requisição sem cookie pede POST /api/diagnostics/jobs com outcome igual a succeed.
+- **Então:**
+  - em até 5 minutos a regra de fila está em disparo para a fila diagnostics
+  - nenhum job da fila diagnostics está no estado failed
 
 ### Imagens
 

@@ -1,7 +1,7 @@
 # HLD: Template de aplicação web com contas e tarefas
 
-Versão: 0.2.6
-Data: 2026-10-30
+Versão: 0.2.7
+Data: 2026-10-31
 Responsável: Maicon Souza (hipótese)
 PRD: docs/product/prd.md versão 0.1.0
 
@@ -85,6 +85,7 @@ Tecnologias principais
 | Mailpit | Caixa SMTP de teste do ambiente local, com interface web e API | ADR-0016 |
 | nestjs-pino | Logs JSON estruturados com redação de dados pessoais | ADR-0018 |
 | OpenTelemetry | Métricas e tracing com exportação OTLP para o coletor do destino | ADR-0019 |
+| grafana/otel-lgtm | Backend local de observabilidade no perfil `observability` do Compose, com painéis e alertas provisionados de arquivo | ADR-0029 |
 | @nestjs/swagger | Documento OpenAPI gerado a partir dos controllers e DTOs, com o plugin CLI e TypeScript 6 | ADR-0020 |
 | Docker multi-stage | Artefato de deploy de cada app | ADR-0005 |
 | Docker Compose | Ambiente de desenvolvimento completo | ADR-0006 |
@@ -362,6 +363,7 @@ ADRs associados
 - ADR-0026 Usar dependency-cruiser para fiscalizar a regra de dependência: imports entre camadas e entre módulos da API barrados no `make lint`.
 - ADR-0027 Usar Tailwind CSS 4 para o estilo da SPA: tokens do `DESIGN.md` no `@theme`, sem a paleta padrão do Tailwind.
 - ADR-0028 Usar Inter auto-hospedada como fonte da SPA: `@fontsource-variable/inter` no bundle, sem fonte de outra origem.
+- ADR-0029 Usar grafana/otel-lgtm como backend local de observabilidade: só no perfil `observability`, com painéis, alertas e a configuração de referência do coletor do destino em `docker/observability/`.
 
 Decisões pendentes de ADR
 - Nenhuma: todas as tecnologias principais têm ADR aceito.
