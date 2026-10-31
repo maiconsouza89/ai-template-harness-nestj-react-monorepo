@@ -3,18 +3,16 @@ import { Writable } from 'node:stream';
 import { setTimeout as sleep } from 'node:timers/promises';
 import type { INestApplication } from '@nestjs/common';
 import { Logger } from '@nestjs/common';
-import { getQueueOptionsToken, getQueueToken } from '@nestjs/bullmq';
+import { getQueueToken } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import { PARAMS_PROVIDER_TOKEN } from 'nestjs-pino';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { createAuthLog } from '../../src/modules/accounts/accounts.module.js';
 import { EMAIL_SEND_QUEUE } from '../../src/modules/email/infra/queue/email-send.queue.js';
-import { loadEnv } from '../../src/platform/config/env.js';
 import { createPinoHttpOptions } from '../../src/platform/logging/logger.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
-import { createBullConnection } from '../../src/platform/queue/queue.module.js';
-import { createTestApp } from '../create-test-app.js';
+import { createTestApp, isolatedEmailQueue } from '../create-test-app.js';
 import { deleteMessagesTo, waitForMessagesTo } from '../mailpit.js';
 
 /**
@@ -54,7 +52,6 @@ describe('Logs do cadastro (integração)', () => {
   }
 
   beforeAll(async () => {
-    const env = loadEnv();
     const sink = new Writable({
       write(chunk, _encoding, callback) {
         lines.push(String(chunk));
@@ -62,17 +59,11 @@ describe('Logs do cadastro (integração)', () => {
       },
     });
     app = await createTestApp((builder) =>
-      builder
-        .overrideProvider(PARAMS_PROVIDER_TOKEN)
-        .useValue({
+      isolatedEmailQueue(`bull-logs-${randomUUID()}`)(
+        builder.overrideProvider(PARAMS_PROVIDER_TOKEN).useValue({
           pinoHttp: [createPinoHttpOptions({ LOG_LEVEL: 'debug' }), sink],
-        })
-        .overrideProvider(getQueueOptionsToken(EMAIL_SEND_QUEUE))
-        .useValue({
-          name: EMAIL_SEND_QUEUE,
-          connection: createBullConnection(env),
-          prefix: `bull-logs-${randomUUID()}`,
         }),
+      ),
     );
     queue = app.get<Queue>(getQueueToken(EMAIL_SEND_QUEUE));
     for (const method of ['debug', 'info', 'log', 'warn', 'error'] as const) {

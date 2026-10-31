@@ -1,17 +1,20 @@
 import type { INestApplication } from '@nestjs/common';
+import { getQueueOptionsToken } from '@nestjs/bullmq';
 import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import type { Redis } from 'ioredis';
 import { Logger as PinoLogger } from 'nestjs-pino';
 import type { App } from 'supertest/types.js';
 import { AppModule } from '../src/app.module.js';
 import { RATE_LIMIT_KEY_PREFIX } from '../src/modules/accounts/infra/rate-limit/valkey-rate-limit.storage.js';
+import { EMAIL_SEND_QUEUE } from '../src/modules/email/infra/queue/email-send.queue.js';
 import { ENV } from '../src/platform/config/config.module.js';
-import type { Env } from '../src/platform/config/env.js';
+import { type Env, loadEnv } from '../src/platform/config/env.js';
 import {
   configureApp,
   configureAppOptionsFromEnv,
   NEST_APPLICATION_OPTIONS,
 } from '../src/platform/http/configure-app.js';
+import { createBullConnection } from '../src/platform/queue/queue.module.js';
 import { REDIS } from '../src/platform/redis/redis.module.js';
 
 /**
@@ -32,6 +35,19 @@ export async function clearRateLimitCounters(redis: Redis): Promise<void> {
     if (keys.length > 0) await redis.del(...keys);
     cursor = next;
   } while (cursor !== '0');
+}
+
+/**
+ * Troca o prefixo do BullMQ da fila `email.send` por `prefix`, para o worker de outro arquivo de
+ * integração não pegar os jobs desta aplicação. Vai no `customize` de `createTestApp`.
+ */
+export function isolatedEmailQueue(prefix: string) {
+  return (builder: TestingModuleBuilder) =>
+    builder.overrideProvider(getQueueOptionsToken(EMAIL_SEND_QUEUE)).useValue({
+      name: EMAIL_SEND_QUEUE,
+      connection: createBullConnection(loadEnv()),
+      prefix,
+    });
 }
 
 /**

@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { INestApplication } from '@nestjs/common';
-import { getQueueOptionsToken, getQueueToken } from '@nestjs/bullmq';
-import type { TestingModuleBuilder } from '@nestjs/testing';
+import { getQueueToken } from '@nestjs/bullmq';
 import type { Job, Queue } from 'bullmq';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
@@ -12,8 +11,7 @@ import { NodemailerEmailTransport } from '../../src/modules/email/infra/smtp/nod
 import { ENV } from '../../src/platform/config/config.module.js';
 import { type Env, loadEnv } from '../../src/platform/config/env.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
-import { createBullConnection } from '../../src/platform/queue/queue.module.js';
-import { createTestApp } from '../create-test-app.js';
+import { createTestApp, isolatedEmailQueue } from '../create-test-app.js';
 import { FlakyEmailTransport } from '../doubles/flaky-email.transport.js';
 import { deleteMessagesTo, waitForMessagesTo } from '../mailpit.js';
 
@@ -21,18 +19,8 @@ import { deleteMessagesTo, waitForMessagesTo } from '../mailpit.js';
  * Módulo E-mail de ponta a ponta com o Valkey e o Mailpit do Compose: o pedido entra pelo caso de
  * uso exportado ou pelo cadastro, o worker da própria aplicação de teste consome a fila e entrega
  * por SMTP. Cada
- * aplicação usa um prefixo próprio do BullMQ, para o worker de outro arquivo de integração não
- * pegar os jobs deste.
+ * aplicação usa um prefixo próprio do BullMQ (`isolatedEmailQueue`).
  */
-function isolatedQueue(prefix: string) {
-  return (builder: TestingModuleBuilder) =>
-    builder.overrideProvider(getQueueOptionsToken(EMAIL_SEND_QUEUE)).useValue({
-      name: EMAIL_SEND_QUEUE,
-      connection: createBullConnection(loadEnv()),
-      prefix,
-    });
-}
-
 async function createAccount(app: INestApplication, name: string) {
   const email = `email-int-${randomUUID()}@example.com`;
   const user = await app.get(PrismaService).user.create({
@@ -73,7 +61,7 @@ describe('E-mail de confirmação (integração)', () => {
     const created: string[] = [];
 
     beforeAll(async () => {
-      app = await createTestApp(isolatedQueue(`bull-int-${randomUUID()}`));
+      app = await createTestApp(isolatedEmailQueue(`bull-int-${randomUUID()}`));
       queue = app.get<Queue>(getQueueToken(EMAIL_SEND_QUEUE));
       env = app.get<Env>(ENV);
     });
@@ -191,7 +179,7 @@ describe('E-mail de confirmação (integração)', () => {
         1,
       );
       app = await createTestApp((builder) =>
-        isolatedQueue(`bull-int-${randomUUID()}`)(builder)
+        isolatedEmailQueue(`bull-int-${randomUUID()}`)(builder)
           .overrideProvider(EmailTransport)
           .useValue(flaky),
       );

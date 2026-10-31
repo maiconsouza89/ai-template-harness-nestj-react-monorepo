@@ -1,4 +1,8 @@
-import { signUpErrorMessages, type SignUpField } from '@app/contracts';
+import {
+  signUpErrorMessages,
+  signUpFields,
+  type SignUpField,
+} from '@app/contracts';
 import { useEffect, useRef, type ReactNode } from 'react';
 import {
   Form,
@@ -13,8 +17,6 @@ import type {
   SignUpFieldErrors,
   SignUpResult,
 } from './action.js';
-
-const fieldOrder: readonly SignUpField[] = ['name', 'email', 'password'];
 
 interface FieldProps {
   name: SignUpField;
@@ -97,7 +99,7 @@ function SignUpForm({ result }: { result: SignUpResult | undefined }) {
     }
     if (result.status === 'invalid') {
       // Foco no primeiro campo recusado, na ordem do formulário.
-      const first = fieldOrder.find((field) => result.fieldErrors[field]);
+      const first = signUpFields.find((field) => result.fieldErrors[field]);
       if (first) {
         (form.elements.namedItem(first) as HTMLInputElement | null)?.focus();
       }

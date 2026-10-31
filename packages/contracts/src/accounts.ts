@@ -18,8 +18,7 @@ export const signUpMessages = {
   nameRequired: 'Informe o seu nome.',
   nameTooLong: `O nome pode ter no máximo ${NAME_MAX_LENGTH} caracteres.`,
   emailInvalid: 'Informe um e-mail válido.',
-  passwordRule:
-    'A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número.',
+  passwordRule: `A senha precisa ter no mínimo ${PASSWORD_MIN_LENGTH} caracteres, com pelo menos uma letra e um número.`,
   passwordTooLong: `A senha pode ter no máximo ${PASSWORD_MAX_LENGTH} caracteres.`,
 } as const;
 
@@ -96,7 +95,12 @@ export interface SignUpValidationErrorBody {
   fields: FieldError[];
 }
 
-const signUpFields: readonly SignUpField[] = ['name', 'email', 'password'];
+/** Campos do cadastro na ordem do formulário: a dos erros e a do foco no primeiro inválido. */
+export const signUpFields: readonly SignUpField[] = [
+  'name',
+  'email',
+  'password',
+];
 
 /**
  * Converte os problemas do `signUpSchema` na lista `fields` da resposta 400: um item por campo

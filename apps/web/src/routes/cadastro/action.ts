@@ -34,12 +34,18 @@ function toFieldErrors(fields: readonly FieldError[]): SignUpFieldErrors {
   return errors;
 }
 
-function postJson(path: string, body: unknown): Promise<Response> {
-  return apiFetch(path, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+/** POST com corpo JSON; `null` quando a API está fora do ar (`ApiUnavailableError`). */
+async function postJson(path: string, body: unknown): Promise<Response | null> {
+  try {
+    return await apiFetch(path, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    if (error instanceof ApiUnavailableError) return null;
+    throw error;
+  }
 }
 
 /** Lê a lista `fields` do 400 `VALIDATION_ERROR`; corpo fora do formato vira lista vazia. */
@@ -75,16 +81,10 @@ async function signUp(form: FormData): Promise<SignUpResult> {
     };
   }
 
-  let response: Response;
-  try {
-    response = await postJson('/api/auth/sign-up/email', parsed.data);
-  } catch (error) {
-    if (error instanceof ApiUnavailableError) {
-      return { intent: 'sign-up', status: 'unavailable' };
-    }
-    throw error;
+  const response = await postJson('/api/auth/sign-up/email', parsed.data);
+  if (!response) {
+    return { intent: 'sign-up', status: 'unavailable' };
   }
-
   if (response.ok) {
     return { intent: 'sign-up', status: 'sent', email: parsed.data.email };
   }
@@ -110,14 +110,11 @@ async function signUp(form: FormData): Promise<SignUpResult> {
 
 async function resend(form: FormData): Promise<ResendResult> {
   const email = String(form.get('email') ?? '');
-  let response: Response;
-  try {
-    response = await postJson('/api/auth/send-verification-email', { email });
-  } catch (error) {
-    if (error instanceof ApiUnavailableError) {
-      return { intent: 'resend', status: 'unavailable' };
-    }
-    throw error;
+  const response = await postJson('/api/auth/send-verification-email', {
+    email,
+  });
+  if (!response) {
+    return { intent: 'resend', status: 'unavailable' };
   }
   if (response.ok) {
     return { intent: 'resend', status: 'resent' };

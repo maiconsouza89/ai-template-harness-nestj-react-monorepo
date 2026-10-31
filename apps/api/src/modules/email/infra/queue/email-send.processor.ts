@@ -1,6 +1,7 @@
 import { OnWorkerEvent, Processor, WorkerHost } from '@nestjs/bullmq';
 import { Logger } from '@nestjs/common';
 import { type Job, UnrecoverableError } from 'bullmq';
+import { describeError } from '../../../../platform/logging/describe-error.js';
 import { isEmailRequest } from '../../domain/email-request.js';
 import {
   SendEmailUseCase,
@@ -40,9 +41,8 @@ export class EmailSendProcessor extends WorkerHost {
   onFailed(job: Job | undefined, error: Error) {
     if (!job) return;
     const userId = isEmailRequest(job.data) ? job.data.userId : 'desconhecida';
-    const code = (error as { code?: unknown }).code;
     this.logger.warn(
-      `Job ${job.id} da conta ${userId} falhou na tentativa ${job.attemptsMade} de ${job.opts.attempts ?? 1}: ${error.name}${typeof code === 'string' ? ` (${code})` : ''}`,
+      `Job ${job.id} da conta ${userId} falhou na tentativa ${job.attemptsMade} de ${job.opts.attempts ?? 1}: ${describeError(error)}`,
     );
   }
 

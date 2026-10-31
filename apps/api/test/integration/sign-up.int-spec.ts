@@ -43,11 +43,20 @@ describe('Cadastro aberto (integração, banco app_test)', () => {
   });
 
   afterAll(async () => {
-    // Espera o worker entregar o que os cadastros enfileiraram, para apagar da caixa.
+    // Espera o worker entregar o que os cadastros aceitos enfileiraram, para apagar da caixa; o
+    // e-mail de um cadastro recusado nunca chega e não vale esperar por ele.
+    const accepted = new Set(
+      (
+        await prisma.user.findMany({
+          where: { email: { in: [...created] } },
+          select: { email: true },
+        })
+      ).map(({ email }) => email),
+    );
     await Promise.all(
       [...created].map(async (email) => {
         try {
-          await waitForMessagesTo(email, 5_000);
+          if (accepted.has(email)) await waitForMessagesTo(email, 5_000);
           await deleteMessagesTo(email);
         } catch {
           // Mailpit fora do ar: nada a limpar.

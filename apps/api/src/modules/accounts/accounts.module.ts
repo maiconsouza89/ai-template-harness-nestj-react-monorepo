@@ -3,6 +3,7 @@ import { AuthModule } from '@thallesp/nestjs-better-auth';
 import type { Redis } from 'ioredis';
 import { ENV } from '../../platform/config/config.module.js';
 import type { Env } from '../../platform/config/env.js';
+import { describeError } from '../../platform/logging/describe-error.js';
 import { PrismaService } from '../../platform/prisma/prisma.service.js';
 import { REDIS } from '../../platform/redis/redis.module.js';
 import { EmailModule, RequestEmailUseCase } from '../email/email.module.js';
@@ -13,23 +14,6 @@ import { GetSessionController } from './presentation/get-session/get-session.con
 import { signUpHook } from './presentation/sign-up/sign-up.hook.js';
 
 /**
- * Descreve um argumento extra da linha do Better Auth: de um erro, só o nome e o `code` (o
- * `P2002` do Prisma, o `ECONNREFUSED` do Node); de qualquer outro valor, só o tipo. A mensagem do
- * erro fica de fora porque pode citar dado pessoal: a do Prisma traz o trecho do código que fez a
- * chamada e, na validação, os argumentos, e a de driver e SMTP pode citar o valor recusado ou o
- * destinatário. É a mesma regra dos logs do worker do Módulo E-mail.
- */
-export function describeLogArgument(argument: unknown): string {
-  if (argument instanceof Error) {
-    const code = (argument as { code?: unknown }).code;
-    return typeof code === 'string' || typeof code === 'number'
-      ? `${argument.name} (${code})`
-      : argument.name;
-  }
-  return typeof argument;
-}
-
-/**
  * Encaminha as linhas do Better Auth ao logger do Nest, que o `main.ts` liga ao pino: saem em
  * JSON, com o `req.id` da requisição e a redação de dados pessoais (ADR-0018). Argumentos extras
  * viram só o nome do erro ou o tipo do valor, para nenhum registro de conta nem mensagem de erro
@@ -37,7 +21,7 @@ export function describeLogArgument(argument: unknown): string {
  */
 export function createAuthLog(logger: Logger): AuthLog {
   return (level, message, ...args) => {
-    const line = [message, ...args.map(describeLogArgument)].join(' ');
+    const line = [message, ...args.map(describeError)].join(' ');
     if (level === 'error') logger.error(line);
     else if (level === 'warn') logger.warn(line);
     else if (level === 'info') logger.log(line);

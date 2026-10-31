@@ -1,6 +1,7 @@
 import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { withTimeout } from '../../../../platform/async/with-timeout.js';
 import { EmailQueue } from '../../domain/email-queue.js';
 import type { EmailRequest } from '../../domain/email-request.js';
 import {
@@ -29,6 +30,8 @@ export class BullMqEmailQueue extends EmailQueue {
   }
 
   async enqueue(request: EmailRequest): Promise<void> {
+    // Copia campo a campo: o tipo estrutural deixaria passar um campo extra, com dado pessoal,
+    // para os dados do job.
     const data: EmailRequest = {
       type: request.type,
       userId: request.userId,
@@ -37,20 +40,7 @@ export class BullMqEmailQueue extends EmailQueue {
     await withTimeout(
       this.queue.add(request.type, data, EMAIL_SEND_JOB_OPTIONS),
       EMAIL_SEND_ENQUEUE_TIMEOUT_MS,
+      `Fila ${EMAIL_SEND_QUEUE} não respondeu em ${EMAIL_SEND_ENQUEUE_TIMEOUT_MS} ms`,
     );
   }
-}
-
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () =>
-        reject(new Error(`Fila ${EMAIL_SEND_QUEUE} não respondeu em ${ms} ms`)),
-      ms,
-    );
-  });
-  // Se o limite vencer antes, a rejeição tardia do add não pode ficar sem tratamento.
-  promise.catch(() => undefined);
-  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
