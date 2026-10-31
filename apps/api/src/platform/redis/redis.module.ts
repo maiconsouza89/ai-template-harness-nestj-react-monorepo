@@ -29,8 +29,8 @@ export function createRedis(env: Env): Redis {
 
 /**
  * Conexão `ioredis` 5 com o Valkey (ADR-0014), apontada para `REDIS_URL` e compartilhada pela
- * aplicação: o health check a usa agora, e o Módulo E-mail (BullMQ) e o rate limit do Better
- * Auth a usam a partir do RF-001. `lazyConnect` deixa a API subir com o Valkey fora do ar; o
+ * aplicação: o health check a usa agora, e o rate limit do Better Auth a usa a partir do RF-001.
+ * O BullMQ tem conexão própria, em `platform/queue/`, porque o worker pede outras opções. `lazyConnect` deixa a API subir com o Valkey fora do ar; o
  * `ioredis` reconecta sozinho quando ele volta.
  */
 @Global()

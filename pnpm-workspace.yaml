@@ -29,6 +29,9 @@ allowBuilds:
   # instalação, e o do protobufjs (exportadores OTLP) só reescreve um package.json interno.
   '@scarf/scarf': false
   protobufjs: false
+  # Negado: o install do msgpackr-extract (dependência do BullMQ, ADR-0015) só compila o addon
+  # nativo quando falta o binário pré-compilado da plataforma; sem ele o msgpackr usa JS puro.
+  msgpackr-extract: false
 
 minimumReleaseAgeExclude:
   - '@nestjs/schematics@12.0.12'
