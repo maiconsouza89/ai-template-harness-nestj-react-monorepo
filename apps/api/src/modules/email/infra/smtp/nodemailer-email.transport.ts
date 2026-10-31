@@ -43,6 +43,10 @@ export class NodemailerEmailTransport
     });
   }
 
+  async verify(): Promise<void> {
+    await this.transporter.verify();
+  }
+
   async send(message: EmailMessage): Promise<void> {
     await this.transporter.sendMail({
       from: this.from,

@@ -22,6 +22,14 @@ class RecipientsDouble extends EmailRecipients {
 class TransportDouble extends EmailTransport {
   readonly sent: EmailMessage[] = [];
   failWith?: Error;
+  /** Roda enquanto o servidor "não atende", como a conexão pendente com o SMTP fora do ar. */
+  whileConnecting?: () => void;
+
+  verify(): Promise<void> {
+    this.whileConnecting?.();
+    if (this.failWith) return Promise.reject(this.failWith);
+    return Promise.resolve();
+  }
 
   send(message: EmailMessage): Promise<void> {
     if (this.failWith) return Promise.reject(this.failWith);
@@ -79,6 +87,27 @@ describe('SendEmailUseCase', () => {
       ...request,
       userId: 'confirmada',
     });
+
+    expect(result).toBe('already-verified');
+    expect(transport.sent).toEqual([]);
+  });
+
+  it('descarta a confirmação quando a conta confirma enquanto o servidor de e-mail não atende', async () => {
+    const accounts: Record<string, EmailRecipient> = {
+      u1: {
+        name: 'Ulisses Prado',
+        email: 'ulisses@example.com',
+        emailVerified: false,
+      },
+    };
+    const transport = new TransportDouble();
+    transport.whileConnecting = () => {
+      accounts.u1 = { ...accounts.u1, emailVerified: true };
+    };
+    const result = await new SendEmailUseCase(
+      new RecipientsDouble(accounts),
+      transport,
+    ).execute(request);
 
     expect(result).toBe('already-verified');
     expect(transport.sent).toEqual([]);

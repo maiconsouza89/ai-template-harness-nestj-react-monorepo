@@ -1,6 +1,7 @@
 import {
   betterAuth,
   type BetterAuthOptions,
+  type BetterAuthPlugin,
   type BetterAuthRateLimitStorage,
 } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
@@ -53,6 +54,11 @@ export interface AuthDependencies {
   sendVerificationEmail: SendVerificationEmail;
   /** Hook antes do cadastro, com a validação de Contratos e a recusa de e-mail existente. */
   signUpHook: SignUpHook;
+  /**
+   * Plugin que tira os campos de redirecionamento do corpo do cadastro antes da conferência de
+   * origem da biblioteca, que roda antes do hook.
+   */
+  signUpRequestPlugin: BetterAuthPlugin;
   /** Contadores do rate limit no Valkey. */
   rateLimitStorage: BetterAuthRateLimitStorage;
   /** Linhas de log da biblioteca, encaminhadas ao pino. */
@@ -76,7 +82,8 @@ export interface AuthDependencies {
  * - IP do cliente pelo `X-Forwarded-For`, resolvido com `TRUSTED_PROXIES` quando definida; sem
  *   ela, vale um cabeçalho de um valor só e, sem cabeçalho, o endereço local em development e
  *   test (`@better-auth/core`, `utils/ip`).
- * - Com `deps` (a API em execução): hook antes do cadastro, envio do e-mail de confirmação pelo
+ * - Com `deps` (a API em execução): hook antes do cadastro, o plugin que descarta os campos de
+ *   redirecionamento do cadastro, envio do e-mail de confirmação pelo
  *   Módulo E-mail, rate limit ligado em todo ambiente com os contadores no Valkey e os logs da
  *   biblioteca no pino. Sem `deps` (seed e CLI de schema), nada disso entra e o rate limit fica
  *   desligado, porque não há requisição HTTP.
@@ -115,7 +122,7 @@ export function createAuth(
         ? { enabled: true, domain: env.COOKIE_DOMAIN }
         : { enabled: false },
     },
-    plugins: [admin()],
+    plugins: deps ? [admin(), deps.signUpRequestPlugin] : [admin()],
   });
 }
 

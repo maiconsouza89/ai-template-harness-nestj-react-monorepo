@@ -7,11 +7,19 @@ import { describeError } from '../../platform/logging/describe-error.js';
 import { PrismaService } from '../../platform/prisma/prisma.service.js';
 import { REDIS } from '../../platform/redis/redis.module.js';
 import { EmailModule, RequestEmailUseCase } from '../email/email.module.js';
-import { type AuthDependencies, type AuthLog, createAuth } from './auth.js';
+import {
+  AUTH_BASE_PATH,
+  type AuthDependencies,
+  type AuthLog,
+  createAuth,
+} from './auth.js';
 import { ValkeyRateLimitStorage } from './infra/rate-limit/valkey-rate-limit.storage.js';
 import { createSendVerificationEmail } from './infra/verification-email/send-verification-email.js';
 import { GetSessionController } from './presentation/get-session/get-session.controller.js';
-import { signUpHook } from './presentation/sign-up/sign-up.hook.js';
+import {
+  createSignUpHook,
+  createSignUpRequestPlugin,
+} from './presentation/sign-up/sign-up.hook.js';
 
 /**
  * Encaminha as linhas do Better Auth ao logger do Nest, que o `main.ts` liga ao pino: saem em
@@ -41,7 +49,8 @@ export function createAuthDependencies(
       requestEmail,
       env.WEB_ORIGIN,
     ),
-    signUpHook,
+    signUpHook: createSignUpHook(env.ADMIN_EMAIL),
+    signUpRequestPlugin: createSignUpRequestPlugin(AUTH_BASE_PATH),
     rateLimitStorage: new ValkeyRateLimitStorage(redis, (message) =>
       logger.error(message),
     ),

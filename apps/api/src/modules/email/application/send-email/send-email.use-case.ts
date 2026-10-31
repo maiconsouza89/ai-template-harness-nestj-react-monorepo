@@ -1,5 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { EmailRecipients } from '../../domain/email-recipients.js';
+import {
+  EmailRecipients,
+  type EmailRecipient,
+} from '../../domain/email-recipients.js';
 import type { EmailRequest } from '../../domain/email-request.js';
 import { EmailTransport } from '../../domain/email-transport.js';
 import {
@@ -18,7 +21,9 @@ export type SendEmailResult = 'sent' | 'discarded' | 'already-verified';
  * template do tipo e entrega pelo transporte. Conta que não existe mais descarta o pedido sem
  * erro, para a fila não tentar de novo, e o mesmo vale para a confirmação de uma conta que já
  * confirmou (por um link reenviado enquanto este job esperava o backoff); falha do transporte
- * rejeita, e a fila tenta de novo.
+ * rejeita, e a fila tenta de novo. A conta é lida antes e de novo depois de o servidor de e-mail
+ * atender (`verify`): com o servidor fora, a conexão fica pendente por até o limite do transporte,
+ * e a conta pode confirmar o e-mail nesse meio-tempo.
  */
 @Injectable()
 export class SendEmailUseCase {
@@ -28,15 +33,28 @@ export class SendEmailUseCase {
   ) {}
 
   async execute(request: EmailRequest): Promise<SendEmailResult> {
+    const before = await this.check(request);
+    if (typeof before === 'string') return before;
+
+    await this.transport.verify();
+    const recipient = await this.check(request);
+    if (typeof recipient === 'string') return recipient;
+
+    const content = render(request, recipient.name);
+    await this.transport.send({ to: recipient.email, ...content });
+    return 'sent';
+  }
+
+  /** O destinatário atual, ou o motivo de descartar o pedido. */
+  private async check(
+    request: EmailRequest,
+  ): Promise<EmailRecipient | Exclude<SendEmailResult, 'sent'>> {
     const recipient = await this.recipients.findById(request.userId);
     if (!recipient) return 'discarded';
     if (request.type === 'verify-email' && recipient.emailVerified) {
       return 'already-verified';
     }
-
-    const content = render(request, recipient.name);
-    await this.transport.send({ to: recipient.email, ...content });
-    return 'sent';
+    return recipient;
   }
 }
 

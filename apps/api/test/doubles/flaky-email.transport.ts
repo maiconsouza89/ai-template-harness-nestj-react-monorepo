@@ -17,6 +17,10 @@ export class FlakyEmailTransport extends EmailTransport {
     super();
   }
 
+  async verify(): Promise<void> {
+    await this.real.verify();
+  }
+
   async send(message: EmailMessage): Promise<void> {
     this.attempts += 1;
     if (this.attempts <= this.failures) {

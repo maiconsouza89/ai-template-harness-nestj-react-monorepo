@@ -5,6 +5,8 @@ const emptyToUndefined = (value: unknown) => (value === '' ? undefined : value);
 const optionalString = () =>
   z.preprocess(emptyToUndefined, z.string().optional());
 const optionalUrl = () => z.preprocess(emptyToUndefined, z.url().optional());
+const optionalEmail = () =>
+  z.preprocess(emptyToUndefined, z.email().optional());
 
 /** Um IP ou uma faixa CIDR, IPv4 ou IPv6: o que o Better Auth aceita em `trustedProxies`. */
 const ipOrCidr = z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()]);
@@ -30,34 +32,48 @@ const optionalIpList = () =>
 /**
  * Variáveis de ambiente da API (spec da fundação, "Variáveis de ambiente"). Validadas com Zod 4
  * na subida (ADR-0023): falta ou valor inválido derruba o processo nomeando a variável.
- * `ADMIN_EMAIL` e `ADMIN_PASSWORD` ficam de fora: só o seed do `make db-setup` as lê.
+ * `ADMIN_EMAIL` é opcional e só serve ao hook de cadastro, que recusa esse endereço (RF-001);
+ * `ADMIN_PASSWORD` fica de fora, só o seed do `make db-setup` a lê. Com `NODE_ENV=production`,
+ * `TRUSTED_PROXIES` é obrigatória (spec do RF-001, Decisões): sem ela o IP do rate limit é
+ * forjável ou nulo.
  */
-export const envSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']),
-  DATABASE_URL: z.url(),
-  REDIS_URL: z.url(),
-  BETTER_AUTH_SECRET: z.string().min(32),
-  BETTER_AUTH_URL: z.url(),
-  WEB_ORIGIN: z.url(),
-  COOKIE_DOMAIN: optionalString(),
-  TRUSTED_PROXIES: optionalIpList(),
-  SMTP_HOST: z.string().min(1),
-  SMTP_PORT: z.coerce.number().int().min(1).max(65535),
-  SMTP_FROM: z.string().min(1),
-  SMTP_USER: optionalString(),
-  SMTP_PASSWORD: optionalString(),
-  OTEL_EXPORTER_OTLP_ENDPOINT: optionalUrl(),
-  PORT: z.preprocess(
-    emptyToUndefined,
-    z.coerce.number().int().min(1).max(65535).default(3000),
-  ),
-  LOG_LEVEL: z.preprocess(
-    emptyToUndefined,
-    z
-      .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
-      .default('info'),
-  ),
-});
+export const envSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']),
+    DATABASE_URL: z.url(),
+    REDIS_URL: z.url(),
+    BETTER_AUTH_SECRET: z.string().min(32),
+    BETTER_AUTH_URL: z.url(),
+    WEB_ORIGIN: z.url(),
+    COOKIE_DOMAIN: optionalString(),
+    TRUSTED_PROXIES: optionalIpList(),
+    ADMIN_EMAIL: optionalEmail(),
+    SMTP_HOST: z.string().min(1),
+    SMTP_PORT: z.coerce.number().int().min(1).max(65535),
+    SMTP_FROM: z.string().min(1),
+    SMTP_USER: optionalString(),
+    SMTP_PASSWORD: optionalString(),
+    OTEL_EXPORTER_OTLP_ENDPOINT: optionalUrl(),
+    PORT: z.preprocess(
+      emptyToUndefined,
+      z.coerce.number().int().min(1).max(65535).default(3000),
+    ),
+    LOG_LEVEL: z.preprocess(
+      emptyToUndefined,
+      z
+        .enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent'])
+        .default('info'),
+    ),
+  })
+  .superRefine((env, ctx) => {
+    if (env.NODE_ENV === 'production' && !env.TRUSTED_PROXIES) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['TRUSTED_PROXIES'],
+        message: 'obrigatória com NODE_ENV=production',
+      });
+    }
+  });
 
 export type Env = z.infer<typeof envSchema>;
 

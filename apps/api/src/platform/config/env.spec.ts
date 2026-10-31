@@ -95,6 +95,41 @@ describe('loadEnv', () => {
     expect(message).not.toContain('proxy-interno');
   });
 
+  it('exige TRUSTED_PROXIES com NODE_ENV=production, vazia ou ausente, sem ecoar valor', () => {
+    const production: Record<string, string | undefined> = {
+      ...envExample,
+      NODE_ENV: 'production',
+    };
+    const { TRUSTED_PROXIES: _omitted, ...sem } = production;
+    for (const source of [production, sem]) {
+      let error: unknown;
+      try {
+        loadEnv(source);
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toBeInstanceOf(EnvValidationError);
+      expect((error as EnvValidationError).variables).toEqual([
+        'TRUSTED_PROXIES (ausente)',
+      ]);
+      for (const value of Object.values(envExample).filter((v) => v !== '')) {
+        expect((error as Error).message).not.toContain(value);
+      }
+    }
+    expect(
+      loadEnv({ ...production, TRUSTED_PROXIES: '10.0.0.0/8' }).TRUSTED_PROXIES,
+    ).toEqual(['10.0.0.0/8']);
+  });
+
+  it('lê ADMIN_EMAIL como opcional', () => {
+    expect(loadEnv(envExample).ADMIN_EMAIL).toBe(envExample.ADMIN_EMAIL);
+    const { ADMIN_EMAIL: _omitted, ...sem } = envExample;
+    expect(loadEnv(sem).ADMIN_EMAIL).toBeUndefined();
+    expect(loadEnv({ ...envExample, ADMIN_EMAIL: '' }).ADMIN_EMAIL).toBe(
+      undefined,
+    );
+  });
+
   it('recusa NODE_ENV fora de development, test e production', () => {
     expect(() => loadEnv({ ...envExample, NODE_ENV: 'staging' })).toThrow(
       /NODE_ENV \(inválida/,

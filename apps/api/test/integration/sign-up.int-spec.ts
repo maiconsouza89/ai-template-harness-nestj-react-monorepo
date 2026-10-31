@@ -6,6 +6,8 @@ import type { App } from 'supertest/types.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
 import { createTestApp } from '../create-test-app.js';
 import {
+  adminInicial,
+  adminInicialCredentials,
   PENDING_ACCOUNT_ANA,
   pendingAccountAna,
 } from '../factories/user.factory.js';
@@ -203,13 +205,41 @@ describe('Cadastro aberto (integração, banco app_test)', () => {
       email,
       password: 'Segura123',
       image: 'javascript:alert(1)',
-      rememberMe: false,
+      callbackURL: 'https://evil.example/',
+      rememberMe: true,
       extra: 'ignorado',
     }).expect(200);
 
     const user = await prisma.user.findUniqueOrThrow({ where: { email } });
     expect(user.image).toBeNull();
     expect(user.name).toBe('Iris Nunes');
+  });
+
+  it('recusa o e-mail de ADMIN_EMAIL, em maiúsculas, com 422 USER_ALREADY_EXISTS antes do seed', async () => {
+    const { email } = adminInicialCredentials();
+    // Antes do seed: nenhuma conta com o e-mail do admin; o admin volta pelo seed no fim.
+    await prisma.user.deleteMany({
+      where: { email: { equals: email, mode: 'insensitive' } },
+    });
+    try {
+      const response = await signUp('203.0.113.11', {
+        name: 'Falso Admin',
+        email: email.toUpperCase(),
+        password: 'Segura123',
+      }).expect(422);
+
+      expect(response.body.code).toBe('USER_ALREADY_EXISTS');
+      expect(JSON.stringify(response.body)).not.toMatch(/admin/i);
+      expect(
+        await prisma.user.count({
+          where: { email: { equals: email, mode: 'insensitive' } },
+        }),
+      ).toBe(0);
+    } finally {
+      // Recusado, não há e-mail a esperar na caixa no afterAll.
+      created.delete(email.toLowerCase());
+      await adminInicial(app);
+    }
   });
 
   it.each([
