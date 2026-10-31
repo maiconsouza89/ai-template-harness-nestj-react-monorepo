@@ -1,5 +1,15 @@
 # Tracing
 
+## Sumário
+
+1. Basic Usage
+2. Trace Output Files
+3. What Traces Capture
+4. Use Cases
+5. Trace vs Video vs Screenshot
+6. Best Practices
+7. Limitations
+
 Capture detailed execution traces for debugging and analysis. Traces include DOM snapshots, screenshots, network activity, and console logs.
 
 ## Basic Usage

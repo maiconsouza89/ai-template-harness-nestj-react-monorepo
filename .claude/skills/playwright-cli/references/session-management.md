@@ -1,5 +1,17 @@
 # Browser Session Management
 
+## Sumário
+
+1. Named Browser Sessions
+2. Browser Session Isolation Properties
+3. Browser Session Commands
+4. Environment Variable
+5. Common Patterns
+6. Attaching to a Running Browser
+7. Default Browser Session
+8. Browser Session Configuration
+9. Best Practices
+
 Run multiple isolated browser sessions concurrently with state persistence.
 
 ## Named Browser Sessions

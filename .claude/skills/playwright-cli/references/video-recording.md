@@ -1,5 +1,13 @@
 # Video Recording
 
+## Sumário
+
+1. Basic Recording
+2. Cursor, Target Highlight and Click Point
+3. Best Practices
+4. Tracing vs Video
+5. Limitations
+
 Capture browser automation sessions as video for debugging, documentation, or verification. Produces WebM (VP8/VP9 codec).
 
 ## Basic Recording

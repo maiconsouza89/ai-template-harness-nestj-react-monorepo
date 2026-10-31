@@ -1,5 +1,20 @@
 # Running Custom Playwright Code
 
+## Sumário
+
+1. Syntax
+2. Geolocation
+3. Permissions
+4. Media Emulation
+5. Wait Strategies
+6. Frames and Iframes
+7. File Downloads
+8. Clipboard
+9. Page Information
+10. JavaScript Execution
+11. Error Handling
+12. Complex Workflows
+
 Use `run-code` to execute arbitrary Playwright code for advanced scenarios not covered by CLI commands.
 
 ## Syntax
