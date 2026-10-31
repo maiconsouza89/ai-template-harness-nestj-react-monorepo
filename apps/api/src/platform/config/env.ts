@@ -6,6 +6,27 @@ const optionalString = () =>
   z.preprocess(emptyToUndefined, z.string().optional());
 const optionalUrl = () => z.preprocess(emptyToUndefined, z.url().optional());
 
+/** Um IP ou uma faixa CIDR, IPv4 ou IPv6: o que o Better Auth aceita em `trustedProxies`. */
+const ipOrCidr = z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()]);
+/**
+ * Lista separada por vírgula (`10.0.0.0/8, 172.16.0.0/12`) virando o array de
+ * `advanced.ipAddress.trustedProxies`; vazia ou ausente, fica `undefined`.
+ */
+const optionalIpList = () =>
+  z.preprocess(
+    (value) =>
+      typeof value === 'string'
+        ? value
+            .split(',')
+            .map((entry) => entry.trim())
+            .filter((entry) => entry !== '')
+        : value,
+    z
+      .array(ipOrCidr)
+      .optional()
+      .transform((list) => (list && list.length > 0 ? list : undefined)),
+  );
+
 /**
  * Variáveis de ambiente da API (spec da fundação, "Variáveis de ambiente"). Validadas com Zod 4
  * na subida (ADR-0023): falta ou valor inválido derruba o processo nomeando a variável.
@@ -19,6 +40,7 @@ export const envSchema = z.object({
   BETTER_AUTH_URL: z.url(),
   WEB_ORIGIN: z.url(),
   COOKIE_DOMAIN: optionalString(),
+  TRUSTED_PROXIES: optionalIpList(),
   SMTP_HOST: z.string().min(1),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535),
   SMTP_FROM: z.string().min(1),
