@@ -1,9 +1,11 @@
 import { BullModule } from '@nestjs/bullmq';
 import { Module } from '@nestjs/common';
 import type { ConnectionOptions } from 'bullmq';
-import { BullMQOtel } from 'bullmq-otel';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
+import { createQueueTelemetry } from './queue-telemetry.js';
+
+export { createQueueTelemetry };
 
 /**
  * Conexão do produtor do BullMQ (ADR-0015) a partir de `REDIS_URL`: própria, e não a `REDIS`
@@ -23,19 +25,6 @@ export function createProducerConnection(env: Env): ConnectionOptions {
  */
 export function createWorkerConnection(env: Env): ConnectionOptions {
   return { url: env.REDIS_URL };
-}
-
-/**
- * Telemetria das filas e dos workers (spec da fundação, Observabilidade): o `BullMQOtel` grava o
- * contexto W3C do trace ativo nos metadados do job no `add`, com um span de produtor, e o worker o
- * extrai e abre o span de consumidor como filho dele (docs.bullmq.io, Telemetry, Traces). Usa o
- * `@opentelemetry/api`: sem `OTEL_EXPORTER_OTLP_ENDPOINT` o SDK não sobe, o tracer é o nulo e
- * nada é gravado nem exportado. As métricas do pacote ficam desligadas; as de fila são do
- * `QueueMetrics` de `platform/telemetry/`, no padrão `app.queue.*`. Os atributos dos spans são o
- * nome da fila, a operação e o nome e o id do job, nunca os dados do job.
- */
-export function createQueueTelemetry(): BullMQOtel {
-  return new BullMQOtel({ tracerName: 'bullmq' });
 }
 
 /**
