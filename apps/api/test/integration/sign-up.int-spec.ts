@@ -6,8 +6,8 @@ import type { App } from 'supertest/types.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
 import { createTestApp } from '../create-test-app.js';
 import {
-  CONTA_PENDENTE_ANA,
-  contaPendenteAna,
+  PENDING_ACCOUNT_ANA,
+  pendingAccountAna,
 } from '../factories/user.factory.js';
 import { deleteMessagesTo, waitForMessagesTo } from '../mailpit.js';
 
@@ -117,8 +117,8 @@ describe('Cadastro aberto (integração, banco app_test)', () => {
 
   describe('com a conta-pendente-ana', () => {
     beforeAll(async () => {
-      await contaPendenteAna(app, '203.0.113.3');
-      created.add(CONTA_PENDENTE_ANA.email);
+      await pendingAccountAna(app, '203.0.113.3');
+      created.add(PENDING_ACCOUNT_ANA.email);
     });
 
     it.each([['ana@example.com'], ['ANA@Example.Com']])(
@@ -133,7 +133,7 @@ describe('Cadastro aberto (integração, banco app_test)', () => {
         expect(response.body.code).toBe('USER_ALREADY_EXISTS');
         const users = await prisma.user.findMany({
           where: {
-            email: { equals: CONTA_PENDENTE_ANA.email, mode: 'insensitive' },
+            email: { equals: PENDING_ACCOUNT_ANA.email, mode: 'insensitive' },
           },
         });
         expect(users).toHaveLength(1);
@@ -194,6 +194,22 @@ describe('Cadastro aberto (integração, banco app_test)', () => {
       password: 'abcdefg1',
     }).expect(200);
     expect(await prisma.user.count({ where: { email } })).toBe(1);
+  });
+
+  it('descarta os campos fora do contrato do cadastro e grava só nome, e-mail e senha', async () => {
+    const email = uniqueEmail('iris');
+    await signUp('203.0.113.10', {
+      name: 'Iris Nunes',
+      email,
+      password: 'Segura123',
+      image: 'javascript:alert(1)',
+      rememberMe: false,
+      extra: 'ignorado',
+    }).expect(200);
+
+    const user = await prisma.user.findUniqueOrThrow({ where: { email } });
+    expect(user.image).toBeNull();
+    expect(user.name).toBe('Iris Nunes');
   });
 
   it.each([

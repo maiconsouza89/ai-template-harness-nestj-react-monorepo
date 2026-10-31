@@ -21,8 +21,9 @@ export interface SignUpCheckInput {
  * Regra do cadastro antes do Better Auth (spec, Contratos de interface): fora de `/sign-up/email`
  * não faz nada; corpo fora do `signUpSchema` de Contratos recusa com 400 `VALIDATION_ERROR` e a
  * lista `fields`; e-mail já cadastrado, procurado em minúsculas, recusa com 422
- * `USER_ALREADY_EXISTS`. Válido, devolve o corpo com o nome sem os espaços das pontas e o e-mail
- * normalizado, que o Better Auth grava. Nenhuma das respostas ecoa o que veio no corpo.
+ * `USER_ALREADY_EXISTS`. Válido, devolve só nome, e-mail e senha, com o nome sem os espaços das
+ * pontas e o e-mail normalizado: é o corpo inteiro que o Better Auth recebe e grava. Nenhuma das
+ * respostas ecoa o que veio no corpo.
  */
 export async function checkSignUp(
   input: SignUpCheckInput,
@@ -61,11 +62,13 @@ export const signUpHook = createAuthMiddleware(async (ctx) => {
       ctx.context.internalAdapter.findUserByEmail(email),
   });
   if (!signUp) return;
-  return {
-    context: {
-      body: { ...ctx.body, name: signUp.name, email: signUp.email },
-    },
-  };
+  // Só o que o `signUpSchema` validou segue para o Better Auth: campos fora do contrato (`image`,
+  // `callbackURL`, `rememberMe`, chaves extras) não chegam a ele nem ao banco. O `context`
+  // devolvido por um hook é mesclado (defu) sobre o corpo original e não remove chaves, por isso o
+  // corpo é reescrito no próprio objeto que o endpoint recebe.
+  const body = ctx.body as Record<string, unknown>;
+  for (const key of Object.keys(body)) Reflect.deleteProperty(body, key);
+  Object.assign(body, signUp);
 });
 
 export type SignUpHook = typeof signUpHook;

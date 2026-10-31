@@ -136,7 +136,7 @@ export async function adminBanido(
   return { userId, email, password };
 }
 
-export interface ContaPendente {
+export interface PendingAccount {
   userId: string;
   name: string;
   email: string;
@@ -145,7 +145,7 @@ export interface ContaPendente {
 }
 
 /** Dados da conta do pré-requisito `conta-pendente-ana` do contrato. */
-export const CONTA_PENDENTE_ANA = {
+export const PENDING_ACCOUNT_ANA = {
   name: 'Ana Souza',
   email: 'ana@example.com',
   password: 'Segura123',
@@ -159,17 +159,17 @@ export const CONTA_PENDENTE_ANA = {
  * um IP de documentação (203.0.113.0/24) próprio, para o rate limit de um não afetar outro. O
  * cadastro dispara o e-mail de confirmação para a caixa do Mailpit.
  */
-export async function contaPendenteAna(
+export async function pendingAccountAna(
   app: INestApplication<App>,
   ip: string,
-): Promise<ContaPendente> {
+): Promise<PendingAccount> {
   const prisma = app.get(PrismaService);
-  await prisma.user.deleteMany({ where: { email: CONTA_PENDENTE_ANA.email } });
+  await prisma.user.deleteMany({ where: { email: PENDING_ACCOUNT_ANA.email } });
 
   const response = await request(app.getHttpServer())
     .post('/api/auth/sign-up/email')
     .set('X-Forwarded-For', ip)
-    .send(CONTA_PENDENTE_ANA);
+    .send(PENDING_ACCOUNT_ANA);
   if (response.status !== 200) {
     throw new Error(
       `conta-pendente-ana: o cadastro respondeu ${response.status} ${JSON.stringify(response.body)}`,
@@ -177,6 +177,6 @@ export async function contaPendenteAna(
   }
   return {
     userId: (response.body as { user: { id: string } }).user.id,
-    ...CONTA_PENDENTE_ANA,
+    ...PENDING_ACCOUNT_ANA,
   };
 }
