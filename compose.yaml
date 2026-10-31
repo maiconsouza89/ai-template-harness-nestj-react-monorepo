@@ -196,7 +196,7 @@ services:
     # `docker compose --profile observability up -d --wait`; sem o perfil, o ambiente continua
     # com os cinco serviços acima. A API exporta para ele com
     # OTEL_EXPORTER_OTLP_ENDPOINT=http://observability:4318 no .env (OTLP HTTP só na rede do
-    # Compose). Grafana em http://localhost:3001, sem login (acesso anônimo de admin da imagem),
+    # Compose). Grafana em http://localhost:8001, sem login (acesso anônimo de admin da imagem),
     # por isso a porta fica presa ao loopback: publicada em todas as interfaces, qualquer máquina
     # da rede editaria painéis, alertas e fontes de dados (make check-compose confere). O papel
     # anônimo continua admin porque a API de provisionamento de alertas, que diz se a regra veio
@@ -207,7 +207,7 @@ services:
     image: grafana/otel-lgtm:0.39.0
     profiles: [observability]
     ports:
-      - '127.0.0.1:3001:3000'
+      - '127.0.0.1:8001:3000'
     deploy:
       resources:
         limits:

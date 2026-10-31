@@ -65,7 +65,7 @@ make db-setup                # aplica as migrações e cria o primeiro admin do 
 | API | <http://localhost:3000/api> (saúde em [`/api/health`](http://localhost:3000/api/health)) |
 | Documento OpenAPI | <http://localhost:3000/api/docs> (só fora de produção) |
 | Mailpit | <http://localhost:8025> (SMTP em `localhost:1025`) |
-| Grafana (perfil `observability`) | <http://localhost:3001> (ver [Backend local de observabilidade](#backend-local-de-observabilidade)) |
+| Grafana (perfil `observability`) | <http://localhost:8001> (ver [Backend local de observabilidade](#backend-local-de-observabilidade)) |
 
 A primeira subida instala as dependências dentro dos containers, o que leva alguns minutos;
 elas ficam em volumes nomeados, então dependência nova pede só `docker compose restart api web`.
@@ -117,7 +117,7 @@ só, que guarda 100 por cento dos traces. Ele não sobe no `docker compose up` s
 docker compose --profile observability up -d --wait   # recria a api com o endpoint novo
 ```
 
-Abra o Grafana em <http://localhost:3001> (sem login, acesso anônimo de admin; a porta só
+Abra o Grafana em <http://localhost:8001> (sem login, acesso anônimo de admin; a porta só
 escuta no loopback do host, então outra máquina da rede não alcança). Os
 painéis ficam em Dashboards, pasta **App**: **API por interface** (vazão, taxa de 5xx e p95 por
 rota, separando a API REST v1 e a API de autenticação) e **Filas** (jobs por estado, idade do job

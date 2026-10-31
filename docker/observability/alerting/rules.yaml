@@ -64,8 +64,8 @@ groups:
           summary: 'Taxa de 5xx acima de 1 por cento por 5 minutos na rota {{ $labels.http_route }}'
           description: >-
             Respostas 5xx sobre o total da rota acima de 0,01 há 5 minutos. Ligado à meta de
-            disponibilidade de 99,5 por cento (HLD). Rota vazia: requisição sem http.route, como as
-            do Better Auth em /api/auth.
+            disponibilidade de 99,5 por cento (HLD). Rota vazia: requisição sem http.route, como um
+            404 fora de /api; as do Better Auth saem com /api/auth/*.
 
       - uid: api-v1-p95
         title: api-v1-p95
