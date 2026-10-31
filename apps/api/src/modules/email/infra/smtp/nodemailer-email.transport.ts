@@ -9,8 +9,11 @@ import {
 
 /**
  * Transporte SMTP com Nodemailer (ADR-0017), configurado só pelas variáveis `SMTP_*`: o mesmo
- * código entrega ao Mailpit no local e ao provedor real. TLS direto na porta 465; nas demais, o
- * Nodemailer usa STARTTLS quando o servidor oferece. Os limites de tempo deixam o worker desistir
+ * código entrega ao Mailpit no local e ao provedor real. TLS direto na porta 465; nas demais, com
+ * credencial (`SMTP_USER`), STARTTLS é obrigatório (`requireTLS`): se o servidor não o aceitar,
+ * o envio falha antes do AUTH, e um atacante no caminho não rebaixa a conexão para texto puro e
+ * captura a senha. O certificado é sempre validado (padrão do Nodemailer). Texto puro só fica
+ * para servidor sem credencial, como o Mailpit local. Os limites de tempo deixam o worker desistir
  * da tentativa com o servidor fora, em vez de esperar os 2 minutos padrão.
  */
 @Injectable()
@@ -24,10 +27,13 @@ export class NodemailerEmailTransport
   constructor(@Inject(ENV) env: Env) {
     super();
     this.from = env.SMTP_FROM;
+    const secure = env.SMTP_PORT === 465;
+    const requireTLS = !secure && Boolean(env.SMTP_USER);
     this.transporter = createTransport({
       host: env.SMTP_HOST,
       port: env.SMTP_PORT,
-      secure: env.SMTP_PORT === 465,
+      secure,
+      requireTLS,
       auth: env.SMTP_USER
         ? { user: env.SMTP_USER, pass: env.SMTP_PASSWORD ?? '' }
         : undefined,
