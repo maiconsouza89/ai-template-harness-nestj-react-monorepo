@@ -36,8 +36,8 @@
 - Merge de origin/main: já atualizado
 - Reavaliação depois do merge: não precisou
 - Push: feito
-- PR: https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/pull/9, em rascunho, a partir de `feat/rf-001-criar-conta-v2`
-- CI: vermelha em `check` (testes de integração de e-mail sem o Mailpit no runner, `ECONNREFUSED :8025`); `/fix-runner` modo achado no ciclo 1
+- PR: https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/pull/9 aberto a partir de `feat/rf-001-criar-conta-v2`
+- CI: vermelha em `check` na primeira rodada (Mailpit fora do runner), corrigida no ciclo 1; verde depois, PR marcado como pronto, mergeStateStatus CLEAN
 
 ## Avisos
 
