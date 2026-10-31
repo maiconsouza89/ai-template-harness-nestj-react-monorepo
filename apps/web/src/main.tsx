@@ -7,7 +7,7 @@ import './styles/app.css';
 import { signUpAction } from './routes/cadastro/action.js';
 import { SignUpRoute } from './routes/cadastro/route.js';
 import { ErrorPage } from './routes/error-page.js';
-import { rootLoader, rootShouldRevalidate } from './routes/root/loader.js';
+import { rootLoader } from './routes/root/loader.js';
 import { RootRoute } from './routes/root/route.js';
 
 /** Mostrado enquanto o `loader` da rota raiz lê a sessão na primeira carga. */
@@ -27,7 +27,6 @@ export const router = createBrowserRouter([
     Component: RootRoute,
     HydrateFallback: LoadingPage,
     loader: rootLoader,
-    shouldRevalidate: rootShouldRevalidate,
     errorElement: <ErrorPage />,
     children: [
       { path: 'cadastro', Component: SignUpRoute, action: signUpAction },
