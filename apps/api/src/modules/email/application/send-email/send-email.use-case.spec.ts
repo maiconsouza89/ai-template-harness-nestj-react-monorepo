@@ -34,7 +34,16 @@ describe('SendEmailUseCase', () => {
   const url = 'http://localhost:5173/confirmar-email?token=abc';
   const request: EmailRequest = { type: 'verify-email', userId: 'u1', url };
   const recipients = new RecipientsDouble({
-    u1: { name: 'Paula Dias', email: 'paula@example.com' },
+    u1: {
+      name: 'Paula Dias',
+      email: 'paula@example.com',
+      emailVerified: false,
+    },
+    confirmada: {
+      name: 'Rui Lopes',
+      email: 'rui@example.com',
+      emailVerified: true,
+    },
   });
 
   it('lê o destinatário da conta e entrega o e-mail de confirmação', async () => {
@@ -61,6 +70,17 @@ describe('SendEmailUseCase', () => {
     });
 
     expect(result).toBe('discarded');
+    expect(transport.sent).toEqual([]);
+  });
+
+  it('descarta a confirmação de conta que já confirmou o e-mail, sem entregar', async () => {
+    const transport = new TransportDouble();
+    const result = await new SendEmailUseCase(recipients, transport).execute({
+      ...request,
+      userId: 'confirmada',
+    });
+
+    expect(result).toBe('already-verified');
     expect(transport.sent).toEqual([]);
   });
 

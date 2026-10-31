@@ -5,7 +5,7 @@ import {
   type EmailRecipient,
 } from '../domain/email-recipients.js';
 
-/** Lê nome e e-mail da conta pelo Prisma, no momento do envio. */
+/** Lê nome, e-mail e a confirmação da conta pelo Prisma, no momento do envio. */
 @Injectable()
 export class PrismaEmailRecipientsRepository extends EmailRecipients {
   constructor(private readonly prisma: PrismaService) {
@@ -15,7 +15,7 @@ export class PrismaEmailRecipientsRepository extends EmailRecipients {
   findById(userId: string): Promise<EmailRecipient | null> {
     return this.prisma.user.findUnique({
       where: { id: userId },
-      select: { name: true, email: true },
+      select: { name: true, email: true, emailVerified: true },
     });
   }
 }

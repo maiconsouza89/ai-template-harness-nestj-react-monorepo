@@ -2,6 +2,7 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
 import { withTimeout } from '../../../../platform/async/with-timeout.js';
+import { describeError } from '../../../../platform/logging/describe-error.js';
 import { EmailQueue } from '../../domain/email-queue.js';
 import type { EmailRequest } from '../../domain/email-request.js';
 import {
@@ -13,7 +14,10 @@ import {
 /**
  * Produtor de `email.send` (ADR-0015): um job com o nome do tipo e o pedido como dados (tipo, id
  * da conta e link, sem endereço, nome nem senha), com tentativas, backoff e retenção. Falha rápido
- * com o Valkey fora: pela conexão sem fila offline ou pelo limite de tempo.
+ * com o Valkey fora: pela conexão sem fila offline ou pelo limite de tempo. O limite não cancela o
+ * `add`: quando ele vence, o desfecho real do `add` vai para o log, para quem lê saber que o job
+ * entrou mesmo assim e que um reenvio feito nesse meio-tempo gerou um segundo link. Sem `jobId`
+ * fixo: o reenvio legítimo precisa de um job novo (RF-002).
  */
 @Injectable()
 export class BullMqEmailQueue extends EmailQueue {
@@ -37,10 +41,35 @@ export class BullMqEmailQueue extends EmailQueue {
       userId: request.userId,
       url: request.url,
     };
-    await withTimeout(
-      this.queue.add(request.type, data, EMAIL_SEND_JOB_OPTIONS),
-      EMAIL_SEND_ENQUEUE_TIMEOUT_MS,
-      `Fila ${EMAIL_SEND_QUEUE} não respondeu em ${EMAIL_SEND_ENQUEUE_TIMEOUT_MS} ms`,
+    let settled = false;
+    const added = this.queue.add(request.type, data, EMAIL_SEND_JOB_OPTIONS);
+    added.then(
+      () => (settled = true),
+      () => (settled = true),
+    );
+    try {
+      await withTimeout(
+        added,
+        EMAIL_SEND_ENQUEUE_TIMEOUT_MS,
+        `Fila ${EMAIL_SEND_QUEUE} não respondeu em ${EMAIL_SEND_ENQUEUE_TIMEOUT_MS} ms`,
+      );
+    } catch (error) {
+      if (!settled) this.logLateOutcome(added, data.userId);
+      throw error;
+    }
+  }
+
+  /** Registra como terminou o `add` que passou do limite; só ids, nada de dado pessoal (ADR-0018). */
+  private logLateOutcome(added: Promise<{ id?: string }>, userId: string) {
+    added.then(
+      (job) =>
+        this.logger.warn(
+          `Pedido da conta ${userId} entrou na fila ${EMAIL_SEND_QUEUE} depois do limite, como job ${job.id}`,
+        ),
+      (error: unknown) =>
+        this.logger.warn(
+          `Pedido da conta ${userId} não entrou na fila ${EMAIL_SEND_QUEUE} depois do limite: ${describeError(error)}`,
+        ),
     );
   }
 }

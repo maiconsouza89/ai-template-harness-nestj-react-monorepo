@@ -7,6 +7,7 @@ import type { App } from 'supertest/types.js';
 import { EmailTransport } from '../../src/modules/email/domain/email-transport.js';
 import { RequestEmailUseCase } from '../../src/modules/email/email.module.js';
 import { EMAIL_SEND_QUEUE } from '../../src/modules/email/infra/queue/email-send.queue.js';
+import { EmailSendProcessor } from '../../src/modules/email/infra/queue/email-send.processor.js';
 import { NodemailerEmailTransport } from '../../src/modules/email/infra/smtp/nodemailer-email.transport.js';
 import { ENV } from '../../src/platform/config/config.module.js';
 import { type Env, loadEnv } from '../../src/platform/config/env.js';
@@ -70,6 +71,21 @@ describe('E-mail de confirmação (integração)', () => {
       await Promise.all(created.map(deleteMessagesTo));
       await queue.obliterate({ force: true });
       await app.close();
+    });
+
+    it('desliga a fila offline só no produtor; o worker espera a reconexão', () => {
+      const producer = queue.opts.connection as {
+        enableOfflineQueue?: boolean;
+      };
+      const worker = app.get(EmailSendProcessor).worker.opts.connection as {
+        enableOfflineQueue?: boolean;
+      };
+
+      expect(producer.enableOfflineQueue).toBe(false);
+      expect(worker.enableOfflineQueue).not.toBe(false);
+      expect(app.get(EmailSendProcessor).worker.opts.prefix).toBe(
+        queue.opts.prefix,
+      );
     });
 
     it('entrega ao Mailpit o e-mail de confirmação em pt-BR, lendo nome e e-mail da conta', async () => {

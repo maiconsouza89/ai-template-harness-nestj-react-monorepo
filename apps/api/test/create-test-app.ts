@@ -14,7 +14,7 @@ import {
   configureAppOptionsFromEnv,
   NEST_APPLICATION_OPTIONS,
 } from '../src/platform/http/configure-app.js';
-import { createBullConnection } from '../src/platform/queue/queue.module.js';
+import { createProducerConnection } from '../src/platform/queue/queue.module.js';
 import { REDIS } from '../src/platform/redis/redis.module.js';
 
 /**
@@ -45,7 +45,7 @@ export function isolatedEmailQueue(prefix: string) {
   return (builder: TestingModuleBuilder) =>
     builder.overrideProvider(getQueueOptionsToken(EMAIL_SEND_QUEUE)).useValue({
       name: EMAIL_SEND_QUEUE,
-      connection: createBullConnection(loadEnv()),
+      connection: createProducerConnection(loadEnv()),
       prefix,
     });
 }
