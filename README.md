@@ -117,7 +117,8 @@ só, que guarda 100 por cento dos traces. Ele não sobe no `docker compose up` s
 docker compose --profile observability up -d --wait   # recria a api com o endpoint novo
 ```
 
-Abra o Grafana em <http://localhost:3001> (sem login, acesso anônimo de admin; só no local). Os
+Abra o Grafana em <http://localhost:3001> (sem login, acesso anônimo de admin; a porta só
+escuta no loopback do host, então outra máquina da rede não alcança). Os
 painéis ficam em Dashboards, pasta **App**: **API por interface** (vazão, taxa de 5xx e p95 por
 rota, separando a API REST v1 e a API de autenticação) e **Filas** (jobs por estado, idade do job
 pendente mais antigo e falhas por tentativa, por fila, e memória do Valkey contra o máximo). As
