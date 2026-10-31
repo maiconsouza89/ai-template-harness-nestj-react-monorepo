@@ -1,6 +1,6 @@
 # HLD: Template de aplicação web com contas e tarefas
 
-Versão: 0.2.5
+Versão: 0.2.6
 Data: 2026-10-30
 Responsável: Maicon Souza (hipótese)
 PRD: docs/product/prd.md versão 0.1.0
@@ -74,6 +74,8 @@ Tecnologias principais
 | NestJS | Framework da API: módulos, injeção de dependência, testes | ADR-0003 |
 | Nest CLI | Scaffold, geração, build e watch da API, fixado no lockfile | ADR-0009 |
 | Vite e React Router (modo data) | Build e roteamento da SPA estática | ADR-0004 |
+| Tailwind CSS 4 | Estilo da SPA, com os tokens do `DESIGN.md` no `@theme` | ADR-0027 |
+| Inter (Fontsource) | Fonte da SPA, servida pela própria origem | ADR-0028 |
 | PostgreSQL 18 | Banco relacional, fonte de verdade do domínio | ADR-0007 |
 | Prisma 7 | ORM e migrações versionadas do esquema | ADR-0008 |
 | Better Auth | Cadastro, confirmação, sessão em cookie no banco, recuperação, troca de senha, plugin admin | ADR-0010 |
@@ -358,6 +360,8 @@ ADRs associados
 - ADR-0023 Usar Zod 4 para validação em Contratos: esquemas compartilhados por API e SPA e validação das variáveis de ambiente.
 - ADR-0024 Usar @playwright/cli para verificar as telas: navegador dos itens de UI dos contratos, sem suíte E2E versionada.
 - ADR-0026 Usar dependency-cruiser para fiscalizar a regra de dependência: imports entre camadas e entre módulos da API barrados no `make lint`.
+- ADR-0027 Usar Tailwind CSS 4 para o estilo da SPA: tokens do `DESIGN.md` no `@theme`, sem a paleta padrão do Tailwind.
+- ADR-0028 Usar Inter auto-hospedada como fonte da SPA: `@fontsource-variable/inter` no bundle, sem fonte de outra origem.
 
 Decisões pendentes de ADR
 - Nenhuma: todas as tecnologias principais têm ADR aceito.

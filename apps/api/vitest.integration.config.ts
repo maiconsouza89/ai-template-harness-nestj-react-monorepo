@@ -10,6 +10,9 @@ export default defineConfig({
     globals: true,
     root: './',
     include: ['test/integration/**/*.int-spec.ts'],
+    // Um arquivo por vez: cada createTestApp apaga os contadores do rate limit no Valkey, e um
+    // arquivo subindo em paralelo zeraria a janela de cadastro que outro está medindo.
+    fileParallelism: false,
     env: parseEnv(
       readFileSync(new URL('./.env.test', import.meta.url), 'utf8'),
     ),

@@ -1,13 +1,15 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ApiUnavailableError } from '../lib/http.js';
-import { rootLoader } from './root/loader.js';
+import { createRootLoader } from './root/loader.js';
 
 describe('rootLoader', () => {
   const fetchMock = vi.fn<typeof fetch>();
+  let rootLoader: ReturnType<typeof createRootLoader>;
 
   beforeEach(() => {
     vi.stubEnv('VITE_API_URL', 'http://api.test');
     vi.stubGlobal('fetch', fetchMock);
+    rootLoader = createRootLoader();
   });
 
   afterEach(() => {
@@ -47,6 +49,26 @@ describe('rootLoader', () => {
     fetchMock.mockRejectedValue(new TypeError('fetch failed'));
 
     await expect(rootLoader()).rejects.toBeInstanceOf(ApiUnavailableError);
+  });
+
+  it('mantém a última sessão lida quando a releitura não alcança a API', async () => {
+    fetchMock.mockResolvedValueOnce(
+      Response.json({ userId: 'Yp3m2', role: 'admin' }, { status: 200 }),
+    );
+    await rootLoader();
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
+
+    await expect(rootLoader()).resolves.toEqual({
+      session: { userId: 'Yp3m2', role: 'admin' },
+    });
+  });
+
+  it('mantém o estado anônimo na releitura sem API, qualquer que seja a action anterior', async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 401 }));
+    await rootLoader();
+    fetchMock.mockRejectedValueOnce(new TypeError('fetch failed'));
+
+    await expect(rootLoader()).resolves.toEqual({ session: null });
   });
 
   it('lança o status como erro de rota quando a API responde outro erro', async () => {

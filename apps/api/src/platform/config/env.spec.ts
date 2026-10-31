@@ -53,7 +53,8 @@ describe('loadEnv', () => {
     expect(message).toMatch(/REDIS_URL \(inválida/);
     expect(message).not.toContain('nao-e-url');
     expect(message).not.toContain(secreto);
-    for (const value of Object.values(envExample)) {
+    // Valor vazio (TRUSTED_PROXIES=) não é dado que possa vazar.
+    for (const value of Object.values(envExample).filter((v) => v !== '')) {
       expect(message).not.toContain(value);
     }
   });
@@ -62,6 +63,71 @@ describe('loadEnv', () => {
     const env = loadEnv({ ...envExample, COOKIE_DOMAIN: '', LOG_LEVEL: '' });
     expect(env.COOKIE_DOMAIN).toBeUndefined();
     expect(env.LOG_LEVEL).toBe('info');
+  });
+
+  it('deixa TRUSTED_PROXIES indefinida quando vazia ou ausente, como no .env.example', () => {
+    expect(envExample.TRUSTED_PROXIES).toBe('');
+    expect(loadEnv(envExample).TRUSTED_PROXIES).toBeUndefined();
+    const { TRUSTED_PROXIES: _omitted, ...sem } = envExample;
+    expect(loadEnv(sem).TRUSTED_PROXIES).toBeUndefined();
+  });
+
+  it('lê TRUSTED_PROXIES como lista de IPs e faixas CIDR separados por vírgula', () => {
+    const env = loadEnv({
+      ...envExample,
+      TRUSTED_PROXIES: '10.0.0.0/8, 172.16.0.1 ,fd00::/8,',
+    });
+    expect(env.TRUSTED_PROXIES).toEqual([
+      '10.0.0.0/8',
+      '172.16.0.1',
+      'fd00::/8',
+    ]);
+  });
+
+  it('recusa TRUSTED_PROXIES com entrada que não é IP nem CIDR, sem ecoar o valor', () => {
+    let message = '';
+    try {
+      loadEnv({ ...envExample, TRUSTED_PROXIES: '10.0.0.0/8,proxy-interno' });
+    } catch (caught) {
+      message = (caught as Error).message;
+    }
+    expect(message).toMatch(/TRUSTED_PROXIES \(inválida/);
+    expect(message).not.toContain('proxy-interno');
+  });
+
+  it('exige TRUSTED_PROXIES com NODE_ENV=production, vazia ou ausente, sem ecoar valor', () => {
+    const production: Record<string, string | undefined> = {
+      ...envExample,
+      NODE_ENV: 'production',
+    };
+    const { TRUSTED_PROXIES: _omitted, ...sem } = production;
+    for (const source of [production, sem]) {
+      let error: unknown;
+      try {
+        loadEnv(source);
+      } catch (caught) {
+        error = caught;
+      }
+      expect(error).toBeInstanceOf(EnvValidationError);
+      expect((error as EnvValidationError).variables).toEqual([
+        'TRUSTED_PROXIES (ausente)',
+      ]);
+      for (const value of Object.values(envExample).filter((v) => v !== '')) {
+        expect((error as Error).message).not.toContain(value);
+      }
+    }
+    expect(
+      loadEnv({ ...production, TRUSTED_PROXIES: '10.0.0.0/8' }).TRUSTED_PROXIES,
+    ).toEqual(['10.0.0.0/8']);
+  });
+
+  it('lê ADMIN_EMAIL como opcional', () => {
+    expect(loadEnv(envExample).ADMIN_EMAIL).toBe(envExample.ADMIN_EMAIL);
+    const { ADMIN_EMAIL: _omitted, ...sem } = envExample;
+    expect(loadEnv(sem).ADMIN_EMAIL).toBeUndefined();
+    expect(loadEnv({ ...envExample, ADMIN_EMAIL: '' }).ADMIN_EMAIL).toBe(
+      undefined,
+    );
   });
 
   it('recusa NODE_ENV fora de development, test e production', () => {

@@ -30,3 +30,5 @@
 | [0024](0024-usar-playwright-cli-para-verificar-as-telas.md) | Usar @playwright/cli para verificar as telas | accepted | 2026-10-29 |
 | [0025](0025-usar-clean-architecture-com-casos-de-uso-por-pasta-na-api.md) | Usar Clean Architecture com casos de uso por pasta na API | accepted | 2026-10-30 |
 | [0026](0026-usar-dependency-cruiser-para-fiscalizar-a-regra-de-dependencia.md) | Usar dependency-cruiser para fiscalizar a regra de dependência | accepted | 2026-10-30 |
+| [0027](0027-usar-tailwind-css-4-para-o-estilo-da-spa.md) | Usar Tailwind CSS 4 para o estilo da SPA | accepted | 2026-10-30 |
+| [0028](0028-usar-inter-auto-hospedada-como-fonte-da-spa.md) | Usar Inter auto-hospedada como fonte da SPA | accepted | 2026-10-30 |

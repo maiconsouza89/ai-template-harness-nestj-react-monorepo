@@ -1,3 +1,5 @@
+import { withTimeout } from '../async/with-timeout.js';
+
 /** Estado de uma dependência externa, como sai no corpo de `GET /api/health`. */
 export type HealthState = 'up' | 'down';
 
@@ -9,19 +11,10 @@ export async function probeHealth(
   probe: () => Promise<unknown>,
   timeoutMs = HEALTH_TIMEOUT_MS,
 ): Promise<HealthState> {
-  let timer: NodeJS.Timeout | undefined;
-  const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(
-      () => reject(new Error(`sem resposta em ${timeoutMs} ms`)),
-      timeoutMs,
-    );
-  });
   try {
-    await Promise.race([probe(), timeout]);
+    await withTimeout(probe(), timeoutMs, `sem resposta em ${timeoutMs} ms`);
     return 'up';
   } catch {
     return 'down';
-  } finally {
-    clearTimeout(timer);
   }
 }

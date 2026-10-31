@@ -1,8 +1,10 @@
+import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
-  plugins: [react()],
+  // Tailwind CSS 4 pelo plugin do Vite, no lugar do PostCSS (ADR-0027).
+  plugins: [react(), tailwindcss()],
   // O .env mora na raiz do monorepo, junto do .env.example; a SPA lê dali as variáveis VITE_*.
   envDir: '../..',
   server: {
