@@ -1,10 +1,58 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
+import type { Redis } from 'ioredis';
 import { ENV } from '../../platform/config/config.module.js';
 import type { Env } from '../../platform/config/env.js';
 import { PrismaService } from '../../platform/prisma/prisma.service.js';
-import { createAuth } from './auth.js';
+import { REDIS } from '../../platform/redis/redis.module.js';
+import { EmailModule, RequestEmailUseCase } from '../email/email.module.js';
+import { type AuthDependencies, type AuthLog, createAuth } from './auth.js';
+import { ValkeyRateLimitStorage } from './infra/rate-limit/valkey-rate-limit.storage.js';
+import { createSendVerificationEmail } from './infra/verification-email/send-verification-email.js';
 import { GetSessionController } from './presentation/get-session/get-session.controller.js';
+import { signUpHook } from './presentation/sign-up/sign-up.hook.js';
+
+/** Descreve um argumento extra da linha do Better Auth: de um erro, só o nome e a mensagem. */
+function describeLogArgument(argument: unknown): string {
+  if (argument instanceof Error) return `${argument.name}: ${argument.message}`;
+  if (typeof argument === 'string') return argument;
+  return typeof argument;
+}
+
+/**
+ * Encaminha as linhas do Better Auth ao logger do Nest, que o `main.ts` liga ao pino: saem em
+ * JSON, com o `req.id` da requisição e a redação de dados pessoais (ADR-0018). Objetos extras
+ * viram só o tipo, para nenhum registro de conta da biblioteca chegar inteiro ao log.
+ */
+export function createAuthLog(logger: Logger): AuthLog {
+  return (level, message, ...args) => {
+    const line = [message, ...args.map(describeLogArgument)].join(' ');
+    if (level === 'error') logger.error(line);
+    else if (level === 'warn') logger.warn(line);
+    else if (level === 'info') logger.log(line);
+    else logger.debug(line);
+  };
+}
+
+/** Dependências de `createAuth` montadas a partir do Valkey, do Módulo E-mail e do logger. */
+export function createAuthDependencies(
+  env: Env,
+  redis: Redis,
+  requestEmail: RequestEmailUseCase,
+): AuthDependencies {
+  const logger = new Logger('BetterAuth');
+  return {
+    sendVerificationEmail: createSendVerificationEmail(
+      requestEmail,
+      env.WEB_ORIGIN,
+    ),
+    signUpHook,
+    rateLimitStorage: new ValkeyRateLimitStorage(redis, (message) =>
+      logger.error(message),
+    ),
+    log: createAuthLog(logger),
+  };
+}
 
 /**
  * Módulo Contas, raiz de composição do módulo (ADR-0025): monta o Better Auth de `auth.ts` em
@@ -14,14 +62,25 @@ import { GetSessionController } from './presentation/get-session/get-session.con
  * entre elas é fiscalizada no `make lint` (ADR-0026). `GET /api/v1/session` fica só em
  * `presentation/get-session/`, sem caso de uso em `application/`, porque só repassa a sessão. As
  * rotas de cadastro, entrar, sair e recuperação são do próprio Better Auth e entram pelos RF-001 a
- * RF-005 como configuração.
+ * RF-005 como configuração; o cadastro (RF-001) recebe aqui o hook, o envio da confirmação pelo
+ * Módulo E-mail, o rate limit no Valkey e o logger.
  */
 @Module({
   imports: [
     AuthModule.forRootAsync({
-      inject: [ENV, PrismaService],
-      useFactory: (env: Env, prisma: PrismaService) => ({
-        auth: createAuth(env, prisma),
+      imports: [EmailModule],
+      inject: [ENV, PrismaService, REDIS, RequestEmailUseCase],
+      useFactory: (
+        env: Env,
+        prisma: PrismaService,
+        redis: Redis,
+        requestEmail: RequestEmailUseCase,
+      ) => ({
+        auth: createAuth(
+          env,
+          prisma,
+          createAuthDependencies(env, redis, requestEmail),
+        ),
       }),
     }),
   ],

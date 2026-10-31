@@ -17,6 +17,7 @@ export const auth = createAuth(
     BETTER_AUTH_URL: 'http://localhost:3000',
     WEB_ORIGIN: 'http://localhost:5173',
     COOKIE_DOMAIN: undefined,
+    TRUSTED_PROXIES: undefined,
   },
   {} as unknown as PrismaClient,
 );

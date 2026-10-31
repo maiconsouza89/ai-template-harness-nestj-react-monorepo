@@ -1,5 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { AuthService } from '@thallesp/nestjs-better-auth';
+import request from 'supertest';
+import type { App } from 'supertest/types.js';
 import { newId, seedAdminInicial } from '../../prisma/seed.js';
 import type { Auth } from '../../src/modules/accounts/auth.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
@@ -132,4 +134,49 @@ export async function adminBanido(
     },
   });
   return { userId, email, password };
+}
+
+export interface ContaPendente {
+  userId: string;
+  name: string;
+  email: string;
+  /** Senha em texto puro enviada no cadastro. */
+  password: string;
+}
+
+/** Dados da conta do pré-requisito `conta-pendente-ana` do contrato. */
+export const CONTA_PENDENTE_ANA = {
+  name: 'Ana Souza',
+  email: 'ana@example.com',
+  password: 'Segura123',
+} as const;
+
+/**
+ * Pré-requisito `conta-pendente-ana` do contrato: a conta de ana@example.com, nome Ana Souza,
+ * papel usuário, e-mail não verificado, sem banimento e com credencial de senha, criada pelo
+ * próprio `POST /api/auth/sign-up/email`. Apaga antes qualquer conta com esse e-mail, para o
+ * estado ser exatamente o que o contrato descreve. `ip` vai no `X-Forwarded-For`: cada caso usa
+ * um IP de documentação (203.0.113.0/24) próprio, para o rate limit de um não afetar outro. O
+ * cadastro dispara o e-mail de confirmação para a caixa do Mailpit.
+ */
+export async function contaPendenteAna(
+  app: INestApplication<App>,
+  ip: string,
+): Promise<ContaPendente> {
+  const prisma = app.get(PrismaService);
+  await prisma.user.deleteMany({ where: { email: CONTA_PENDENTE_ANA.email } });
+
+  const response = await request(app.getHttpServer())
+    .post('/api/auth/sign-up/email')
+    .set('X-Forwarded-For', ip)
+    .send(CONTA_PENDENTE_ANA);
+  if (response.status !== 200) {
+    throw new Error(
+      `conta-pendente-ana: o cadastro respondeu ${response.status} ${JSON.stringify(response.body)}`,
+    );
+  }
+  return {
+    userId: (response.body as { user: { id: string } }).user.id,
+    ...CONTA_PENDENTE_ANA,
+  };
 }

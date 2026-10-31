@@ -3,6 +3,7 @@ import type { INestApplication } from '@nestjs/common';
 import { getQueueOptionsToken, getQueueToken } from '@nestjs/bullmq';
 import type { TestingModuleBuilder } from '@nestjs/testing';
 import type { Job, Queue } from 'bullmq';
+import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { EmailTransport } from '../../src/modules/email/domain/email-transport.js';
 import { RequestEmailUseCase } from '../../src/modules/email/email.module.js';
@@ -18,7 +19,8 @@ import { deleteMessagesTo, waitForMessagesTo } from '../mailpit.js';
 
 /**
  * Módulo E-mail de ponta a ponta com o Valkey e o Mailpit do Compose: o pedido entra pelo caso de
- * uso exportado, o worker da própria aplicação de teste consome a fila e entrega por SMTP. Cada
+ * uso exportado ou pelo cadastro, o worker da própria aplicação de teste consome a fila e entrega
+ * por SMTP. Cada
  * aplicação usa um prefixo próprio do BullMQ, para o worker de outro arquivo de integração não
  * pegar os jobs deste.
  */
@@ -101,6 +103,37 @@ describe('E-mail de confirmação (integração)', () => {
       expect(message.Text).toContain('O link vale por 24 horas.');
       expect(message.HTML).toContain('lang="pt-BR"');
       expect(message.HTML).toContain('O link vale por 24 horas.');
+    });
+
+    it('depois do cadastro, entrega o e-mail com o link da SPA e sem a senha', async () => {
+      const email = `email-int-${randomUUID()}@example.com`;
+      created.push(email);
+      const password = 'Sigilo321w';
+
+      const response = await request(app.getHttpServer())
+        .post('/api/auth/sign-up/email')
+        .set('X-Forwarded-For', '203.0.113.20')
+        .send({ name: 'Quim Moura', email, password })
+        .expect(200);
+
+      const messages = await waitForMessagesTo(email);
+      expect(messages).toHaveLength(1);
+      const [message] = messages;
+      expect(message.Subject).toBe('Confirme seu e-mail');
+      expect(message.Text).toContain('Olá, Quim Moura!');
+      expect(message.Text).toMatch(
+        new RegExp(`${env.WEB_ORIGIN}/confirmar-email\\?token=[^\\s]+`),
+      );
+      expect(message.Text).not.toContain(password);
+      expect(message.HTML).not.toContain(password);
+
+      const job = await waitForJob(
+        queue,
+        response.body.user.id as string,
+        async () => true,
+      );
+      expect(job.name).toBe('verify-email');
+      expect(JSON.stringify(job.data)).not.toContain(password);
     });
 
     it('grava no job só o tipo, o id da conta e o link, com 5 tentativas e retenção', async () => {

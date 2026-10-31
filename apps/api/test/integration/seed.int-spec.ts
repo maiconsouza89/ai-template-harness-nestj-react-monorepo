@@ -72,7 +72,7 @@ describe('Seed do primeiro admin (integração, banco app_test)', () => {
   });
 
   it('entra por POST /api/auth/sign-in/email com a senha do seed e lê a sessão como admin', async () => {
-    const session = await sessaoAdmin(app);
+    const session = await sessaoAdmin(app, '203.0.113.200');
 
     const setCookie = session.signIn.get('Set-Cookie') ?? [];
     expect(setCookie.some((c) => /HttpOnly/i.test(c))).toBe(true);
