@@ -26,6 +26,13 @@ import { deleteMessagesTo, waitForMessagesTo } from '../mailpit.js';
  * quando uma linha escapa do logger configurado. A fila usa um prefixo próprio do BullMQ, para o
  * worker desta aplicação entregar o e-mail e as linhas dele caírem na mesma captura.
  */
+function expectNoneContains(written: string[], secrets: string[]) {
+  for (const secret of secrets) {
+    const leaking = written.filter((line) => line.includes(secret));
+    expect(leaking, `linhas de log com "${secret}"`).toEqual([]);
+  }
+}
+
 describe('Logs do cadastro (integração)', () => {
   let app: INestApplication<App>;
   let queue: Queue;
@@ -36,13 +43,6 @@ describe('Logs do cadastro (integração)', () => {
   async function linesSince(start: number): Promise<string[]> {
     await sleep(200);
     return lines.slice(start);
-  }
-
-  function expectNoneContains(written: string[], secrets: string[]) {
-    for (const secret of secrets) {
-      const leaking = written.filter((line) => line.includes(secret));
-      expect(leaking, `linhas de log com "${secret}"`).toEqual([]);
-    }
   }
 
   function signUp(ip: string, body: Record<string, string>) {

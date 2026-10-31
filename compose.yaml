@@ -38,7 +38,7 @@ services:
         # (a imagem não tem ps para o tree-kill), deixando a app antiga presa na porta 3000.
         exec pnpm --filter @app/api start:dev --no-shell
     env_file:
-      # Opcional para `docker compose up postgres valkey` (make test) e `exec` funcionarem sem o
+      # Opcional para `docker compose up postgres valkey mailpit` (make test) e `exec` funcionarem sem o
       # .env; sem ele, a API sobe e termina nomeando as variáveis que faltam.
       - path: .env
         required: false
@@ -94,7 +94,7 @@ services:
         pnpm --filter @app/contracts build
         exec pnpm --filter @app/web dev
     env_file:
-      # Opcional para `docker compose up postgres valkey` (make test) e `exec` funcionarem sem o
+      # Opcional para `docker compose up postgres valkey mailpit` (make test) e `exec` funcionarem sem o
       # .env; sem ele, a API sobe e termina nomeando as variáveis que faltam.
       - path: .env
         required: false
