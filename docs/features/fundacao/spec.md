@@ -1,7 +1,7 @@
 # Spec: fundação
 
 PRD: docs/product/prd.md versão 0.1.0
-HLD: docs/architecture/hld.md versão 0.2.7
+HLD: docs/architecture/hld.md versão 0.3.0
 Complexidade: complexa
 
 ---

@@ -1,8 +1,8 @@
 # C4: Template de aplicação web com contas e tarefas
 
-Fonte: docs/architecture/hld.md versão 0.2.5
-ADRs: 0003, 0004, 0005, 0007, 0008, 0010, 0012, 0013, 0014, 0015, 0016, 0017, 0025
-Data: 2026-10-30
+Fonte: docs/architecture/hld.md versão 0.3.0
+ADRs: 0003, 0004, 0005, 0007, 0008, 0010, 0012, 0013, 0014, 0015, 0016, 0017, 0019, 0025, 0027, 0028, 0029
+Data: 2026-10-31
 
 ---
 
@@ -11,7 +11,7 @@ Data: 2026-10-30
 | Nível | Arquivo | Público | O que mostra |
 | --- | --- | --- | --- |
 | C1 System Context | `template-web-c1.puml` | Produto e negócio | Pessoa usuária e admin usando o sistema, que envia e-mails por um servidor SMTP externo |
-| C2 Container | `template-web-c2.puml` | Arquitetura e liderança técnica | SPA Web, API NestJS, PostgreSQL e Redis (Valkey), com tecnologia e protocolo de cada ligação |
+| C2 Container | `template-web-c2.puml` | Arquitetura e liderança técnica | SPA Web, API NestJS, PostgreSQL, Redis (Valkey) e o Backend de observabilidade local, com tecnologia e protocolo de cada ligação |
 | C3 Component | `template-web-c3.puml` | Quem implementa o container | Os quatro módulos da API NestJS (Contas, Usuários, Tarefas, E-mail) e o pacote Contratos |
 | C4 Code Level | pulado | Quem implementa | O HLD dá a organização de pastas da Clean Architecture por módulo (`domain/`, `application/<caso>/`, `infra/`, `presentation/<caso>/`, porta como classe abstrata) mas nenhuma assinatura, classe ou campo; o nível depende de uma spec por RF ou do código |
 
@@ -28,10 +28,11 @@ lado de cada `.puml` (precisa de plantuml local ou docker).
 | Admin | C1, C2 | PRD, Contexto e problema (público-alvo); HLD, Segurança (autorização) |
 | Template de aplicação web com contas e tarefas | C1, C2 | HLD, título e Objetivo técnico |
 | Servidor SMTP | C1, C2, C3 | HLD, Objetivo técnico (sistemas conectados) e Interfaces; ADR-0017, ADR-0016 |
-| SPA Web | C2, C3 | HLD, Componentes e responsabilidades e Arquitetura geral; ADR-0004, ADR-0005 |
+| SPA Web | C2, C3 | HLD, Componentes e responsabilidades e Arquitetura geral; ADR-0004, ADR-0005, ADR-0027, ADR-0028 |
 | API NestJS | C2, C3 | HLD, Arquitetura geral (subgrafo "API NestJS", monólito modular); ADR-0003, ADR-0013, ADR-0005 |
 | PostgreSQL | C2, C3 | HLD, Componentes e responsabilidades; ADR-0007, ADR-0008 |
 | Redis | C2, C3 | HLD, Componentes e responsabilidades; ADR-0014 (Valkey 9) |
+| Backend de observabilidade local | C2 | HLD, Componentes e responsabilidades, Ambiente de implantação e Observabilidade; ADR-0029, ADR-0019 |
 | Contratos | C3 | HLD, Componentes e responsabilidades e Padrões adotados (tipos compartilhados); ADR-0012 |
 | Módulo Contas | C3 | HLD, Componentes e responsabilidades; ADR-0010 |
 | Módulo Usuários | C3 | HLD, Componentes e responsabilidades; ADR-0010 (plugin admin) |
@@ -51,7 +52,8 @@ lado de cada `.puml` (precisa de plantuml local ou docker).
 - Dev que inicia projeto (público principal do PRD): interage com o repositório e o ambiente local, não com o sistema em execução; o único ponto de contato em runtime, a interface web do Mailpit, aparece só na descrição do Servidor SMTP.
 - Contratos no C1 e no C2: só existe em tempo de build (HLD), então não é container; aparece na nota do C2 e como elemento no C3, com relações marcadas como "dependência de build".
 - Balanceador de carga, TLS, backup e cofre de segredos: fornecidos pelo destino, que o HLD declara agnóstico; não fazem parte do sistema entregue.
-- Coletor OTLP do destino (ADR-0019): exportação desligada por padrão, sem endpoint configurado, e o coletor é do destino.
+- Coletor OTLP do destino (ADR-0019): exportação desligada por padrão, sem endpoint configurado, e o coletor é do destino; aparece só na nota do C2.
+- Backend de observabilidade local no C1: é parte do sistema, que o C1 mostra como caixa única. No C3: quem exporta é o processo da API (instrumentação carregada antes da aplicação), não um dos módulos, então a relação fica no C2.
 - Documento OpenAPI (`/api/docs`, ADR-0020): interface interna da própria API NestJS, publicada só fora de produção; não muda nenhuma relação.
 - Ambiente local (Docker Compose, ADR-0006; `make db-setup`): forma de subir os mesmos containers, não um container a mais.
 
