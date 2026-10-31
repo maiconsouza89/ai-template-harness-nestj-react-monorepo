@@ -103,6 +103,10 @@ export function createAuth(
       ? { enabled: true, ...RATE_LIMIT, customStorage: deps.rateLimitStorage }
       : { enabled: false },
     hooks: deps ? { before: deps.signUpHook } : undefined,
+    // Sem `level`: vale o padrão `warn` da biblioteca, que corta as linhas `info` que interpolam
+    // o e-mail ("Sign-up attempt for existing email" em `routes/sign-up`). Declarar `level` liga,
+    // no `onError` do roteador (`api/index`), um segundo logger que escreve a mensagem de cada
+    // APIError no console, fora do pino; baixar o nível exige revisar essas linhas (ADR-0018).
     logger: deps ? { log: deps.log } : undefined,
     advanced: {
       ipAddress: { trustedProxies: env.TRUSTED_PROXIES },

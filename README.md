@@ -73,9 +73,24 @@ chegar ao container (repositório em `/mnt/c` no WSL2), ponha `WATCH_POLLING=tru
 API valida as variáveis na subida e termina nomeando a que faltar (`docker compose logs api`).
 Para zerar o ambiente, inclusive o banco: `docker compose down -v`.
 
+Os e-mails do aplicativo, como a confirmação do cadastro, entram na fila `email.send` do Valkey
+e um worker no próprio processo da API os entrega por SMTP. No local o destino é o Mailpit: abra
+<http://localhost:8025> para ler a mensagem e o link de confirmação, que aponta para
+`/confirmar-email` na SPA e vale 24 horas. Se o SMTP falhar, o worker tenta de novo até 5 vezes,
+com espera exponencial a partir de 5 segundos; a tela de link enviado tem o botão "Reenviar o
+link" para quando a mensagem não chegar. Os testes de integração usam a mesma caixa, com
+endereços únicos que apagam no fim, e o banco 1 do Valkey, para o worker da API do Compose não
+pegar os jobs deles. Fora do local, aponte `SMTP_HOST`, `SMTP_PORT` e `SMTP_FROM` para o
+servidor real e preencha `SMTP_USER` e `SMTP_PASSWORD`: com credencial, a porta 465 usa TLS
+direto e as demais exigem STARTTLS, e o envio é recusado se o servidor não o oferecer, em vez de
+mandar a senha em claro. O cadastro tem limite de 5 por minuto por IP; atrás de proxy ou
+balanceador, preencha `TRUSTED_PROXIES` (ver `.env.example`).
+
 Os logs da API saem em JSON, uma linha por entrada, com um `req.id` único por requisição
 (devolvido no cabeçalho `x-request-id`) e e-mail, nome, senha, cookie e authorization redigidos;
-`LOG_LEVEL` no `.env` muda o nível. Traces e métricas do OpenTelemetry só são exportados com
+a URL sai sem a query string, onde vão os tokens. As linhas do Better Auth passam pelo mesmo
+logger, a partir do nível `warn` e com os erros reduzidos ao nome e ao código, e as do worker de
+e-mail citam só os ids do job e da conta. `LOG_LEVEL` no `.env` muda o nível. Traces e métricas do OpenTelemetry só são exportados com
 `OTEL_EXPORTER_OTLP_ENDPOINT` definido (do Compose, um coletor no host fica em
 `http://host.docker.internal:4318`); sem a variável a instrumentação não faz nada.
 
