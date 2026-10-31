@@ -1,0 +1,72 @@
+# Configuração de referência do OpenTelemetry Collector (distribuição contrib) do ambiente de
+# destino, com a amostragem de cauda do HLD (Observabilidade, Tracing): 10 por cento dos traces e
+# 100 por cento dos traces com erro. NÃO roda no ambiente local: o backend local do Compose
+# (perfil observability) guarda 100 por cento dos traces. Quem implanta copia este arquivo para o
+# coletor do destino e aponta OTLP_DESTINO_ENDPOINT para o backend de lá; a API exporta para o
+# coletor por OTEL_EXPORTER_OTLP_ENDPOINT, como no local.
+#
+# Validar (o otelcol-contrib vem na imagem do backend local, ADR-0029):
+#   docker run --rm -v "$PWD/docker/observability:/cfg:ro" --entrypoint \
+#     /otel-lgtm/otelcol-contrib/otelcol-contrib grafana/otel-lgtm:0.39.0 \
+#     validate --config=/cfg/collector-destino.yaml
+#
+# Réplicas: a decisão de cauda exige que todos os spans de um trace cheguem ao mesmo coletor.
+# Com mais de uma réplica, ponha na frente uma camada com o exporter loadbalancing roteando por
+# traceID.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Primeiro da cadeia: recusa dado antes de o processo estourar a memória do container.
+  memory_limiter:
+    check_interval: 1s
+    limit_percentage: 80
+    spike_limit_percentage: 20
+
+  # A decisão sai depois de decision_wait desde o primeiro span do trace, com o trace inteiro em
+  # memória. As políticas valem em "ou": o trace é guardado se qualquer uma o amostrar.
+  tail_sampling:
+    decision_wait: 10s
+    num_traces: 50000
+    expected_new_traces_per_sec: 100
+    policies:
+      # 100 por cento dos traces com algum span em status de erro (5xx, exceção, job falho).
+      - name: erros
+        type: status_code
+        status_code:
+          status_codes: [ERROR]
+      # 10 por cento dos demais, pelo traceID, então todos os spans do trace têm a mesma decisão.
+      - name: amostra-10-por-cento
+        type: probabilistic
+        probabilistic:
+          sampling_percentage: 10
+
+  batch: {}
+
+exporters:
+  otlp_http:
+    # Backend do destino (Tempo, Mimir, Loki, um fornecedor). O padrão só existe para a
+    # validação passar sem a variável; em produção a variável é obrigatória.
+    endpoint: ${env:OTLP_DESTINO_ENDPOINT:-https://otlp.destino.invalid}
+
+service:
+  pipelines:
+    # Só os traces passam pela amostragem de cauda; métricas e logs seguem inteiros.
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, tail_sampling, batch]
+      exporters: [otlp_http]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlp_http]

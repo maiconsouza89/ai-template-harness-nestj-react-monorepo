@@ -1,0 +1,189 @@
+# Os quatro alertas do HLD (Observabilidade, Dashboards e alertas) como provisionamento de
+# alertas do Grafana por arquivo (ADR-0029). O compose.yaml monta este arquivo em
+# provisioning/alerting/ do backend local; num destino com Grafana, copie-o para a mesma pasta e
+# troque `datasourceUid: prometheus` pelo UID do Prometheus de lá.
+#
+# Cada regra é multidimensional: a consulta A devolve uma série por rota (`http_route`), fila
+# (`queue`) ou dependência (`dependency`), e a expressão B compara cada série com o limite, então
+# uma rota ou fila nova vira uma instância de alerta sem edição deste arquivo.
+#
+# Nomes das métricas como o Prometheus do backend os grava a partir do OTLP: pontos viram `_` e
+# entram os sufixos de unidade e de contador (app.health.status, unidade 1, vira
+# app_health_status_ratio; app.queue.job.failures vira app_queue_job_failures_total).
+#
+# Sem dados (API sem exportar, rota sem tráfego) a regra fica normal (`noDataState: OK`).
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: app
+    folder: App
+    # Os quatro avaliam a cada minuto (spec da fundação, Regras e fluxos).
+    interval: 1m
+    rules:
+      - uid: api-5xx-rate
+        title: api-5xx-rate
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              # O `or ... * 0` dá 0 à rota sem nenhum 5xx, em vez de deixá-la sem série.
+              expr: >-
+                (
+                sum by (http_route)
+                (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))
+                or sum by (http_route) (rate(http_server_request_duration_seconds_count[5m])) * 0
+                )
+                / sum by (http_route) (rate(http_server_request_duration_seconds_count[5m]))
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.01]
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Taxa de 5xx acima de 1 por cento por 5 minutos na rota {{ $labels.http_route }}'
+          description: >-
+            Respostas 5xx sobre o total da rota acima de 0,01 há 5 minutos. Ligado à meta de
+            disponibilidade de 99,5 por cento (HLD). Rota vazia: requisição sem http.route, como as
+            do Better Auth em /api/auth.
+
+      - uid: api-v1-p95
+        title: api-v1-p95
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: >-
+                histogram_quantile(0.95, sum by (le, http_route)
+                (rate(http_server_request_duration_seconds_bucket{http_route=~"/api/v1(/.*)?"}[5m])))
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0.3]
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: 'p95 acima de 300 ms por 5 minutos na rota {{ $labels.http_route }}'
+          description: Percentil 95 da duração das requisições da API REST v1 acima de 0,3 s há 5 minutos.
+
+      - uid: queue-stalled
+        title: queue-stalled
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              # 1 quando a fila tem job pendente há mais de 120 s ou algum job falho; 0 senão.
+              expr: >-
+                clamp_max(
+                (max by (queue) (app_queue_oldest_job_age_seconds) > bool 120)
+                + (max by (queue) (app_queue_jobs{state="failed"}) > bool 0),
+                1)
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: gt
+                    params: [0]
+        noDataState: OK
+        execErrState: Error
+        # A própria condição já carrega os 2 minutos do pendente; job falho dispara na hora.
+        for: 0s
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Fila {{ $labels.queue }} com job pendente há mais de 2 minutos ou com job falho'
+          description: >-
+            app.queue.oldest_job.age acima de 120 s ou app.queue.jobs no estado failed acima de 0.
+            Na fila de e-mail, ligado aos 2 minutos do PRD. O job falho fica na fila pela retenção
+            de 7 dias; retire-o (ou reprocesse) para o alerta voltar ao normal.
+
+      - uid: dependency-down
+        title: dependency-down
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 600
+              to: 0
+            datasourceUid: prometheus
+            model:
+              refId: A
+              instant: true
+              range: false
+              expr: min by (dependency) (app_health_status_ratio)
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              refId: B
+              type: threshold
+              expression: A
+              datasource:
+                type: __expr__
+                uid: __expr__
+              conditions:
+                - evaluator:
+                    type: lt
+                    params: [1]
+        noDataState: OK
+        execErrState: Error
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: 'Health check de {{ $labels.dependency }} falhando por 1 minuto'
+          description: >-
+            app.health.status igual a 0 para a dependência há 1 minuto. Valkey fora sinaliza o
+            login em fail-open e a fila de e-mail parada (HLD).
