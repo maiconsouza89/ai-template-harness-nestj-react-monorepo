@@ -1,6 +1,8 @@
 ---
 name: fix-runner
 description: Correção dirigida de um RF-NNN (ou da fundação) em três modos. Avaliação - corrige os itens que falharam ou ficaram bloqueados em `docs/features/RF-NNN-nome/avaliacao.md`, a partir do esperado, do observado e da evidência. Conflito - resolve conflitos de merge no branch da feature, com spec e contrato decidindo o que vale. Achado - corrige um problema que o contrato não cobre (revisão de segurança, CI vermelha), reproduzindo antes e deixando um teste que falha no código antigo. Valida pelo `Makefile` e faz um commit com autorização. Não edita spec, plano nem contrato e não dá veredito; depois dela vem `/evaluator`. Use sempre que o usuário quiser corrigir o que a avaliação reprovou ("corrige o que falhou no RF-003", "arruma os itens bloqueados"), resolver conflito de merge num branch de feature ("o PR 42 tem conflito") ou corrigir um achado fora do contrato ("a revisão de segurança apontou X", "a CI quebrou no PR"), mesmo sem dizer fix-runner.
+model:
+  - claude-sonnet-5-5
 ---
 
 # Fix Runner
