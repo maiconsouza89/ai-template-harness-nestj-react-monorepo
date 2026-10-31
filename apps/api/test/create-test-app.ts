@@ -1,4 +1,4 @@
-import type { INestApplication } from '@nestjs/common';
+import type { INestApplication, ModuleMetadata } from '@nestjs/common';
 import { getQueueOptionsToken } from '@nestjs/bullmq';
 import { Test, type TestingModuleBuilder } from '@nestjs/testing';
 import type { Redis } from 'ioredis';
@@ -14,7 +14,10 @@ import {
   configureAppOptionsFromEnv,
   NEST_APPLICATION_OPTIONS,
 } from '../src/platform/http/configure-app.js';
-import { createProducerConnection } from '../src/platform/queue/queue.module.js';
+import {
+  createProducerConnection,
+  createQueueTelemetry,
+} from '../src/platform/queue/queue.module.js';
 import { REDIS } from '../src/platform/redis/redis.module.js';
 
 /**
@@ -46,6 +49,7 @@ export function isolatedEmailQueue(prefix: string) {
     builder.overrideProvider(getQueueOptionsToken(EMAIL_SEND_QUEUE)).useValue({
       name: EMAIL_SEND_QUEUE,
       connection: createProducerConnection(loadEnv()),
+      telemetry: createQueueTelemetry(),
       prefix,
     });
 }
@@ -55,15 +59,17 @@ export function isolatedEmailQueue(prefix: string) {
  * prefixo, versionamento, CORS e documento OpenAPI), com a configuração do `.env.test` e os
  * serviços do Compose vistos do host, e com os contadores do rate limit apagados. Quem chama
  * fecha com `app.close()`. `customize` recebe o builder antes da compilação, para trocar
- * providers por dublês de `test/doubles/` com `overrideProvider()`.
+ * providers por dublês de `test/doubles/` com `overrideProvider()`; `imports` soma módulos ao
+ * lado do `AppModule` (o `DiagnosticsModule.register(...)` ligado, por exemplo).
  */
 export async function createTestApp(
   customize: (builder: TestingModuleBuilder) => TestingModuleBuilder = (
     builder,
   ) => builder,
+  imports: NonNullable<ModuleMetadata['imports']> = [],
 ): Promise<INestApplication<App>> {
   const moduleRef = await customize(
-    Test.createTestingModule({ imports: [AppModule] }),
+    Test.createTestingModule({ imports: [AppModule, ...imports] }),
   ).compile();
   const app = moduleRef.createNestApplication<INestApplication<App>>(
     NEST_APPLICATION_OPTIONS,

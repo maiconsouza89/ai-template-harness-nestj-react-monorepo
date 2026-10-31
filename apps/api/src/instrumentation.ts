@@ -77,6 +77,13 @@ if (endpoint) {
           startIncomingSpanHook: (request) =>
             request.url?.includes('?') ? { 'url.query': '[redigido]' } : {},
         },
+        // O serializador padrão põe em `db.query.text` os argumentos de comandos como `evalsha`,
+        // que no BullMQ carregam os dados do job (no `email.send`, o link com o token), o motivo
+        // da falha e o stack trace. O span guarda só o nome do comando (spec da fundação,
+        // Observabilidade: nenhum atributo exportado traz o conteúdo do job).
+        '@opentelemetry/instrumentation-ioredis': {
+          dbStatementSerializer: (command) => command,
+        },
       }),
       new PrismaInstrumentation(),
     ],

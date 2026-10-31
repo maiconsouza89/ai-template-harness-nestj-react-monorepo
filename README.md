@@ -92,7 +92,18 @@ a URL sai sem a query string, onde vão os tokens. As linhas do Better Auth pass
 logger, a partir do nível `warn` e com os erros reduzidos ao nome e ao código, e as do worker de
 e-mail citam só os ids do job e da conta. `LOG_LEVEL` no `.env` muda o nível. Traces e métricas do OpenTelemetry só são exportados com
 `OTEL_EXPORTER_OTLP_ENDPOINT` definido (do Compose, um coletor no host fica em
-`http://host.docker.internal:4318`); sem a variável a instrumentação não faz nada.
+`http://host.docker.internal:4318`); sem a variável a instrumentação não faz nada. Com ela, toda
+fila do BullMQ propaga o trace do enfileiramento ao processamento, e a API exporta, além das
+métricas de HTTP e do pool do PostgreSQL, jobs por estado, idade do job pendente mais antigo e
+falhas por tentativa de cada fila, memória do Valkey e o estado do health check (`app.queue.*`,
+`app.valkey.*`, `app.health.status`). Métrica de negócio nova entra pelo `AppMetrics` de
+`apps/api/src/platform/telemetry/`, com nome `app.<domínio>.<medida>`.
+
+Para exercitar essa telemetria sem módulo de funcionalidade, `DIAGNOSTICS_ENABLED=true` no
+`.env` (ignorada com `NODE_ENV=production`) registra a fila `diagnostics` e a rota anônima
+`POST /api/diagnostics/jobs`, que recebe `{ "outcome": "succeed" }` ou `{ "outcome": "fail" }` e
+responde 202 com o `jobId`; o job falho tenta 2 vezes. `DIAGNOSTICS_WORKER_ENABLED=false` deixa
+a fila sem worker, para os jobs ficarem pendentes.
 
 ## Imagens de produção
 
