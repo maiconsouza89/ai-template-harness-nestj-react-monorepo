@@ -5,3 +5,7 @@
 38519c486dbb1d719a9e5ff5847f5557d90b0902:apps/api/test/integration/sign-up-email.int-spec.ts:generic-api-key:105
 # Segredo falso do teste do callback de confirmação do RF-002; o literal saiu do código em seguida.
 e5ed42c1bb51bdebadfe217cd9992ba7f5040fb4:apps/api/src/modules/accounts/infra/verification-email/send-verification-email.spec.ts:generic-api-key:10
+# Token falso dos testes da recuperação de senha do RF-005; o literal saiu do código em seguida.
+fe7a61807af4e452d4c94bcbbf597e07fb3e69ea:apps/api/src/modules/accounts/domain/password-reset-links.spec.ts:generic-api-key:20
+fe7a61807af4e452d4c94bcbbf597e07fb3e69ea:apps/api/src/modules/accounts/infra/password-reset-email/send-reset-password.spec.ts:generic-api-key:10
+72e72635daf98deaac1d3bcb0785fa0dbd5866ab:apps/api/src/modules/accounts/presentation/reset-password/reset-password.plugin.spec.ts:generic-api-key:15

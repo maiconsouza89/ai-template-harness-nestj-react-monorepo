@@ -17,7 +17,8 @@ describe('hashPasswordResetIdentifier', () => {
   });
 
   it('é estável e dá hashes distintos para tokens distintos', async () => {
-    const token = 'Xk3abcdefghijklmnopqrstu';
+    // Token falso com a forma do Better Auth (24 alfanuméricos), de baixa entropia para o gitleaks.
+    const token = 'Ab1'.repeat(8);
     const first = await hashPasswordResetIdentifier(`reset-password:${token}`);
     await expect(
       hashPasswordResetIdentifier(`reset-password:${token}`),

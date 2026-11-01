@@ -12,7 +12,8 @@ import {
 } from './reset-password.plugin.js';
 
 const NOW = new Date('2026-11-01T12:00:00.000Z');
-const TOKEN = 'Xk3abcdefghijklmnopqrstu';
+// Token falso com a forma do Better Auth (24 alfanuméricos), de baixa entropia para o gitleaks.
+const TOKEN = 'Ab1'.repeat(8);
 
 /** Captura o `APIError` lançado por `run`, ou falha o teste. */
 async function apiErrorOf(run: () => unknown): Promise<APIError> {

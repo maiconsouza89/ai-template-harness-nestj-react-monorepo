@@ -7,7 +7,8 @@ import {
 } from './send-reset-password.js';
 
 const options = { webOrigin: 'http://localhost:5173' };
-const TOKEN = 'Xk3abcdefghijklmnopqrstu';
+// Token falso com a forma do Better Auth (24 alfanuméricos), de baixa entropia para o gitleaks.
+const TOKEN = 'Ab1'.repeat(8);
 const NOW = new Date('2026-11-01T12:00:00.000Z');
 
 const created = {
