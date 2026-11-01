@@ -220,6 +220,29 @@ describe('Recuperação de senha (integração, banco app_test)', () => {
       expect(await records(hugo.userId)).toHaveLength(0);
       expect(await records(iris.userId)).toHaveLength(1);
     });
+
+    it('o job que entregou o e-mail sai do Valkey e não deixa o token guardado', async () => {
+      const lia = await account('lia');
+      const token = await requestToken('203.0.113.148', lia.email);
+
+      // O job conclui logo depois de o Mailpit receber a mensagem; espera a remoção dele.
+      let holding: string[] = [];
+      for (const deadline = Date.now() + 2_000; Date.now() < deadline;) {
+        const jobs = await queue.getJobs([
+          'completed',
+          'failed',
+          'active',
+          'waiting',
+          'delayed',
+        ]);
+        holding = jobs
+          .filter((job) => JSON.stringify(job.data).includes(token))
+          .map((job) => `${job.id}`);
+        if (holding.length === 0) break;
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      expect(holding).toEqual([]);
+    });
   });
 
   describe('novo pedido', () => {

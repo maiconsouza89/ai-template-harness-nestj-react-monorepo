@@ -7,14 +7,15 @@ import { EmailQueue } from '../../domain/email-queue.js';
 import type { EmailRequest } from '../../domain/email-request.js';
 import {
   EMAIL_SEND_ENQUEUE_TIMEOUT_MS,
-  EMAIL_SEND_JOB_OPTIONS,
+  EMAIL_SEND_JOB_OPTIONS_BY_TYPE,
   EMAIL_SEND_QUEUE,
 } from './email-send.queue.js';
 
 /**
  * Produtor de `email.send` (ADR-0015): um job com o nome do tipo e o pedido como dados (tipo, id
- * da conta e link, sem endereço, nome nem senha), com tentativas, backoff e retenção. Falha rápido
- * com o Valkey fora: pela conexão sem fila offline ou pelo limite de tempo. O limite não cancela o
+ * da conta e link, sem endereço, nome nem senha), com tentativas, backoff e a retenção do tipo (o
+ * `reset-password` sai da fila ao terminar, para não guardar o link). Falha rápido com o Valkey
+ * fora: pela conexão sem fila offline ou pelo limite de tempo. O limite não cancela o
  * `add`: quando ele vence, o desfecho real do `add` vai para o log, para quem lê saber que o job
  * entrou mesmo assim e que um reenvio feito nesse meio-tempo gerou um segundo link. Sem `jobId`
  * fixo: o reenvio legítimo precisa de um job novo (RF-002).
@@ -42,7 +43,11 @@ export class BullMqEmailQueue extends EmailQueue {
       url: request.url,
     };
     let settled = false;
-    const added = this.queue.add(request.type, data, EMAIL_SEND_JOB_OPTIONS);
+    const added = this.queue.add(
+      request.type,
+      data,
+      EMAIL_SEND_JOB_OPTIONS_BY_TYPE[request.type],
+    );
     added.then(
       () => (settled = true),
       () => (settled = true),
