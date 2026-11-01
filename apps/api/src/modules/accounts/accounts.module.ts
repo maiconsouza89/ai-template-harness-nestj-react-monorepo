@@ -16,7 +16,13 @@ import {
   EMAIL_VERIFICATION_EXPIRES_IN,
 } from './auth.js';
 import { EmailVerificationLinks } from './domain/email-verification-links.js';
+import {
+  hashPasswordResetIdentifier,
+  PasswordResetLinks,
+} from './domain/password-reset-links.js';
 import { PrismaEmailVerificationLinksRepository } from './infra/email-verification/prisma-email-verification-links.repository.js';
+import { PrismaPasswordResetLinksRepository } from './infra/password-reset/prisma-password-reset-links.repository.js';
+import { createSendResetPassword } from './infra/password-reset-email/send-reset-password.js';
 import { ValkeyRateLimitStorage } from './infra/rate-limit/valkey-rate-limit.storage.js';
 import { createSendVerificationEmail } from './infra/verification-email/send-verification-email.js';
 import { GetSessionController } from './presentation/get-session/get-session.controller.js';
@@ -24,6 +30,7 @@ import {
   createSignUpHook,
   createSignUpRequestPlugin,
 } from './presentation/sign-up/sign-up.hook.js';
+import { createResetPasswordPlugin } from './presentation/reset-password/reset-password.plugin.js';
 import { createVerifyEmailPlugin } from './presentation/verify-email/verify-email.plugin.js';
 
 /**
@@ -44,13 +51,14 @@ export function createAuthLog(logger: Logger): AuthLog {
 
 /**
  * Dependências de `createAuth` montadas a partir do Valkey, do Módulo E-mail, dos registros de
- * confirmação e do logger.
+ * confirmação e de recuperação e do logger.
  */
 export function createAuthDependencies(
   env: Env,
   redis: Redis,
   requestEmail: RequestEmailUseCase,
   emailVerificationLinks: EmailVerificationLinks,
+  passwordResetLinks: PasswordResetLinks,
 ): AuthDependencies {
   const logger = new Logger('BetterAuth');
   return {
@@ -66,6 +74,14 @@ export function createAuthDependencies(
     signUpHook: createSignUpHook(env.ADMIN_EMAIL),
     signUpRequestPlugin: createSignUpRequestPlugin(AUTH_BASE_PATH),
     verifyEmailPlugin: createVerifyEmailPlugin(emailVerificationLinks),
+    sendResetPassword: createSendResetPassword(
+      requestEmail,
+      passwordResetLinks,
+      { webOrigin: env.WEB_ORIGIN },
+      (message) => logger.error(message),
+    ),
+    resetPasswordPlugin: createResetPasswordPlugin(),
+    hashPasswordResetIdentifier,
     rateLimitStorage: new ValkeyRateLimitStorage(redis, (message) =>
       logger.error(message),
     ),
@@ -79,6 +95,7 @@ const ACCOUNTS_PROVIDERS: Provider[] = [
     provide: EmailVerificationLinks,
     useClass: PrismaEmailVerificationLinksRepository,
   },
+  { provide: PasswordResetLinks, useClass: PrismaPasswordResetLinksRepository },
 ];
 
 /**
@@ -93,7 +110,10 @@ const ACCOUNTS_PROVIDERS: Provider[] = [
  * Módulo E-mail, o rate limit no Valkey e o logger; a confirmação (RF-002) recebe a porta dos
  * registros de confirmação, entregue à fábrica do Better Auth por `provideInjectionTokensFrom`,
  * que a registra dentro do módulo dinâmico dele, e com ela o callback de envio grava o registro
- * e o plugin de `/verify-email` o apaga depois de a biblioteca ativar a conta. O handler do
+ * e o plugin de `/verify-email` o apaga depois de a biblioteca ativar a conta; a recuperação
+ * (RF-005) recebe a porta dos registros de recuperação pelo mesmo caminho, e com ela o callback
+ * do pedido limpa os vencidos e apaga os anteriores, ao lado do plugin com a regra de senha da
+ * troca e a checagem do link e do hash do identificador gravado. O handler do
  * Better Auth é montado sem caminho, então o `middleware` grava `/api/auth/*` como `http.route`
  * das requisições dele, para a métrica e o span de servidor não saírem sem rota (spec da fundação, Métricas exportadas).
  */
@@ -107,6 +127,7 @@ const ACCOUNTS_PROVIDERS: Provider[] = [
         REDIS,
         RequestEmailUseCase,
         EmailVerificationLinks,
+        PasswordResetLinks,
       ],
       provideInjectionTokensFrom: ACCOUNTS_PROVIDERS,
       useFactory: (
@@ -115,6 +136,7 @@ const ACCOUNTS_PROVIDERS: Provider[] = [
         redis: Redis,
         requestEmail: RequestEmailUseCase,
         emailVerificationLinks: EmailVerificationLinks,
+        passwordResetLinks: PasswordResetLinks,
       ) => ({
         auth: createAuth(
           env,
@@ -124,6 +146,7 @@ const ACCOUNTS_PROVIDERS: Provider[] = [
             redis,
             requestEmail,
             emailVerificationLinks,
+            passwordResetLinks,
           ),
         ),
         middleware: createHttpRouteMiddleware(`${AUTH_BASE_PATH}/*`),

@@ -22,8 +22,9 @@ import { REDIS } from '../src/platform/redis/redis.module.js';
 
 /**
  * Apaga os contadores do rate limit (`rate-limit:*`) do banco do Valkey dos testes (banco 1 do
- * `.env.test`): pré-requisito `janela-de-cadastro-livre` do contrato, para nenhum caso começar com
- * a janela de cadastro de um IP já consumida por uma execução anterior.
+ * `.env.test`): pré-requisitos `janela-de-cadastro-livre`, `janela-de-reenvio-livre` (RF-002) e
+ * `janela-de-recuperacao-livre` (RF-005) dos contratos, para nenhum caso começar com a janela de
+ * um IP já consumida por uma execução anterior.
  */
 export async function clearRateLimitCounters(redis: Redis): Promise<void> {
   let cursor = '0';

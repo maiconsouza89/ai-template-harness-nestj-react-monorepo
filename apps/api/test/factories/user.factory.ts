@@ -5,6 +5,8 @@ import type { App } from 'supertest/types.js';
 import { newId, seedAdminInicial } from '../../prisma/seed.js';
 import type { Auth } from '../../src/modules/accounts/auth.js';
 import { EMAIL_VERIFICATION_IDENTIFIER_PREFIX } from '../../src/modules/accounts/domain/email-verification-links.js';
+import { PASSWORD_RESET_IDENTIFIER_PREFIX } from '../../src/modules/accounts/domain/password-reset-links.js';
+import { RESET_PASSWORD_SUBJECT } from '../../src/modules/email/domain/reset-password.template.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
 import { waitForMessagesTo } from '../mailpit.js';
 
@@ -247,6 +249,137 @@ export async function moveEmailVerificationExpiry(
 ): Promise<number> {
   const { count } = await app.get(PrismaService).verification.updateMany({
     where: emailVerificationRecordsOf(userId),
+    data: { expiresAt },
+  });
+  return count;
+}
+
+/** Senha da credencial do pré-requisito `conta-ativa` do contrato do RF-005. */
+export const CONTA_ATIVA_PASSWORD = 'Antiga123';
+
+export interface ContaAtiva {
+  userId: string;
+  name: string;
+  email: string;
+  /** Senha em texto puro da credencial: `CONTA_ATIVA_PASSWORD`. */
+  password: string;
+}
+
+/** Filtro Prisma dos registros de recuperação de uma conta (tabela `verification`). */
+export function passwordResetRecordsOf(userId: string) {
+  return {
+    value: userId,
+    identifier: { startsWith: PASSWORD_RESET_IDENTIFIER_PREFIX },
+  };
+}
+
+/**
+ * Pré-requisito `conta-ativa` do contrato do RF-005: a conta de `email` e `name`, papel usuário,
+ * e-mail verificado, sem banimento, credencial de senha Antiga123 com o hash do Better Auth da
+ * aplicação de teste, nenhuma sessão e nenhum registro de recuperação. Substitui qualquer conta
+ * com esse e-mail (as sessões e credenciais dela saem em cascata) e os registros de recuperação
+ * dela, para o estado ser exatamente o que o contrato descreve. Nenhum e-mail é enviado.
+ */
+export async function contaAtiva(
+  app: INestApplication,
+  { email, name }: { email: string; name: string },
+): Promise<ContaAtiva> {
+  const normalized = email.trim().toLowerCase();
+  const prisma = app.get(PrismaService);
+  const ctx = await (app.get(AuthService) as AuthService<Auth>).instance
+    .$context;
+
+  const previous = await prisma.user.findMany({
+    where: { email: normalized },
+    select: { id: true },
+  });
+  for (const { id } of previous) {
+    await prisma.verification.deleteMany({ where: passwordResetRecordsOf(id) });
+  }
+  await prisma.user.deleteMany({ where: { email: normalized } });
+
+  const userId = newId(ctx, 'user');
+  await prisma.user.create({
+    data: {
+      id: userId,
+      name,
+      email: normalized,
+      emailVerified: true,
+      role: 'user',
+      banned: false,
+      accounts: {
+        create: {
+          id: newId(ctx, 'account'),
+          accountId: userId,
+          providerId: 'credential',
+          password: await ctx.password.hash(CONTA_ATIVA_PASSWORD),
+        },
+      },
+    },
+  });
+  return { userId, name, email: normalized, password: CONTA_ATIVA_PASSWORD };
+}
+
+/** Token do parâmetro `token` do link `/redefinir-senha` num texto, ou `undefined`. */
+export function resetPasswordTokenIn(text: string): string | undefined {
+  const link = /https?:\/\/\S+\/redefinir-senha\?token=[^\s"<]+/.exec(
+    text,
+  )?.[0];
+  return link
+    ? (new URL(link).searchParams.get('token') ?? undefined)
+    : undefined;
+}
+
+/**
+ * Pré-requisito de Configuração do contrato do RF-005: o token do link de recuperação da conta de
+ * `email` é o parâmetro `token` do link da mensagem mais recente de assunto "Redefina sua senha"
+ * para esse e-mail na caixa do Mailpit. Espera até chegarem `messages` mensagens desse assunto e
+ * devolve os tokens da mais recente para a mais antiga.
+ */
+export async function resetPasswordTokens(
+  email: string,
+  { messages = 1, timeoutMs = 15_000 } = {},
+): Promise<string[]> {
+  const received = await waitForMessagesTo(
+    email,
+    timeoutMs,
+    messages,
+    RESET_PASSWORD_SUBJECT,
+  );
+  if (received.length < messages) {
+    throw new Error(
+      `esperava ${messages} mensagem(ns) de recuperação na caixa do Mailpit, chegaram ${received.length}`,
+    );
+  }
+  return received.map(({ Text }) => {
+    const token = resetPasswordTokenIn(Text);
+    if (!token) throw new Error('mensagem sem o link de recuperação');
+    return token;
+  });
+}
+
+/** Token do link de recuperação mais recente para `email` (veja `resetPasswordTokens`). */
+export async function latestResetPasswordToken(
+  email: string,
+  options: { messages?: number; timeoutMs?: number } = {},
+): Promise<string> {
+  const [latest] = await resetPasswordTokens(email, options);
+  return latest!;
+}
+
+/**
+ * Pré-requisito de Configuração do contrato do RF-005: move o vencimento do link de recuperação de
+ * uma conta, alterando o `expiresAt` do registro de recuperação dela (a linha de `verification`
+ * com `identifier` começando por `reset-password:` e `value` igual ao id da conta). Devolve
+ * quantos registros mudaram.
+ */
+export async function movePasswordResetExpiry(
+  app: INestApplication,
+  userId: string,
+  expiresAt: Date,
+): Promise<number> {
+  const { count } = await app.get(PrismaService).verification.updateMany({
+    where: passwordResetRecordsOf(userId),
     data: { expiresAt },
   });
   return count;
