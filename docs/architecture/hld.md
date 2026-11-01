@@ -1,7 +1,7 @@
 # HLD: Template de aplicação web com contas e tarefas
 
-Versão: 0.2.6
-Data: 2026-10-30
+Versão: 0.3.0
+Data: 2026-10-31
 Responsável: Maicon Souza (hipótese)
 PRD: docs/product/prd.md versão 0.1.0
 
@@ -30,7 +30,7 @@ graph LR
   subgraph Sistema
     WEB["SPA Web"]
     CTR["Contratos"]
-    subgraph API NestJS
+    subgraph APIN["API NestJS"]
       CONTAS["Módulo Contas"]
       USUARIOS["Módulo Usuários"]
       TAREFAS["Módulo Tarefas"]
@@ -38,6 +38,7 @@ graph LR
     end
     PG[("PostgreSQL")]
     RDS[("Redis")]
+    OBS[("Backend de observabilidade local")]
   end
   SMTP{{"Servidor SMTP"}}
   WEB --> CONTAS
@@ -55,12 +56,13 @@ graph LR
   EMAIL --> PG
   EMAIL --> RDS
   EMAIL --> SMTP
+  APIN -.->|OTLP, só no local| OBS
 ```
 
-As arestas tracejadas são dependências de build (tipos e esquemas compartilhados), não chamadas em runtime.
+As arestas tracejadas entre SPA, módulos e Contratos são dependências de build (tipos e esquemas compartilhados), não chamadas em runtime. A aresta tracejada da API para o Backend de observabilidade local é a exportação OTLP, que só existe no ambiente local com o perfil `observability` e um endpoint configurado; fora do local a API exporta para o coletor do destino.
 
 Ambiente de implantação
-- Local: Docker Compose (ADR-0006) com os serviços api, web, postgres, redis e mailpit, código montado nos containers e hot reload; o preparo do banco (migrações e primeiro admin) roda por um alvo do `Makefile`, `make db-setup` (hipótese).
+- Local: Docker Compose (ADR-0006) com os serviços api, web, postgres, redis e mailpit, código montado nos containers e hot reload; o preparo do banco (migrações e primeiro admin) roda por um alvo do `Makefile`, `make db-setup` (hipótese). O Backend de observabilidade local (ADR-0029) só sobe com `docker compose --profile observability`, então a subida padrão continua com os cinco serviços.
 - Fora do local: agnóstico de destino. O template entrega duas imagens Docker multi-stage (ADR-0005), uma da API e uma da SPA estática, e o contrato de configuração por variáveis de ambiente; PostgreSQL, Redis (com AOF e `noeviction`), SMTP, TLS e backup ficam a cargo do destino escolhido pelo projeto gerado.
 - Ambientes se separam só por variáveis de ambiente (URLs, credenciais, domínio do cookie); a mesma imagem roda em qualquer um.
 
@@ -85,6 +87,7 @@ Tecnologias principais
 | Mailpit | Caixa SMTP de teste do ambiente local, com interface web e API | ADR-0016 |
 | nestjs-pino | Logs JSON estruturados com redação de dados pessoais | ADR-0018 |
 | OpenTelemetry | Métricas e tracing com exportação OTLP para o coletor do destino | ADR-0019 |
+| grafana/otel-lgtm | Backend local de observabilidade no perfil `observability` do Compose, com painéis e alertas provisionados de arquivo | ADR-0029 |
 | @nestjs/swagger | Documento OpenAPI gerado a partir dos controllers e DTOs, com o plugin CLI e TypeScript 6 | ADR-0020 |
 | Docker multi-stage | Artefato de deploy de cada app | ADR-0005 |
 | Docker Compose | Ambiente de desenvolvimento completo | ADR-0006 |
@@ -110,6 +113,7 @@ Padrões adotados
 | Módulo E-mail | Recebe pedidos de envio, cria jobs no BullMQ, consome a fila no mesmo processo da API, lê o endereço do usuário, renderiza o e-mail em pt-BR e envia por SMTP; orquestra retry e jobs que esgotaram as tentativas. | Redis, PostgreSQL, Servidor SMTP |
 | PostgreSQL | Fonte de verdade de contas, sessões, verificações, tarefas e auditoria. | nenhuma |
 | Redis | Fila de e-mail do BullMQ, persistida com AOF a cada segundo e `maxmemory-policy noeviction`; contadores com TTL de falhas de login por e-mail e de rate limit. Fonte de verdade só dos jobs pendentes. | nenhuma |
+| Backend de observabilidade local | Só no ambiente local: recebe por OTLP os traces, as métricas e os logs da API, guarda 100 por cento dos traces e carrega de arquivo versionado os painéis e as regras de alerta. Não é fonte de verdade de nada; fora do local, o destino tem o próprio backend. | nenhuma |
 
 ---
 
@@ -249,23 +253,26 @@ Gestão de segredos
 Logs
 - JSON por linha via nestjs-pino, com `requestId` propagado ponta a ponta, `userId`, componente, rota, status e latência.
 - Redação por caminho remove `email`, `name`, `password`, `cookie` e `authorization` antes de escrever; teste automatizado garante que cadastro e login não vazam esses campos.
+- Com a exportação ligada, cada linha traz `trace_id` e `span_id` do span ativo, para ir do log ao trace.
 - Retenção de 30 dias no destino.
 
 Métricas
 - Por interface: taxa de requisições, taxa de erro 5xx e latência p95, via auto-instrumentação HTTP do OpenTelemetry.
-- Fila de e-mail: jobs pendentes, idade do job mais antigo, falhas por tentativa e jobs falhos; uso de memória do Redis contra o `maxmemory`.
+- Filas: jobs por estado, idade do job pendente mais antigo e falhas por tentativa, por fila do BullMQ, a fila de e-mail entre elas; uso de memória do Redis contra o `maxmemory`.
 - Componente: conexões do pool do PostgreSQL, disponibilidade do Redis e do PostgreSQL pelo health check.
-- Negócio: bloqueios de login por hora e cadastros sem confirmação após 24 horas.
+- Negócio: bloqueios de login por hora e cadastros sem confirmação após 24 horas, cada uma registrada pelo módulo que gera o evento, com nome no padrão `app.<domínio>.<medida>`.
 
 Tracing
-- OpenTelemetry com propagação W3C Trace Context na API, cobrindo HTTP, Prisma e o consumo do job de e-mail; exportação OTLP para o coletor do destino, desligada quando não há endpoint configurado.
-- Amostragem de 10 por cento dos traces e 100 por cento dos traces com erro, decidida no coletor.
+- OpenTelemetry com propagação W3C Trace Context na API, cobrindo HTTP, Prisma e o consumo de toda fila do BullMQ, inclusive a de e-mail; exportação OTLP para o coletor do destino, ou para o Backend de observabilidade local, desligada quando não há endpoint configurado.
+- Destino: amostragem de 10 por cento dos traces e 100 por cento dos traces com erro, decidida no coletor por amostragem de cauda; a configuração de referência fica versionada em `docker/observability/collector-destino.yaml`.
+- Local: o Backend de observabilidade local guarda 100 por cento dos traces, para quem desenvolve achar o trace de qualquer requisição.
 
 Dashboards e alertas
-- Painel por interface com erro, p95 e vazão, e painel da fila de e-mail.
+- Versionados como código em `docker/observability/` e provisionados no Backend de observabilidade local (ADR-0029); o destino importa os mesmos arquivos.
+- Painel por interface com erro, p95 e vazão, e painel das filas, com a fila de e-mail.
 - Alerta de taxa de erro 5xx acima de 1 por cento por 5 minutos, ligado à meta de 99,5 por cento.
 - Alerta de p95 acima de 300 ms por 5 minutos na API REST v1.
-- Alerta de job de e-mail pendente há mais de 2 minutos ou de qualquer job falho, ligado aos 2 minutos do PRD.
+- Alerta de job pendente há mais de 2 minutos ou de qualquer job falho, por fila, ligado aos 2 minutos do PRD na fila de e-mail.
 - Alerta de health check do Redis ou do PostgreSQL falhando por 1 minuto; o do Redis sinaliza o login em fail-open e a fila de e-mail parada.
 
 ---
@@ -286,7 +293,7 @@ Dashboards e alertas
 - **Impacto:** Redis, BullMQ e OpenTelemetry aumentam o que o dev precisa entender antes de copiar o padrão, e o tempo de criar uma entidade nova passa de 2 horas.
 - **Mitigação:**
   - O Módulo Tarefas, que é o padrão a copiar, não toca Redis, BullMQ nem OpenTelemetry.
-  - OpenTelemetry desligado por padrão, sem endpoint OTLP configurado.
+  - OpenTelemetry desligado por padrão, sem endpoint OTLP configurado, e o Backend de observabilidade local fora da subida padrão do Compose.
   - README separa "o padrão" de "a infraestrutura", e o ensaio de 2 horas do PRD mede isso a cada versão.
 - **Plano de contingência:** desligar o OpenTelemetry e documentar BullMQ e Redis como infraestrutura pronta que o padrão de Tarefas não toca, com um guia de entidade nova que não os menciona.
 
@@ -362,10 +369,12 @@ ADRs associados
 - ADR-0026 Usar dependency-cruiser para fiscalizar a regra de dependência: imports entre camadas e entre módulos da API barrados no `make lint`.
 - ADR-0027 Usar Tailwind CSS 4 para o estilo da SPA: tokens do `DESIGN.md` no `@theme`, sem a paleta padrão do Tailwind.
 - ADR-0028 Usar Inter auto-hospedada como fonte da SPA: `@fontsource-variable/inter` no bundle, sem fonte de outra origem.
+- ADR-0029 Usar grafana/otel-lgtm como backend local de observabilidade: só no perfil `observability`, com painéis, alertas e a configuração de referência do coletor do destino em `docker/observability/`.
 
 Decisões pendentes de ADR
 - Nenhuma: todas as tecnologias principais têm ADR aceito.
 
 Próximos passos
 - Revisar o HLD com `/hld-writer` para renomear o componente Redis para Valkey no texto, no diagrama e nos fluxos (ADR-0014).
+- Implementar a revisão de observabilidade da fundação (`docs/features/fundacao/`, fases 6 e 7) com `/implement-feature` e reavaliar com `/evaluator`.
 - Gerar os diagramas C4 (contexto e containers) com `/c4-writer` a partir deste HLD.

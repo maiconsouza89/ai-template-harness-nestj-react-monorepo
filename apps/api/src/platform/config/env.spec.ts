@@ -150,4 +150,33 @@ describe('loadEnv', () => {
       );
     }
   });
+
+  it('deixa a fila de diagnóstico desligada e o worker ligado por padrão', () => {
+    const env = loadEnv(envExample);
+    expect(env.DIAGNOSTICS_ENABLED).toBe(false);
+    expect(env.DIAGNOSTICS_WORKER_ENABLED).toBe(true);
+    const vazio = loadEnv({
+      ...envExample,
+      DIAGNOSTICS_ENABLED: '',
+      DIAGNOSTICS_WORKER_ENABLED: '',
+    });
+    expect(vazio.DIAGNOSTICS_ENABLED).toBe(false);
+    expect(vazio.DIAGNOSTICS_WORKER_ENABLED).toBe(true);
+  });
+
+  it('lê DIAGNOSTICS_ENABLED e DIAGNOSTICS_WORKER_ENABLED como true ou false', () => {
+    const env = loadEnv({
+      ...envExample,
+      DIAGNOSTICS_ENABLED: 'true',
+      DIAGNOSTICS_WORKER_ENABLED: 'false',
+    });
+    expect(env.DIAGNOSTICS_ENABLED).toBe(true);
+    expect(env.DIAGNOSTICS_WORKER_ENABLED).toBe(false);
+  });
+
+  it('recusa liga/desliga fora de true e false, nomeando a variável', () => {
+    expect(() =>
+      loadEnv({ ...envExample, DIAGNOSTICS_ENABLED: 'yes' }),
+    ).toThrow(/DIAGNOSTICS_ENABLED \(inválida/);
+  });
 });

@@ -8,6 +8,36 @@ const optionalUrl = () => z.preprocess(emptyToUndefined, z.url().optional());
 const optionalEmail = () =>
   z.preprocess(emptyToUndefined, z.email().optional());
 
+/**
+ * Liga/desliga lido como `true` ou `false`, em minúsculas; vazio ou ausente fica no `fallback`.
+ * Qualquer outro texto (`1`, `yes`) é recusado, para um erro de digitação não virar falso calado.
+ */
+const optionalFlag = (fallback: boolean) =>
+  z.preprocess(
+    emptyToUndefined,
+    z
+      .enum(['true', 'false'])
+      .optional()
+      .transform((value) =>
+        value === undefined ? fallback : value === 'true',
+      ),
+  );
+
+/**
+ * Variáveis da fila de diagnóstico (spec da fundação, "Variáveis de ambiente"), à parte para o
+ * `DiagnosticsModule` lê-las na importação do `app.module.ts` sem validar o resto: lá a
+ * configuração ainda não passou pelo `main.ts`, que nomeia o que falta.
+ */
+export const diagnosticsEnvSchema = z.object({
+  NODE_ENV: z.enum(['development', 'test', 'production']),
+  /** `true` registra a fila e a rota de diagnóstico fora de produção; padrão falso. */
+  DIAGNOSTICS_ENABLED: optionalFlag(false),
+  /** `false` registra a fila de diagnóstico sem worker, para os jobs ficarem pendentes. */
+  DIAGNOSTICS_WORKER_ENABLED: optionalFlag(true),
+});
+
+export type DiagnosticsEnv = z.infer<typeof diagnosticsEnvSchema>;
+
 /** Um IP ou uma faixa CIDR, IPv4 ou IPv6: o que o Better Auth aceita em `trustedProxies`. */
 const ipOrCidr = z.union([z.ipv4(), z.ipv6(), z.cidrv4(), z.cidrv6()]);
 /**
@@ -39,7 +69,7 @@ const optionalIpList = () =>
  */
 export const envSchema = z
   .object({
-    NODE_ENV: z.enum(['development', 'test', 'production']),
+    ...diagnosticsEnvSchema.shape,
     DATABASE_URL: z.url(),
     REDIS_URL: z.url(),
     BETTER_AUTH_SECRET: z.string().min(32),

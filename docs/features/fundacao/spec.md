@@ -1,7 +1,7 @@
 # Spec: fundação
 
 PRD: docs/product/prd.md versão 0.1.0
-HLD: docs/architecture/hld.md versão 0.2.5
+HLD: docs/architecture/hld.md versão 0.3.0
 Complexidade: complexa
 
 ---
@@ -24,6 +24,14 @@ Incluído
 - Imagens Docker multi-stage da API e da SPA com turbo prune (ADR-0005).
 - CI: o workflow instala o que o make check passa a exigir, com actions fixadas por SHA (HLD, Ambiente de implantação).
 - Regra de dependência na API: Módulo Contas nas camadas da Clean Architecture e dependency-cruiser no lint de apps/api barrando import entre camadas, entre módulos e ciclos (ADR-0025, ADR-0026).
+- Correlação de logs e traces: com a exportação ligada, as linhas de log da API trazem o trace_id e o span_id do span ativo (ADR-0018, ADR-0019).
+- Tracing de filas: contexto W3C propagado do enfileiramento ao processamento em toda fila do BullMQ, ligado no módulo de filas da plataforma (HLD, Observabilidade; ADR-0015, ADR-0019).
+- Métricas de componente: requisições HTTP por rota e status, pool do PostgreSQL, memória do Valkey, estado do health check e, por fila do BullMQ, jobs por estado, idade do job pendente mais antigo e falhas por tentativa (HLD, Observabilidade; ADR-0019).
+- Métricas de negócio: Meter da aplicação em platform/ com a convenção de nome app.<domínio>.<medida>, onde cada RF registra as suas (HLD, Observabilidade).
+- Fila de diagnóstico: fila e rota anônima POST /api/diagnostics/jobs, ligadas só por DIAGNOSTICS_ENABLED e fora de produção, para exercitar a telemetria de filas sem depender de módulo de funcionalidade (HLD, Observabilidade).
+- Backend local de observabilidade: serviço do Compose no perfil observability que recebe OTLP da API e guarda traces, métricas e logs com amostragem de 100 por cento (HLD, Observabilidade; ADR-0029).
+- Painéis e alertas como código: painel por interface, painel das filas e os quatro alertas do HLD, provisionados no backend local a partir de arquivos versionados (HLD, Dashboards e alertas; ADR-0029).
+- Amostragem do destino: configuração de referência do coletor com 10 por cento dos traces e 100 por cento dos traces com erro (HLD, Tracing).
 
 Entradas
 - nenhuma: a fundação não depende de RF.
@@ -37,6 +45,9 @@ Saídas
 - O roteador da SPA com a rota raiz e a página de erro, onde cada RF pendura as próprias rotas.
 - A configuração do dependency-cruiser em `apps/api/.dependency-cruiser.cjs`, que cobre todo módulo novo em `apps/api/src/modules/` sem edição, porque as regras capturam o nome do módulo pelo caminho.
 - As convenções de pastas, testes, seed, fixtures, configuração de teste e dublês da seção "Convenções para as features".
+- O `AppMetrics` em `apps/api/src/platform/telemetry/`, com o `Meter` da aplicação, onde cada RF registra as próprias métricas de negócio no padrão `app.<domínio>.<medida>`: os bloqueios de login por hora (RF-003) e os cadastros sem confirmação após 24 horas (RF-001 ou RF-002).
+- A telemetria de filas ligada no `BullModule.forRootAsync` de `platform/queue/`: toda fila registrada por um módulo, inclusive a `email.send`, herda a propagação do trace e entra nas métricas de fila sem código próprio.
+- Os painéis e as regras de alerta em `docker/observability/`, que agrupam por fila e por rota, então uma fila ou uma rota nova aparece neles sem edição.
 
 Fora desta spec
 - Telas e fluxos de cadastro, confirmação, entrar, sair e recuperação de senha (RF-001 a RF-005): a fundação só monta a biblioteca e a borda.
@@ -46,6 +57,9 @@ Fora desta spec
 - Módulo Tarefas, o módulo de referência com domínio, casos de uso e repositório (RF-008 a RF-011).
 - Módulo Usuários, situação anterior para reativação e trilha de auditoria (RF-012, RF-013).
 - Suíte E2E versionada no repositório: decisão da entrevista, a verificação de tela fica no contrato.
+- As métricas de negócio em si (bloqueios de login por hora, cadastros sem confirmação após 24 horas): cada uma pertence ao RF que gera o evento, sobre o `AppMetrics` da fundação.
+- Telemetria da SPA no navegador: o HLD mede só a API.
+- Painéis e alertas no ambiente de destino: os arquivos de `docker/observability/` servem de ponto de partida, e importá-los no destino é de quem implanta.
 
 ---
 
@@ -55,8 +69,8 @@ Regras
 - Toda rota da API exige sessão, salvo as marcadas com `@AllowAnonymous()`; na fundação, só `GET /api/health` e as rotas do próprio Better Auth em `/api/auth` (HLD, Segurança).
 - A API não sobe sem todas as variáveis obrigatórias, e a mensagem de erro nomeia a variável ausente sem imprimir o valor de nenhuma (HLD, Gestão de segredos).
 - Nenhum log contém os campos `email`, `name`, `password`, `cookie` nem `authorization` em texto puro, nem a query string das requisições recebidas; o log de acesso registra só o caminho da URL, e o span de servidor do OpenTelemetry redige `url.query` (PRD, Compliance; ADR-0018; ADR-0019).
-- O cadastro por e-mail e senha fica fechado na fundação (`disableSignUp`): só o seed cria conta, e o RF-001 abre o cadastro quando montar o fluxo. A rota recusa com 400 e código `EMAIL_PASSWORD_SIGN_UP_DISABLED`; o `createUser` do plugin admin não é afetado.
-- O rate limit do Better Auth fica desligado na fundação (`rateLimit.enabled = false`), porque o padrão da biblioteca em produção é um balde em memória por processo, que não vale com réplicas (HLD, API sem estado) e escreve aviso fora do JSON no log; o RF-001 liga com armazenamento no Valkey e `trustedProxies` (HLD, Valkey).
+- O cadastro por e-mail e senha nasceu fechado na fundação (`disableSignUp`), e o RF-001 o abriu ao montar o fluxo; a fundação não promete mais nada sobre essa rota, e o item que provava o cadastro fechado saiu do contrato na revisão de 2026-10-31.
+- O rate limit do Better Auth nasceu desligado na fundação (`rateLimit.enabled = false`), porque o padrão da biblioteca em produção é um balde em memória por processo, que não vale com réplicas (HLD, API sem estado); o RF-001 o ligou com armazenamento no Valkey e `trustedProxies` (HLD, Valkey).
 - O `requestId` é único entre réplicas e processos, nunca o contador por processo do pino (ADR-0018).
 - Sem `OTEL_EXPORTER_OTLP_ENDPOINT`, a API não exporta telemetria nem registra erro por isso (ADR-0019).
 - O documento OpenAPI não é publicado com `NODE_ENV=production` (HLD, Interfaces públicas).
@@ -70,6 +84,24 @@ Regras
 - Se a conta de `ADMIN_EMAIL` já existe com papel admin, e-mail verificado e sem banimento em vigor, o seed não muda nada nela, nem a senha. Se existe com papel admin mas banida (`banned` verdadeiro e `banExpires` nulo ou no futuro), o seed termina com código diferente de zero dizendo que a conta do admin está banida, e não a altera: desbanir em silêncio desfaria a decisão de um admin. Banimento com `banExpires` vencido não conta, porque o plugin admin o retira na próxima criação de sessão. Se existe sem papel admin ou sem e-mail verificado, o seed termina com código diferente de zero dizendo que já há conta com esse e-mail sem papel admin, e não altera a conta: promover em silêncio uma conta criada antes do `make db-setup` entregaria o admin a quem registrou o e-mail primeiro.
 - `prisma` e `@prisma/client` ficam em `^7` e o `ioredis` em `^5`, e o TypeScript na major 6 em todo o monorepo (ADR-0008, ADR-0014, ADR-0020).
 - O pnpm é instalado na versão do `packageManager` do `package.json` raiz em Compose, imagens e CI, nunca por `corepack enable` (ADR-0012, ADR-0013).
+
+Observabilidade (HLD, Observabilidade; ADR-0018, ADR-0019)
+- Sem `OTEL_EXPORTER_OTLP_ENDPOINT` nada desta seção roda: sem SDK, sem `trace_id` no log, sem métricas e sem leitura periódica do health check ou do Valkey (ADR-0019; HLD, risco de excesso de infraestrutura).
+- Com a exportação ligada, toda linha de log escrita dentro de um span traz `trace_id`, `span_id` e `trace_flags`, pela instrumentação do pino que o pacote de auto-instrumentação já liga; a redação da fundação continua valendo sobre essas linhas.
+- Toda fila do BullMQ registrada por qualquer módulo propaga o contexto W3C do `add` ao processamento, e o span do processamento é filho do span que enfileirou (docs.bullmq.io, Telemetry, Traces).
+- Nenhum atributo de span, de métrica ou de log exportado traz o conteúdo do job nem dado pessoal; os atributos de fila são só o nome da fila, o estado e o número da tentativa.
+- O nome de toda métrica criada pela aplicação começa com `app.`, segue `app.<domínio>.<medida>` em minúsculas com ponto e usa unidade da UCUM (`s`, `By`, `{job}`); métrica que vem de instrumentação mantém o nome da convenção semântica do OpenTelemetry.
+- O backend local recebe 100 por cento dos traces. A regra do HLD, 10 por cento dos traces e 100 por cento dos com erro, decidida no coletor por amostragem de cauda, vale no destino e fica em `docker/observability/collector-destino.yaml`, sem rodar no local.
+- O backend local só sobe com `--profile observability`: o `docker compose up` sem perfil continua com os cinco serviços da fundação e o tempo de subida da meta de 15 minutos não muda (PRD, Objetivos e métricas).
+- Os quatro alertas do HLD avaliam a cada minuto: taxa de 5xx acima de 1 por cento por 5 minutos; p95 acima de 300 ms por 5 minutos nas rotas `/api/v1`; job pendente há mais de 2 minutos ou qualquer job falho, por fila; health check do PostgreSQL ou do Valkey falhando por 1 minuto.
+- A fila de diagnóstico e a rota `POST /api/diagnostics/jobs` só existem com `DIAGNOSTICS_ENABLED=true` e `NODE_ENV` diferente de `production`; sem isso a rota responde 404 e a fila não é registrada.
+
+Fluxo técnico do trace de um job
+1. A requisição chega à API NestJS e a instrumentação HTTP abre o span de servidor.
+2. Um módulo chama `queue.add`; o `BullMQOtel` do `platform/queue/` grava o contexto do trace nos metadados do job e abre o span de produtor.
+3. O worker do mesmo processo pega o job no Redis, extrai o contexto e abre o span de consumidor como filho do span de produtor.
+4. O SDK exporta os spans por OTLP; o backend local (ou o coletor do destino) os junta num trace só.
+5. Na leitura periódica das métricas, o `QueueMetrics` pede ao Redis as contagens de cada fila registrada e a idade do job pendente mais antigo, e o `AppMetrics` exporta junto as métricas de negócio.
 
 Regra de dependência na API (ADR-0025, ADR-0026)
 - Todo módulo em `apps/api/src/modules/<funcionalidade>/` tem só as pastas de camada `domain/`, `application/`, `infra/` e `presentation/`, cada uma criada quando o módulo precisa dela, e na raiz o `<funcionalidade>.module.ts` e os arquivos de composição de biblioteca que ele monta (no Módulo Contas, `auth.ts`).
@@ -104,6 +136,9 @@ Fluxo técnico da subida local
 | Redis | `compose.yaml` (serviço `valkey`), `apps/api/src/platform/redis/` | Novo. Serviço Valkey 9 com AOF e `noeviction`, e o provider `ioredis` 5 compartilhado. |
 | Contratos | `packages/contracts/src/` | Novo. Pacote ESM com o esquema da resposta de sessão e o esquema das variáveis de ambiente públicas da SPA. |
 | SPA Web | `apps/web/src/` | Novo. `main.tsx` com `createBrowserRouter`, rota raiz com `loader` que lê a sessão, página de erro em pt-BR e o cliente HTTP com `credentials: "include"`. |
+| API NestJS | `apps/api/src/platform/telemetry/`, `apps/api/src/platform/queue/queue.module.ts`, `apps/api/src/platform/health/`, `apps/api/src/platform/config/env.ts`, `apps/api/package.json` | Revisão de 2026-10-31. Novo `platform/telemetry/` com o `AppMetrics` (Meter `app`), o `QueueMetrics` (descobre as filas registradas pelo `DiscoveryService` do Nest e lê contagens e idade na coleta) e o `ComponentMetrics` (memória do Valkey e estado do health check na coleta), todos inertes sem endpoint. O `queue.module.ts` passa o `BullMQOtel` como `telemetry` das filas e dos workers. Os indicadores do health check passam a ser lidos também pelo `ComponentMetrics`. O esquema de config ganha `DIAGNOSTICS_ENABLED` e `DIAGNOSTICS_WORKER_ENABLED`. Dependência nova: `bullmq-otel` 2. |
+| API NestJS | `apps/api/src/platform/diagnostics/` | Revisão de 2026-10-31. Novo. Módulo carregado só com `DIAGNOSTICS_ENABLED=true` fora de produção: fila `diagnostics`, processor que conclui ou falha conforme o pedido e incrementa `app.diagnostics.jobs.processed`, e o controller anônimo de `POST /api/diagnostics/jobs`. |
+| Backend de observabilidade local | `compose.yaml` (serviço `observability`, perfil `observability`), `docker/observability/` | Revisão de 2026-10-31. Novo, `grafana/otel-lgtm` com a tag fixada (ADR-0029). Serviço que recebe OTLP em 4318 na rede do Compose e expõe a interface web em `localhost:8001`, publicada só no loopback do host (`127.0.0.1:8001`); em `docker/observability/` ficam o provisionamento dos painéis (`dashboards/api-interfaces.json`, `dashboards/queues.json`), as regras de alerta (`alerting/rules.yaml`) e o `collector-destino.yaml` de referência. O HLD ainda não tem este componente. |
 
 ---
 
@@ -137,6 +172,37 @@ Fluxo técnico da subida local
 `GET /api/docs` e `GET /api/docs-json` (anônimas, fora de produção)
 - Interface Swagger e documento OpenAPI 3; o JSON fica em `<caminho>-json`, padrão do `@nestjs/swagger` 12.0.5 (`swagger-module.js`).
 
+`POST /api/diagnostics/jobs` (anônima, só com `DIAGNOSTICS_ENABLED=true` fora de produção)
+- Enfileira um job na fila `diagnostics`; responde 202 com o id do job. Sem a flag, ou com `NODE_ENV=production`, responde 404. Corpo fora do esquema responde 400 sem enfileirar.
+- `outcome`: `succeed` conclui o job; `fail` lança erro em toda tentativa. A fila usa 2 tentativas com backoff fixo de 1 segundo (hipótese).
+
+```json
+{ "outcome": "fail" }
+```
+
+```json
+{ "jobId": "1" }
+```
+
+Métricas exportadas por OTLP (com endpoint)
+
+| Métrica | Tipo e unidade | Atributos | Origem |
+| --- | --- | --- | --- |
+| `http.server.request.duration` | histograma, `s` | `http.request.method`, `http.route`, `http.response.status_code` | `@opentelemetry/instrumentation-http` 0.300, com a rota preenchida pela `instrumentation-express` 0.72; nas rotas do Better Auth, montado sem caminho, `http.route` igual a `/api/auth/*`, gravado no metadado RPC do contexto ativo (`getRPCMetadata` do `@opentelemetry/core`) pelo `middleware` do `AuthModule`; baldes padrão da instrumentação |
+| `db.client.connection.count` | contador ascendente e descendente, `{connection}` | `db.client.connection.state` (`idle`, `used`), `db.client.connection.pool.name` | `@opentelemetry/instrumentation-pg` 0.77, sobre o `pg.Pool` do `@prisma/adapter-pg` |
+| `app.valkey.memory.used` | gauge, `By` | nenhum | `ComponentMetrics`, `INFO memory` |
+| `app.valkey.memory.max` | gauge, `By` (0 sem `maxmemory`) | nenhum | `ComponentMetrics`, `INFO memory` |
+| `app.health.status` | gauge, 1 de pé e 0 fora | `dependency` (`postgres`, `valkey`) | `ComponentMetrics`, os mesmos indicadores de `GET /api/health` |
+| `app.queue.jobs` | gauge, `{job}` | `queue`, `state` (`waiting`, `active`, `delayed`, `failed`) | `QueueMetrics`, contagens do BullMQ |
+| `app.queue.oldest_job.age` | gauge, `s` (0 sem job pendente) | `queue` | `QueueMetrics`, job em `waiting` mais antigo |
+| `app.queue.job.failures` | contador, `{failure}` | `queue`, `attempt` | `QueueMetrics`, evento de falha de cada fila |
+| `app.diagnostics.jobs.processed` | contador, `{job}` | `outcome` | Fila de diagnóstico, pelo `AppMetrics` |
+
+Painéis e alertas (`docker/observability/`)
+- Painel "API por interface": vazão, taxa de 5xx e p95 por `http.route`, com as rotas agrupadas em API de autenticação (`/api/auth/*`) e API REST v1 (`/api/v1`). A taxa de 5xx conta todas as rotas, `GET /api/health` inclusive. A legenda das séries mostra o último valor e a média, sem o máximo; a linha de limiar de 0,3 s aparece só no p95 de `/api/v1`, a única seção que o alerta `api-v1-p95` vigia.
+- Painel "Filas": jobs por estado, idade do job pendente mais antigo e falhas por tentativa, por `queue`, e memória do Valkey contra o máximo.
+- Regras de alerta, avaliadas a cada minuto: `api-5xx-rate` (5xx sobre o total acima de 0,01 por 5 minutos), `api-v1-p95` (p95 de `/api/v1` acima de 0,3 s por 5 minutos), `queue-stalled` (por `queue`, idade do mais antigo acima de 120 s ou jobs `failed` acima de 0), `dependency-down` (por `dependency`, `app.health.status` igual a 0 por 1 minuto).
+
 Erros
 - Formato padrão do Nest: `{ "statusCode": 401, "message": "Unauthorized" }`; 500 sem stack trace com `NODE_ENV=production`. (hipótese)
 
@@ -154,7 +220,9 @@ Variáveis de ambiente (`.env.example`)
 | `SMTP_HOST`, `SMTP_PORT`, `SMTP_FROM` | sim | Transporte SMTP; validados já na fundação para o Módulo E-mail do RF-001 |
 | `SMTP_USER`, `SMTP_PASSWORD` | não | Credenciais SMTP; o Mailpit local não pede |
 | `ADMIN_EMAIL`, `ADMIN_PASSWORD` | sim no `make db-setup` | Primeiro admin; a API não as lê |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | não | Liga a exportação OTLP |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | não | Liga a exportação OTLP; com o perfil `observability`, `http://observability:4318` |
+| `DIAGNOSTICS_ENABLED` | não | `true` registra a fila e a rota de diagnóstico fora de produção; padrão falso |
+| `DIAGNOSTICS_WORKER_ENABLED` | não | `false` registra a fila de diagnóstico sem worker, para os jobs ficarem pendentes; padrão verdadeiro |
 | `LOG_LEVEL` | não | Nível do pino, padrão `info` |
 | `PORT` | não | Porta HTTP da API, inteiro de 1 a 65535, padrão 3000; o health check da imagem lê a mesma variável |
 | `VITE_API_URL` | sim na SPA | URL da API vista pelo navegador |
@@ -171,6 +239,8 @@ Migração inicial `apps/api/prisma/migrations/<timestamp>_init/`, com o schema 
 - `session`: `id` PK, `token` único, `userId` FK para `user` com exclusão em cascata, `expiresAt`, `ipAddress`, `userAgent`, `createdAt`, `updatedAt`, e `impersonatedBy` do plugin admin.
 - `account`: `id` PK, `accountId`, `providerId`, `userId` FK para `user` em cascata, `password` (hash) nulo, campos de token OAuth nulos, `createdAt`, `updatedAt`.
 - `verification`: `id` PK, `identifier`, `value`, `expiresAt`, `createdAt`, `updatedAt`.
+
+A revisão de observabilidade de 2026-10-31 não muda o banco: métricas e traces vão para o backend por OTLP, e a fila de diagnóstico vive só no Redis.
 
 O e-mail em minúsculas e a situação pendente/ativa/desativada do HLD se expressam por `email` normalizado no cadastro (RF-001), `emailVerified` e `banned`; a coluna de situação anterior para a reativação é do RF-013.
 
@@ -193,6 +263,11 @@ O seed procura a conta de `ADMIN_EMAIL` em `user`. Sem conta, cria em `user` e `
 | Cadastro por e-mail e senha em `/api/auth/sign-up/email` | Módulo Contas, Better Auth | 400 com código `EMAIL_PASSWORD_SIGN_UP_DISABLED`, sem criar conta | Nada na fundação; o RF-001 monta a tela |
 | Migração falha | PostgreSQL, `prisma migrate deploy` | `make db-setup` termina com código diferente de zero | Saída do Prisma |
 | Coletor OTLP inacessível | API NestJS, exportador OTLP | Exportação descartada com aviso no log; requisições seguem | nada |
+| Valkey fora na leitura das métricas | API NestJS, `QueueMetrics` e `ComponentMetrics` | A coleta daquela rodada omite as métricas de fila e de memória, `app.health.status` de `valkey` sai 0, e um aviso no log por rodada; a exportação das demais segue | nada |
+| Leitura de métrica que passa de 2 segundos | API NestJS, `platform/telemetry/` | A leitura é abandonada pelo `withTimeout` da plataforma e a métrica sai omitida naquela rodada | nada |
+| `POST /api/diagnostics/jobs` sem a flag ou em produção | API NestJS, módulo de diagnóstico não carregado | 404 | Formato padrão do Nest |
+| Corpo inválido em `POST /api/diagnostics/jobs` | API NestJS, validação Zod | 400 sem enfileirar | Formato padrão do Nest |
+| Backend local fora com o endpoint apontado para ele | API NestJS, exportador OTLP | Mesmo caso do coletor inacessível | nada |
 | Rota inexistente na SPA | SPA Web, `errorElement` da rota raiz | Página de erro | "Página não encontrada" em pt-BR |
 | API inacessível no `loader` da rota raiz | SPA Web | Página de erro | Mensagem em pt-BR de que o servidor não respondeu |
 
@@ -208,6 +283,15 @@ Unidade (Vitest, `*.spec.ts` ao lado do código)
 - `apps/web/src/routes/root.spec.ts`: o `loader` devolve o estado anônimo com 401 e o estado da sessão com 200, com `fetch` trocado por dublê.
 - `apps/api/src/modules/accounts/presentation/get-session/get-session.controller.spec.ts`: o controller devolve id e papel da sessão e cai em `user` com papel nulo.
 
+Observabilidade (revisão de 2026-10-31)
+- `apps/api/src/platform/telemetry/queue-metrics.spec.ts`: com filas dubladas, as contagens viram `app.queue.jobs` por estado, a idade do mais antigo sai em segundos e 0 sem pendente, e a falha de uma fila não derruba a coleta das outras; leitor de métricas em memória do SDK (`InMemoryMetricExporter`).
+- `apps/api/src/platform/telemetry/component-metrics.spec.ts`: `INFO memory` dublado vira os dois gauges; indicador fora vira `app.health.status` 0; leitura acima do limite sai omitida.
+- `apps/api/src/platform/telemetry/app-metrics.spec.ts`: o `Meter` se chama `app` e recusa nome de métrica fora de `app.<domínio>.<medida>`.
+- `apps/api/src/platform/diagnostics/diagnostics.controller.spec.ts`: 202 com `jobId`, 400 com `outcome` desconhecido.
+- `apps/api/test/integration/diagnostics.int-spec.ts`: sem a flag a rota responde 404; com a flag o job `succeed` conclui e o `fail` termina falho depois de 2 tentativas, contra o Valkey do Compose.
+- `apps/api/test/integration/queue-tracing.int-spec.ts`: com um `InMemorySpanExporter` registrado no teste, o span de consumidor da fila de diagnóstico tem o mesmo `traceId` do span de produtor.
+- Painéis, alertas e configuração do coletor: sem teste versionado; o contrato os exercita contra o backend local.
+
 Regra de dependência (dependency-cruiser no `make lint`)
 - Sem teste próprio: a configuração roda sobre `apps/api/src/` em todo `make lint`, e a árvore da fundação passa sem violação. A prova de que cada regra barra o import errado é de quem exercita o contrato, com arquivos de violação temporários.
 
@@ -221,7 +305,7 @@ Verificação por superfície
 | Superfície | Mecanismo | Decisão |
 | --- | --- | --- |
 | API HTTP | requisições HTTP contra a API em execução no Compose | não precisa |
-| CLI | comandos na raiz do repositório e no Compose, inspecionando código de saída, saída e estado resultante | não precisa |
+| CLI | comandos na raiz do repositório e no Compose, inspecionando código de saída, saída e estado resultante; leitura do receptor HTTP local e consultas HTTP à API de consulta do backend local de observabilidade | não precisa |
 | UI | navegador dirigido pelo `@playwright/cli` contra a SPA em execução | ADR-0024 |
 
 ---
@@ -233,6 +317,7 @@ Verificação por superfície
 - Estado persistido: factories em `apps/api/test/factories/<entidade>.factory.ts` gravando pelo Prisma Client no banco `app_test`, que o `scripts/test.sh` recria e migra a cada execução; o estado que o contrato pede no ambiente local sai do seed `apps/api/prisma/seed.ts` (configurado em `migrations.seed` do `prisma.config.ts`), que cada RF estende com funções idempotentes.
 - Entradas estáticas: `apps/api/test/fixtures/` e `apps/web/test/fixtures/`, caminhos reservados que o primeiro RF com fixture cria; a fundação não versiona pasta vazia.
 - Configuração de teste: `apps/api/.env.test` versionado, só com valores falsos e de baixa entropia, lido pelos dois `vitest.config.ts` da API; o modo de teste que um RF precisar entra como variável nesse arquivo e no esquema de config.
+- Métricas e traces: métrica de negócio nova se registra pelo `AppMetrics` de `apps/api/src/platform/telemetry/`, com nome `app.<domínio>.<medida>`, unidade UCUM e atributos sem dado pessoal; fila nova se registra com `BullModule.registerQueue` e herda trace e métricas sem código; o teste de unidade lê a métrica pelo `InMemoryMetricExporter` do SDK, e o contrato a lê no receptor HTTP local ou no backend local.
 - Dependências externas: dublês em `apps/api/test/doubles/` (caminho reservado, criado pelo primeiro RF com dublê), ligados por `overrideProvider()` do `@nestjs/testing`; o SMTP (DEP-1) é o Mailpit do Compose na integração e no ambiente local, lido pela API REST dele (ADR-0016).
 
 ---
@@ -264,6 +349,21 @@ Decisões
 
 - Revisão de 2026-10-30, cookie de API-BORDA-03 fixado em `sessao-inventada`: escolhido na revisão. O contrato não fixava o valor, cada avaliação gravava um cookie diferente na evidência e o gitleaks 8.30.1 acusava como `generic-api-key` valores como `inventado123.abcdef`; `sessao-inventada` tem baixa entropia e não é acusado (testado com `gitleaks dir`), e para o Better Auth é um cookie sem sessão como qualquer outro, então o 401 continua provado. Alternativa descartada: fixar `inventado123.abcdef`, que dependeria para sempre da allowlist do `.gitleaks.toml`.
 
+- Revisão de 2026-10-31, observabilidade: a fundação, e não um RF novo, entrega o que o HLD pede em Observabilidade e a primeira versão deixou de fora, escolhido na entrevista. Alternativas descartadas: um RF de operação no PRD, que não fala de stack, e um plano avulso fora do fluxo de contrato.
+- Revisão de 2026-10-31, API-BORDA-05 removido do contrato: o RF-001 abriu o cadastro, como a própria spec da fundação previa, e a spec do RF-001 pediu esta revisão. A fundação não pode exigir o comportamento do RF-001 (fecho vazio), então a rota de cadastro sai da promessa da fundação.
+- Revisão de 2026-10-31, porta da interface web do backend local trocada de 3001 para 8001, por decisão da pessoa: a 3001 do host Windows está ocupada por um `portproxy` que ela usa, e o Docker recusa publicar nela. O bind fica em `127.0.0.1`, porque a imagem `grafana/otel-lgtm` entra com admin anônimo (doc da imagem, README do grafana/docker-otel-lgtm) e publicar em todas as interfaces daria edição de painéis e alertas a qualquer máquina da rede; achado da revisão de segurança automática. Alternativa descartada: manter a 3001 e remover o `portproxy`.
+- Revisão de 2026-10-31, CLI-IMAGEM-02 passa a definir TRUSTED_PROXIES ao subir a imagem: a API exige a variável com NODE_ENV=production (spec do RF-001, Decisões) e o `.env.example` a deixa vazia, então o item como estava não passava com a configuração dos Pré-requisitos. A regra da API fica; o item usa a faixa privada que contém a rede do Compose, `172.16.0.0/12`.
+- Revisão de 2026-10-31, investigação dos 5xx e do p95 altos no painel "API por interface": os números vinham de incidentes reais (Valkey parado nas avaliações, com `GET /api/health` e `POST /api/diagnostics/jobs` em 503), não de erro de consulta. Decisões da pessoa: a taxa de 5xx e o alerta `api-5xx-rate` continuam contando `GET /api/health` e a rota de diagnóstico, sem piso de tráfego, aceitando que um incidente de dependência dispare também `dependency-down` (alternativa descartada: excluir as duas rotas e exigir tráfego mínimo); as rotas do Better Auth ganham `http.route` igual a `/api/auth/*`, para o painel separar a autenticação das requisições sem rota (alternativa descartada: assumir a mistura com os 404 fora de `/api`); o histograma fica com os baldes padrão, aceitando que o p95 entre 0,25 e 0,5 s e entre 1 e 2,5 s saia interpolado (alternativa descartada: uma View com baldes finos); a legenda deixa de mostrar o máximo da janela e o limiar visual de 0,3 s fica só na seção `/api/v1`.
+- Telemetria de filas por mecanismo genérico em `platform/queue/` e prova pela fila de diagnóstico, escolhido na entrevista: a fila `email.send` é do RF-001, fora do fecho da fundação. Alternativas descartadas: provar pela fila de e-mail, que faria a fundação depender de RF, e deixar a prova para uma revisão do RF-001.
+- `BullMQOtel` do pacote `bullmq-otel` 2.0.1 como `telemetry` das filas e workers: é a integração com OpenTelemetry que a doc do BullMQ indica (docs.bullmq.io, guide/telemetry/traces: "Pass a telemetry instance to Queue, Worker, or FlowProducer"; a propagação vem por padrão, `omitContext` falso). Conferido no registro npm em 2026-10-31: peer `bullmq >=6.0.0` (instalado 6.5.1) e dependência só de `@opentelemetry/api ^1.9.1`. Coberta pelo ADR-0015 e pelo ADR-0019, como o `@prisma/instrumentation` da primeira versão.
+- Métricas de negócio nos RFs donos, sobre o `AppMetrics` da fundação, escolhido na entrevista. Alternativa descartada: criar as duas métricas agora, com o RF-003 pendente e a fundação dependendo de RF.
+- Backend local com 100 por cento dos traces e a regra do HLD versionada como configuração de referência do destino, escolhido na entrevista. Alternativa descartada: amostragem de cauda também no local, que esconderia 9 de cada 10 traces sem erro de quem desenvolve.
+- Backend local incluído no Compose, escolhido na entrevista, com o `grafana/otel-lgtm` (ADR-0029): Grafana na porta 3000 do container, OTLP HTTP em 4318, `otelcol-contrib` embutido para validar o `collector-destino.yaml`, painéis em `/otel-lgtm/grafana/conf/provisioning/dashboards/custom` e regras de alerta na pasta `provisioning/alerting` do Grafana.
+- Painéis e alertas versionados como código e provisionados no backend local, escolhido na entrevista, contra a recomendação de deixá-los com o destino. O custo aceito é o risco de excesso de infraestrutura do HLD; a mitigação é o perfil `observability`, que deixa a subida padrão como estava.
+- Nomes das métricas de instrumentação conferidos no código instalado em 2026-10-31: `http.server.request.duration` na `@opentelemetry/instrumentation-http` 0.300; a rota vem do `rpcMetadata.route` que a `@opentelemetry/instrumentation-express` 0.72 preenche; `db.client.connection.count` com `db.client.connection.state` na `@opentelemetry/instrumentation-pg` 0.77.
+- `trace_id` e `span_id` no log pela `@opentelemetry/instrumentation-pino`, que o `getNodeAutoInstrumentations` já liga e o `instrumentation.ts` já carrega antes do pino.
+- Painéis provisionados por arquivo montado no container do backend, como o README do `grafana/docker-otel-lgtm` documenta (pasta `/otel-lgtm/grafana/conf/provisioning/dashboards/custom`), caso o ADR escolha essa imagem; o mesmo projeto avisa que não é solução para produção, por isso o backend existe só no local.
+
 Hipóteses
 - Pacotes `@app/api`, `@app/web` e `@app/contracts` (hipótese)
 - Portas locais: api 3000, web 5173, postgres 5432, valkey 6379, mailpit 1025 (SMTP) e 8025 (web), com SPA e API em `localhost`, o mesmo site para o cookie (hipótese)
@@ -275,6 +375,16 @@ Hipóteses
 - Cookie sem domínio no local (host-only) e `COOKIE_DOMAIN` só fora dele (hipótese)
 - Servidor estático da imagem da SPA: nginx oficial com fallback para `index.html` (hipótese)
 - Configuração do dependency-cruiser em `apps/api/.dependency-cruiser.cjs`, o nome que o `depcruise --init` gera, em CommonJS por o pacote ser ESM (hipótese)
+- Nomes das métricas próprias (`app.queue.jobs`, `app.queue.oldest_job.age`, `app.queue.job.failures`, `app.valkey.memory.used`, `app.valkey.memory.max`, `app.health.status`, `app.diagnostics.jobs.processed`) e o padrão `app.<domínio>.<medida>`; alternativa descartada: prefixo com o nome do serviço, que o `service.name` do recurso já traz (hipótese)
+- Filas descobertas pelo `DiscoveryService` do Nest procurando instâncias de `Queue` do BullMQ; alternativa descartada: registro manual de cada fila em `platform/`, que cada RF esqueceria (hipótese)
+- Falhas por tentativa contadas pelo evento `failed` de cada fila, com a tentativa lida de `attemptsMade` do job (hipótese)
+- Fila de diagnóstico com 2 tentativas e backoff fixo de 1 segundo, para o contrato ver duas tentativas em poucos segundos (hipótese)
+- Variáveis `DIAGNOSTICS_ENABLED` e `DIAGNOSTICS_WORKER_ENABLED`, a rota `POST /api/diagnostics/jobs` e o módulo em `platform/diagnostics/` (hipótese)
+- Serviço `observability` no perfil `observability` e OTLP HTTP em 4318 só na rede do Compose (hipótese)
+- Interface web do backend local em `localhost:8001`, publicada só em `127.0.0.1` do host
+- Arquivos em `docker/observability/`: `dashboards/api-interfaces.json`, `dashboards/queues.json`, `alerting/rules.yaml` e `collector-destino.yaml` (hipótese)
+- Nomes das regras de alerta `api-5xx-rate`, `api-v1-p95`, `queue-stalled` e `dependency-down`, agrupadas por fila e por dependência, em vez de uma regra fixa para `email.send` (hipótese)
+- Limite de 2 segundos por leitura de métrica, abaixo do intervalo de exportação de 60 segundos do SDK (hipótese)
 
 Pendentes de ADR
 - Servidor estático da imagem da SPA, que o ADR-0005 deixou de fora: nginx oficial em Alpine com fallback para `index.html` (hipótese desta spec, já implementada em `apps/web/Dockerfile` e `apps/web/nginx.conf` por decisão explícita da pessoa), Caddy, ou `serve` em Node; critério, imagem pequena sem runtime Node. ESM com Vitest, oxlint com Prettier, `@playwright/cli` e Zod 4, pendentes na primeira versão desta spec, estão registrados nos ADR-0021 a ADR-0024.
@@ -291,8 +401,9 @@ Pendentes de ADR
 | HLD, Interfaces públicas (API de autenticação, API REST v1, Documento OpenAPI) | Contratos de interface |
 | HLD, Segurança (autenticação, gestão de segredos) | Regras e fluxos, Contratos de interface |
 | HLD, Observabilidade (logs, tracing, health check) | Regras e fluxos, Tratamento de erros |
+| HLD, Observabilidade (métricas, amostragem, dashboards e alertas) | Escopo, Regras e fluxos (Observabilidade), Contratos de interface, Decisões e hipóteses |
 | HLD, Versionamento e retenção (jobs do BullMQ) | Decisões e hipóteses |
 | PRD, Decisão primeiro admin criado na instalação | Modelo de dados, Regras e fluxos |
 | PRD, Compliance (LGPD nos logs) | Regras e fluxos |
 | HLD, Padrões adotados (Clean Architecture com casos de uso por pasta) | Regras e fluxos, Componentes, Convenções para as features |
-| ADRs 0002 a 0010 e 0012 a 0026 | Escopo, Decisões e hipóteses |
+| ADRs 0002 a 0010, 0012 a 0026 e 0029 | Escopo, Decisões e hipóteses |

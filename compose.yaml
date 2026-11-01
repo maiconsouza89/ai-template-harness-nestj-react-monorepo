@@ -190,6 +190,44 @@ services:
       timeout: 5s
       retries: 10
 
+  observability:
+    # Backend local de observabilidade (ADR-0029): coletor OTLP, Prometheus, Tempo, Loki e Grafana
+    # num container só, que guarda 100 por cento do que a API exporta. Só sobe com
+    # `docker compose --profile observability up -d --wait`; sem o perfil, o ambiente continua
+    # com os cinco serviços acima. A API exporta para ele com
+    # OTEL_EXPORTER_OTLP_ENDPOINT=http://observability:4318 no .env (OTLP HTTP só na rede do
+    # Compose). Grafana em http://localhost:8001, sem login (acesso anônimo de admin da imagem),
+    # por isso a porta fica presa ao loopback: publicada em todas as interfaces, qualquer máquina
+    # da rede editaria painéis, alertas e fontes de dados (make check-compose confere). O papel
+    # anônimo continua admin porque a API de provisionamento de alertas, que diz se a regra veio
+    # de arquivo, exige admin.
+    # Painéis e regras de alerta vêm de docker/observability/ como provisionamento: não se editam
+    # pela interface; mude o arquivo e rode `docker compose --profile observability restart
+    # observability`. Sem volume: os dados somem quando o container é recriado.
+    image: grafana/otel-lgtm:0.39.0
+    profiles: [observability]
+    ports:
+      - '127.0.0.1:8001:3000'
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 2g
+    volumes:
+      # Pastas inteiras, não arquivos: bind mount de arquivo único se perde quando um editor
+      # grava o arquivo como inode novo, e o container não volta a subir. Elas substituem os
+      # painéis de exemplo e o sample.yaml de alertas que a imagem traz nessas pastas.
+      - ./docker/observability/dashboards:/otel-lgtm/grafana/conf/provisioning/dashboards:ro
+      - ./docker/observability/alerting:/otel-lgtm/grafana/conf/provisioning/alerting:ro
+    healthcheck:
+      # Script da própria imagem: espera o arquivo de pronto e confere Grafana, Loki, Tempo,
+      # Prometheus e o coletor. Intervalo menor que o padrão de 30 s da imagem para o --wait.
+      test: ['CMD', '/otel-lgtm/docker/healthcheck.sh']
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 120s
+
 volumes:
   postgres_data:
   valkey_data:

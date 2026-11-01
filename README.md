@@ -65,6 +65,7 @@ make db-setup                # aplica as migrações e cria o primeiro admin do 
 | API | <http://localhost:3000/api> (saúde em [`/api/health`](http://localhost:3000/api/health)) |
 | Documento OpenAPI | <http://localhost:3000/api/docs> (só fora de produção) |
 | Mailpit | <http://localhost:8025> (SMTP em `localhost:1025`) |
+| Grafana (perfil `observability`) | <http://localhost:8001> (ver [Backend local de observabilidade](#backend-local-de-observabilidade)) |
 
 A primeira subida instala as dependências dentro dos containers, o que leva alguns minutos;
 elas ficam em volumes nomeados, então dependência nova pede só `docker compose restart api web`.
@@ -92,7 +93,64 @@ a URL sai sem a query string, onde vão os tokens. As linhas do Better Auth pass
 logger, a partir do nível `warn` e com os erros reduzidos ao nome e ao código, e as do worker de
 e-mail citam só os ids do job e da conta. `LOG_LEVEL` no `.env` muda o nível. Traces e métricas do OpenTelemetry só são exportados com
 `OTEL_EXPORTER_OTLP_ENDPOINT` definido (do Compose, um coletor no host fica em
-`http://host.docker.internal:4318`); sem a variável a instrumentação não faz nada.
+`http://host.docker.internal:4318`); sem a variável a instrumentação não faz nada. Com ela, toda
+fila do BullMQ propaga o trace do enfileiramento ao processamento, e a API exporta, além das
+métricas de HTTP e do pool do PostgreSQL, jobs por estado, idade do job pendente mais antigo e
+falhas por tentativa de cada fila, memória do Valkey e o estado do health check (`app.queue.*`,
+`app.valkey.*`, `app.health.status`). Métrica de negócio nova entra pelo `AppMetrics` de
+`apps/api/src/platform/telemetry/`, com nome `app.<domínio>.<medida>`.
+
+Para exercitar essa telemetria sem módulo de funcionalidade, `DIAGNOSTICS_ENABLED=true` no
+`.env` (ignorada com `NODE_ENV=production`) registra a fila `diagnostics` e a rota anônima
+`POST /api/diagnostics/jobs`, que recebe `{ "outcome": "succeed" }` ou `{ "outcome": "fail" }` e
+responde 202 com o `jobId`; o job falho tenta 2 vezes. `DIAGNOSTICS_WORKER_ENABLED=false` deixa
+a fila sem worker, para os jobs ficarem pendentes.
+
+### Backend local de observabilidade
+
+Para ver traces, métricas e logs da API, o perfil `observability` do Compose sobe o
+`grafana/otel-lgtm` (ADR-0029): coletor OTLP, Prometheus, Tempo, Loki e Grafana num container
+só, que guarda 100 por cento dos traces. Ele não sobe no `docker compose up` sem o perfil.
+
+```sh
+# no .env: OTEL_EXPORTER_OTLP_ENDPOINT=http://observability:4318
+docker compose --profile observability up -d --wait   # recria a api com o endpoint novo
+```
+
+Abra o Grafana em <http://localhost:8001> (sem login, acesso anônimo de admin; a porta só
+escuta no loopback do host, então outra máquina da rede não alcança). Os
+painéis ficam em Dashboards, pasta **App**: **API por interface** (vazão, taxa de 5xx e p95 por
+rota, separando a API REST v1 e a API de autenticação) e **Filas** (jobs por estado, idade do job
+pendente mais antigo e falhas por tentativa, por fila, e memória do Valkey contra o máximo). As
+quatro regras de alerta do HLD ficam em Alerting > Alert rules, na mesma pasta: `api-5xx-rate`,
+`api-v1-p95`, `queue-stalled` (por fila) e `dependency-down` (por dependência), avaliadas a cada
+minuto. Traces e logs saem em Explore, com o Tempo e o Loki; do log se vai ao trace pelo
+`trace_id`. Uma fila ou rota nova aparece nos painéis e nos alertas sem edição.
+
+Painéis e alertas são provisionados de `docker/observability/` e não se editam pela interface:
+mude o arquivo e rode `docker compose --profile observability restart observability`. O serviço
+não tem volume, então os dados somem quando o container é recriado. Para desligar, tire a
+variável do `.env` e rode `docker compose --profile observability down observability` seguido de
+`docker compose up -d --wait`.
+
+Para levar ao ambiente de destino (a imagem não serve para produção):
+
+| Arquivo | O que é | No destino |
+| --- | --- | --- |
+| `docker/observability/dashboards/*.json` | Painéis do Grafana | Importe em Dashboards > Import, ou copie a pasta com o provedor `dashboards.yaml` para o `provisioning/dashboards` do Grafana de lá, ajustando o `path` |
+| `docker/observability/alerting/rules.yaml` | Regras de alerta do Grafana | Copie para o `provisioning/alerting` do Grafana de lá, trocando `datasourceUid: prometheus` pelo UID do Prometheus |
+| `docker/observability/collector-destino.yaml` | Coletor OpenTelemetry contrib com a amostragem de cauda do HLD (10 por cento dos traces e todos os com erro) | Use como configuração do coletor, com `OTLP_DESTINO_ENDPOINT` apontando para o backend; a API exporta para o coletor por `OTEL_EXPORTER_OTLP_ENDPOINT` |
+
+As consultas usam os nomes que o Prometheus grava a partir do OTLP (`app_health_status_ratio`,
+`app_queue_job_failures_total`, `http_server_request_duration_seconds_bucket`); um destino que
+traduza os nomes de outro jeito pede ajuste nelas. Para validar o coletor com o `otelcol-contrib`
+da imagem do backend:
+
+```sh
+docker run --rm -v "$PWD/docker/observability:/cfg:ro" \
+  --entrypoint /otel-lgtm/otelcol-contrib/otelcol-contrib grafana/otel-lgtm:0.39.0 \
+  validate --config=/cfg/collector-destino.yaml
+```
 
 ## Imagens de produção
 

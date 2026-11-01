@@ -6,6 +6,7 @@ import type { Env } from '../../platform/config/env.js';
 import { describeError } from '../../platform/logging/describe-error.js';
 import { PrismaService } from '../../platform/prisma/prisma.service.js';
 import { REDIS } from '../../platform/redis/redis.module.js';
+import { createHttpRouteMiddleware } from '../../platform/telemetry/http-route.js';
 import { EmailModule, RequestEmailUseCase } from '../email/email.module.js';
 import {
   AUTH_BASE_PATH,
@@ -67,7 +68,9 @@ export function createAuthDependencies(
  * `presentation/get-session/`, sem caso de uso em `application/`, porque só repassa a sessão. As
  * rotas de cadastro, entrar, sair e recuperação são do próprio Better Auth e entram pelos RF-001 a
  * RF-005 como configuração; o cadastro (RF-001) recebe aqui o hook, o envio da confirmação pelo
- * Módulo E-mail, o rate limit no Valkey e o logger.
+ * Módulo E-mail, o rate limit no Valkey e o logger. O handler do Better Auth é montado sem caminho,
+ * então o `middleware` grava `/api/auth/*` como `http.route` das requisições dele, para a métrica
+ * e o span de servidor não saírem sem rota (spec da fundação, Métricas exportadas).
  */
 @Module({
   imports: [
@@ -85,6 +88,7 @@ export function createAuthDependencies(
           prisma,
           createAuthDependencies(env, redis, requestEmail),
         ),
+        middleware: createHttpRouteMiddleware(`${AUTH_BASE_PATH}/*`),
       }),
     }),
   ],

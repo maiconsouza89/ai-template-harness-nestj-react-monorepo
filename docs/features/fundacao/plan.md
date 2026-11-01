@@ -50,3 +50,19 @@ Spec: spec.md. Contrato: contract.md.
 22. **Módulo Contas:** mover o controller e o DTO de `GET /api/v1/session` para `presentation/get-session/`, deixar `auth.ts` e o `accounts.module.ts` na raiz do módulo e fazer os comentários do módulo citarem o ADR-0025 (spec, Componentes).
 23. **API NestJS:** instalar o dependency-cruiser como devDependency de `apps/api`, escrever a configuração com as regras de "Regra de dependência na API" da spec e chamá-lo no script `lint` do pacote, para entrar no `make lint` pelo Turborepo.
 24. **API NestJS:** conferir que a árvore passa sem violação e que um import proibido de cada regra faz `make lint` falhar com o nome da regra, desfazendo os arquivos de prova.
+
+## Fase 6: Telemetria de filas e métricas exportadas pela API
+
+25. **API NestJS:** acrescentar `DIAGNOSTICS_ENABLED` e `DIAGNOSTICS_WORKER_ENABLED` ao esquema de config e ao `.env.example`, e trocar o exemplo de `OTEL_EXPORTER_OTLP_ENDPOINT` pelo endereço do backend local (spec, Contratos de interface).
+26. **API NestJS:** instalar o `bullmq-otel` e passar o `BullMQOtel` como telemetria das filas e dos workers em `platform/queue/`, para toda fila propagar o trace do enfileiramento ao processamento.
+27. **API NestJS:** criar `platform/telemetry/` com o `AppMetrics` e a convenção de nome das métricas de negócio, inerte sem endpoint.
+28. **API NestJS:** criar o `QueueMetrics`, que descobre as filas registradas e exporta jobs por estado, idade do pendente mais antigo e falhas por tentativa (spec, Métricas exportadas).
+29. **API NestJS:** criar o `ComponentMetrics`, que exporta a memória do Valkey e o estado do health check pelos indicadores já existentes, com o limite de tempo por leitura.
+30. **API NestJS:** criar `platform/diagnostics/` com a fila de diagnóstico, o processor que conclui ou falha e a rota anônima `POST /api/diagnostics/jobs`, carregados só com a flag e fora de produção.
+
+## Fase 7: Backend local, painéis e alertas
+
+31. **Backend de observabilidade local:** acrescentar ao `compose.yaml` o serviço no perfil `observability`, com o `grafana/otel-lgtm` do ADR-0029, OTLP HTTP na rede do Compose e a interface web na porta 8001 do host, publicada só em `127.0.0.1`.
+32. **Backend de observabilidade local:** escrever em `docker/observability/` os painéis "API por interface" e "Filas" e montá-los como provisionados no serviço, com as rotas do Better Auth identificadas como `/api/auth/*` nas métricas da API (spec, Contratos de interface).
+33. **Backend de observabilidade local:** escrever as quatro regras de alerta do HLD e montá-las como provisionadas, agrupadas por rota, fila e dependência (spec, Regras e fluxos).
+34. **Backend de observabilidade local:** escrever o `collector-destino.yaml` com a amostragem de cauda do HLD e documentar no README como subir o perfil, abrir os painéis e levar os arquivos para o destino.

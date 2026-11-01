@@ -5,8 +5,8 @@
  * `main.ts`: em ESM o grafo inteiro é carregado antes de executar, e o hook de módulos tem de
  * estar registrado antes de `@nestjs/core` ser carregado.
  *
- * Sem `OTEL_EXPORTER_OTLP_ENDPOINT` este arquivo não faz nada: não carrega o SDK, não registra o
- * hook e não escreve log (spec da fundação, Regras). Com a variável, o `NodeSDK` sobe com a
+ * Sem `OTEL_EXPORTER_OTLP_ENDPOINT` este arquivo não carrega o SDK, não registra o hook e não
+ * escreve log (spec da fundação, Regras); só define o tamanho do threadpool do libuv. Com a variável, o `NodeSDK` sobe com a
  * auto-instrumentação de HTTP, Nest e as demais do pacote (ioredis, pg, pino) mais a do Prisma,
  * e exporta traces, métricas e logs por OTLP (`http/protobuf` por padrão) para o endpoint, com
  * `/v1/traces`, `/v1/metrics` e `/v1/logs` acrescentados pelo SDK. As demais variáveis
@@ -17,6 +17,11 @@
  * resto da API (spec, Tratamento de erros); a aplicação segue respondendo.
  */
 import { register } from 'node:module';
+import { ensureThreadpoolSize } from './platform/runtime/threadpool.js';
+
+// Antes de qualquer trabalho assíncrono, com ou sem endpoint: por ser o primeiro módulo carregado,
+// é aqui que o tamanho do threadpool do libuv ainda pode ser definido (veja threadpool.ts).
+ensureThreadpoolSize();
 
 const endpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
 
@@ -76,6 +81,13 @@ if (endpoint) {
         '@opentelemetry/instrumentation-http': {
           startIncomingSpanHook: (request) =>
             request.url?.includes('?') ? { 'url.query': '[redigido]' } : {},
+        },
+        // O serializador padrão põe em `db.query.text` os argumentos de comandos como `evalsha`,
+        // que no BullMQ carregam os dados do job (no `email.send`, o link com o token), o motivo
+        // da falha e o stack trace. O span guarda só o nome do comando (spec da fundação,
+        // Observabilidade: nenhum atributo exportado traz o conteúdo do job).
+        '@opentelemetry/instrumentation-ioredis': {
+          dbStatementSerializer: (command) => command,
         },
       }),
       new PrismaInstrumentation(),

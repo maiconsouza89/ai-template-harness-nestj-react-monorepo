@@ -1,0 +1,18 @@
+# Provedor de painéis do Grafana (provisionamento por arquivo, ADR-0029). O compose.yaml monta
+# esta pasta inteira em provisioning/dashboards/ do backend local: o Grafana lê este YAML como
+# provedor e carrega cada JSON da mesma pasta como painel provisionado, na pasta App.
+# Num destino com Grafana, copie a pasta e ajuste o `path` abaixo para onde ela ficar.
+apiVersion: 1
+
+providers:
+  - name: app
+    orgId: 1
+    folder: App
+    type: file
+    # Painel provisionado não se edita pela interface: mude o JSON e reinicie o serviço.
+    allowUiUpdates: false
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    options:
+      path: /otel-lgtm/grafana/conf/provisioning/dashboards
+      foldersFromFilesStructure: false

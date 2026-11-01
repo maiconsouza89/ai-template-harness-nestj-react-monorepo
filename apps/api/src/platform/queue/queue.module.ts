@@ -3,6 +3,9 @@ import { Module } from '@nestjs/common';
 import type { ConnectionOptions } from 'bullmq';
 import { ENV } from '../config/config.module.js';
 import type { Env } from '../config/env.js';
+import { createQueueTelemetry } from './queue-telemetry.js';
+
+export { createQueueTelemetry };
 
 /**
  * Conexão do produtor do BullMQ (ADR-0015) a partir de `REDIS_URL`: própria, e não a `REDIS`
@@ -27,14 +30,18 @@ export function createWorkerConnection(env: Env): ConnectionOptions {
 /**
  * Raiz das filas do BullMQ sobre o Valkey (ADR-0014). O `BullModule.forRootAsync` é global: cada
  * módulo de funcionalidade registra a própria fila com `BullModule.registerQueue` e herda a
- * conexão do produtor; o worker troca a conexão pelas opções do `@Processor`. O `@nestjs/bullmq`
- * fecha filas e workers no `app.close()`.
+ * conexão do produtor e a telemetria; o `@nestjs/bullmq` passa a mesma telemetria ao worker da
+ * fila, e o worker troca só a conexão pelas opções do `@Processor`. O `@nestjs/bullmq` fecha
+ * filas e workers no `app.close()`.
  */
 @Module({
   imports: [
     BullModule.forRootAsync({
       inject: [ENV],
-      useFactory: (env: Env) => ({ connection: createProducerConnection(env) }),
+      useFactory: (env: Env) => ({
+        connection: createProducerConnection(env),
+        telemetry: createQueueTelemetry(),
+      }),
     }),
   ],
 })
