@@ -4,12 +4,12 @@ Gerado de `prd.md` versão 0.1.0 pela skill prd-writer. Status se muda na coluna
 
 ## Situação
 
-- Concluídos: 1 de 13 RFs (8 por cento)
+- Concluídos: 2 de 13 RFs (15 por cento)
 - Onda atual: 2
-- Liberados para começar: RF-002, RF-005
+- Liberados para começar: RF-005, RF-003
 - Em andamento: nenhum
 - Bloqueados: nenhum
-- Caminho crítico restante: RF-002 → RF-003 → RF-008 → RF-009 (4 RFs)
+- Caminho crítico restante: RF-003 → RF-008 → RF-009 (3 RFs)
 
 ## Grafo
 
@@ -19,7 +19,7 @@ Aresta A → B: B não pode ser construído ou validado sem A.
 graph LR
   DEP1{{"DEP-1 serviço de envio de e-mail"}}:::externa
   RF001["RF-001 Criar conta"]:::feito
-  RF002["RF-002 Confirmar e-mail"]:::pendente
+  RF002["RF-002 Confirmar e-mail"]:::feito
   RF005["RF-005 Recuperar senha"]:::pendente
   RF003["RF-003 Entrar"]:::pendente
   RF004["RF-004 Sair"]:::pendente
@@ -60,7 +60,7 @@ RFs da mesma onda podem ser desenvolvidos em paralelo.
 | Onda | RF | Nome | Prioridade | Status | Observação | Depende de |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | RF-001 | Criar conta | alta | feito | avaliação limpa em docs/features/RF-001-criar-conta/avaliacao.md | DEP-1 |
-| 2 | RF-002 | Confirmar e-mail | alta | pendente |  | RF-001 |
+| 2 | RF-002 | Confirmar e-mail | alta | feito | avaliação limpa em docs/features/RF-002-confirmar-e-mail/avaliacao.md | RF-001 |
 | 2 | RF-005 | Recuperar senha | media | pendente |  | RF-001 |
 | 3 | RF-003 | Entrar | alta | pendente |  | RF-002 |
 | 4 | RF-004 | Sair | alta | pendente |  | RF-003 |

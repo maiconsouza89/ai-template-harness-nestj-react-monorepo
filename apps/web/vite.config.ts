@@ -15,7 +15,7 @@ export default defineConfig({
     watch: { usePolling: process.env.WATCH_POLLING === 'true' },
   },
   test: {
-    include: ['src/**/*.spec.ts'],
+    include: ['src/**/*.spec.{ts,tsx}'],
     environment: 'node',
   },
 });

@@ -122,3 +122,67 @@ export function toSignUpFieldErrors(error: z.ZodError): FieldError[] {
     .filter((field) => first.has(field))
     .map((field) => ({ field, message: first.get(field) as string }));
 }
+
+/**
+ * Confirmação de e-mail do RF-002 (spec, Contratos de interface): códigos das respostas de
+ * `GET /api/auth/verify-email`, textos dos estados da tela `/confirmar-email` e do reenvio por
+ * `POST /api/auth/send-verification-email`. A API devolve os códigos e as mensagens de erro, e a
+ * SPA mostra os mesmos textos; RF-003 reaproveita o reenvio na tela de conta pendente.
+ */
+
+/** Códigos da confirmação, no campo `code` do corpo da resposta. */
+export const verifyEmailCodes = {
+  /** 401: o registro do link venceu (`expiresAt` no passado), ou o JWT venceu na biblioteca. */
+  tokenExpired: 'TOKEN_EXPIRED',
+  /** 401: link sem registro (já usado, trocado por reenvio, adulterado) ou de conta inexistente. */
+  invalidToken: 'INVALID_TOKEN',
+  /** 401 da própria biblioteca, quando a conta do token não existe; a SPA trata como link inválido. */
+  userNotFound: 'USER_NOT_FOUND',
+  /** 200: a conta do link já estava ativa; nada muda. */
+  alreadyVerified: 'ALREADY_VERIFIED',
+} as const;
+export type VerifyEmailCode =
+  (typeof verifyEmailCodes)[keyof typeof verifyEmailCodes];
+
+/** Mensagens em pt-BR das respostas de erro da confirmação e dos avisos do reenvio. */
+export const verifyEmailMessages = {
+  tokenExpired: 'Este link expirou. Peça um novo link abaixo.',
+  invalidToken: 'Este link não vale mais. Peça um novo link abaixo.',
+  resendSent: 'Se o e-mail tiver uma conta pendente, enviamos um novo link.',
+  tooManyRequests: signUpErrorMessages.tooManyRequests,
+  serverUnavailable: signUpErrorMessages.serverUnavailable,
+} as const;
+
+/** Título e texto de cada estado da tela `/confirmar-email`. */
+export const verifyEmailStates = {
+  verified: { title: 'E-mail confirmado', text: 'Sua conta está ativa.' },
+  alreadyVerified: {
+    title: 'Conta já confirmada',
+    text: 'Esta conta já está confirmada.',
+  },
+  expired: { title: 'Link expirado', text: verifyEmailMessages.tokenExpired },
+  invalid: { title: 'Link inválido', text: verifyEmailMessages.invalidToken },
+} as const;
+export type VerifyEmailState = keyof typeof verifyEmailStates;
+
+/** Corpo 200 do hook quando a conta já está ativa. */
+export interface AlreadyVerifiedBody {
+  status: true;
+  code: typeof verifyEmailCodes.alreadyVerified;
+}
+
+/** Corpo 401 da confirmação recusada pelo hook. */
+export interface VerifyEmailErrorBody {
+  code:
+    typeof verifyEmailCodes.tokenExpired | typeof verifyEmailCodes.invalidToken;
+  message: string;
+}
+
+/** Corpo de `POST /api/auth/send-verification-email` e campo do reenvio na tela. */
+export const resendVerificationEmailSchema = z.object({ email: emailSchema });
+export type ResendVerificationEmailInput = z.input<
+  typeof resendVerificationEmailSchema
+>;
+export type ResendVerificationEmail = z.output<
+  typeof resendVerificationEmailSchema
+>;

@@ -6,7 +6,14 @@ import '@fontsource-variable/inter/wght.css';
 import './styles/app.css';
 import { signUpAction } from './routes/cadastro/action.js';
 import { SignUpRoute } from './routes/cadastro/route.js';
+import { verifyEmailAction } from './routes/confirmar-email/action.js';
+import {
+  shouldRevalidateVerifyEmail,
+  verifyEmailLoader,
+} from './routes/confirmar-email/loader.js';
+import { VerifyEmailRoute } from './routes/confirmar-email/route.js';
 import { ErrorPage } from './routes/error-page.js';
+import { HomeRoute } from './routes/home/route.js';
 import { rootLoader } from './routes/root/loader.js';
 import { RootRoute } from './routes/root/route.js';
 
@@ -29,7 +36,15 @@ export const router = createBrowserRouter([
     loader: rootLoader,
     errorElement: <ErrorPage />,
     children: [
+      { index: true, Component: HomeRoute },
       { path: 'cadastro', Component: SignUpRoute, action: signUpAction },
+      {
+        path: 'confirmar-email',
+        Component: VerifyEmailRoute,
+        loader: verifyEmailLoader,
+        action: verifyEmailAction,
+        shouldRevalidate: shouldRevalidateVerifyEmail,
+      },
     ],
   },
 ]);
