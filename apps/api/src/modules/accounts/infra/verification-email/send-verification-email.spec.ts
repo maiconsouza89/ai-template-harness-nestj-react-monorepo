@@ -7,7 +7,8 @@ import {
   type EmailVerificationLinkWriter,
 } from './send-verification-email.js';
 
-const SECRET = 'segredo-falso-de-teste-com-32-caracteres';
+// Segredo falso de baixa entropia, só para assinar e conferir o token no teste.
+const SECRET = 'x'.repeat(32);
 
 const options = {
   webOrigin: 'http://localhost:5173',
