@@ -50,7 +50,7 @@ export type AuthLog = NonNullable<
  * Montadas no `accounts.module.ts`.
  */
 export interface AuthDependencies {
-  /** Callback que pede ao Módulo E-mail o e-mail de confirmação. */
+  /** Callback que grava o registro do link (RF-002) e pede ao Módulo E-mail a confirmação. */
   sendVerificationEmail: SendVerificationEmail;
   /** Hook antes do cadastro, com a validação de Contratos e a recusa de e-mail existente. */
   signUpHook: SignUpHook;

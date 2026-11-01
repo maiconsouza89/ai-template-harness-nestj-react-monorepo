@@ -1,4 +1,4 @@
-import { Logger, Module } from '@nestjs/common';
+import { Logger, Module, type Provider } from '@nestjs/common';
 import { AuthModule } from '@thallesp/nestjs-better-auth';
 import type { Redis } from 'ioredis';
 import { ENV } from '../../platform/config/config.module.js';
@@ -13,7 +13,10 @@ import {
   type AuthDependencies,
   type AuthLog,
   createAuth,
+  EMAIL_VERIFICATION_EXPIRES_IN,
 } from './auth.js';
+import { EmailVerificationLinks } from './domain/email-verification-links.js';
+import { PrismaEmailVerificationLinksRepository } from './infra/email-verification/prisma-email-verification-links.repository.js';
 import { ValkeyRateLimitStorage } from './infra/rate-limit/valkey-rate-limit.storage.js';
 import { createSendVerificationEmail } from './infra/verification-email/send-verification-email.js';
 import { GetSessionController } from './presentation/get-session/get-session.controller.js';
@@ -38,17 +41,25 @@ export function createAuthLog(logger: Logger): AuthLog {
   };
 }
 
-/** Dependências de `createAuth` montadas a partir do Valkey, do Módulo E-mail e do logger. */
+/**
+ * Dependências de `createAuth` montadas a partir do Valkey, do Módulo E-mail, dos registros de
+ * confirmação e do logger.
+ */
 export function createAuthDependencies(
   env: Env,
   redis: Redis,
   requestEmail: RequestEmailUseCase,
+  emailVerificationLinks: EmailVerificationLinks,
 ): AuthDependencies {
   const logger = new Logger('BetterAuth');
   return {
     sendVerificationEmail: createSendVerificationEmail(
       requestEmail,
-      env.WEB_ORIGIN,
+      emailVerificationLinks,
+      {
+        webOrigin: env.WEB_ORIGIN,
+        expiresInSeconds: EMAIL_VERIFICATION_EXPIRES_IN,
+      },
     ),
     signUpHook: createSignUpHook(env.ADMIN_EMAIL),
     signUpRequestPlugin: createSignUpRequestPlugin(AUTH_BASE_PATH),
@@ -59,6 +70,14 @@ export function createAuthDependencies(
   };
 }
 
+/** Portas do Módulo Contas ligadas às implementações de `infra/` (ADR-0025). */
+const ACCOUNTS_PROVIDERS: Provider[] = [
+  {
+    provide: EmailVerificationLinks,
+    useClass: PrismaEmailVerificationLinksRepository,
+  },
+];
+
 /**
  * Módulo Contas, raiz de composição do módulo (ADR-0025): monta o Better Auth de `auth.ts` em
  * `/api/auth` e registra o guard global, que recusa com 401 toda rota sem sessão, salvo as
@@ -68,7 +87,9 @@ export function createAuthDependencies(
  * `presentation/get-session/`, sem caso de uso em `application/`, porque só repassa a sessão. As
  * rotas de cadastro, entrar, sair e recuperação são do próprio Better Auth e entram pelos RF-001 a
  * RF-005 como configuração; o cadastro (RF-001) recebe aqui o hook, o envio da confirmação pelo
- * Módulo E-mail, o rate limit no Valkey e o logger. O handler do Better Auth é montado sem caminho,
+ * Módulo E-mail, o rate limit no Valkey e o logger; a confirmação (RF-002) recebe a porta dos
+ * registros de confirmação, entregue à fábrica do Better Auth por `provideInjectionTokensFrom`,
+ * que a registra dentro do módulo dinâmico dele. O handler do Better Auth é montado sem caminho,
  * então o `middleware` grava `/api/auth/*` como `http.route` das requisições dele, para a métrica
  * e o span de servidor não saírem sem rota (spec da fundação, Métricas exportadas).
  */
@@ -76,17 +97,30 @@ export function createAuthDependencies(
   imports: [
     AuthModule.forRootAsync({
       imports: [EmailModule],
-      inject: [ENV, PrismaService, REDIS, RequestEmailUseCase],
+      inject: [
+        ENV,
+        PrismaService,
+        REDIS,
+        RequestEmailUseCase,
+        EmailVerificationLinks,
+      ],
+      provideInjectionTokensFrom: ACCOUNTS_PROVIDERS,
       useFactory: (
         env: Env,
         prisma: PrismaService,
         redis: Redis,
         requestEmail: RequestEmailUseCase,
+        emailVerificationLinks: EmailVerificationLinks,
       ) => ({
         auth: createAuth(
           env,
           prisma,
-          createAuthDependencies(env, redis, requestEmail),
+          createAuthDependencies(
+            env,
+            redis,
+            requestEmail,
+            emailVerificationLinks,
+          ),
         ),
         middleware: createHttpRouteMiddleware(`${AUTH_BASE_PATH}/*`),
       }),

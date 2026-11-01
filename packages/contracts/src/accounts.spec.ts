@@ -1,10 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import {
   passwordSchema,
+  resendVerificationEmailSchema,
   signUpErrorCodes,
   signUpMessages,
   signUpSchema,
   toSignUpFieldErrors,
+  verifyEmailCodes,
+  verifyEmailMessages,
+  verifyEmailStates,
 } from './accounts.js';
 
 const rule =
@@ -102,5 +106,41 @@ describe('signUpErrorCodes', () => {
   it('expõe os códigos do cadastro', () => {
     expect(signUpErrorCodes.validation).toBe('VALIDATION_ERROR');
     expect(signUpErrorCodes.userAlreadyExists).toBe('USER_ALREADY_EXISTS');
+  });
+});
+
+describe('resendVerificationEmailSchema', () => {
+  it('aceita e-mail válido e o devolve em minúsculas', () => {
+    const result = resendVerificationEmailSchema.safeParse({
+      email: ' Lia@Example.com ',
+    });
+    expect(result.success && result.data).toEqual({ email: 'lia@example.com' });
+  });
+
+  it('recusa e-mail inválido ou ausente com a mensagem de e-mail', () => {
+    for (const body of [{ email: 'lia@' }, { email: '' }, {}]) {
+      const result = resendVerificationEmailSchema.safeParse(body);
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe(
+        signUpMessages.emailInvalid,
+      );
+    }
+  });
+});
+
+describe('mensagens da confirmação', () => {
+  it('usa nos estados vencido e inválido as mensagens das respostas de erro', () => {
+    expect(verifyEmailStates.expired.text).toBe(
+      verifyEmailMessages.tokenExpired,
+    );
+    expect(verifyEmailStates.invalid.text).toBe(
+      verifyEmailMessages.invalidToken,
+    );
+    expect(verifyEmailCodes).toEqual({
+      tokenExpired: 'TOKEN_EXPIRED',
+      invalidToken: 'INVALID_TOKEN',
+      userNotFound: 'USER_NOT_FOUND',
+      alreadyVerified: 'ALREADY_VERIFIED',
+    });
   });
 });
