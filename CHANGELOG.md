@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.0](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/compare/v1.1.0...v1.2.0) (2026-11-01)
+
+
+### Adicionado
+
+* **observability:** adiciona observabilidade à fundação ([#13](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/issues/13)) ([77d0a1c](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/commit/77d0a1c87f9821694dbc90f730ab2331d1355824))
+
 ## [1.1.0](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/compare/v1.0.0...v1.1.0) (2026-10-31)
 
 
