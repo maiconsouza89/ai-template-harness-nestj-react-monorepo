@@ -10,11 +10,13 @@ export interface MailpitMessage {
   From: { Address: string };
   To: { Address: string }[];
   Subject: string;
+  /** Data do envio, em ISO 8601. */
+  Date: string;
   Text: string;
   HTML: string;
 }
 
-/** Ids das mensagens cujo destinatário é `address`, numa só busca. */
+/** Ids das mensagens cujo destinatário é `address`, numa só busca, da mais recente à mais antiga. */
 async function messageIdsTo(address: string): Promise<string[]> {
   const query = encodeURIComponent(`to:"${address}"`);
   const search = await fetch(`${MAILPIT_URL}/api/v1/search?query=${query}`);
@@ -32,20 +34,26 @@ async function readMessages(ids: string[]): Promise<MailpitMessage[]> {
   );
 }
 
-/** Mensagens cujo destinatário é `address`, com o corpo completo. */
+/** Mensagens cujo destinatário é `address`, com o corpo completo, da mais recente à mais antiga. */
 export async function messagesTo(address: string): Promise<MailpitMessage[]> {
   return readMessages(await messageIdsTo(address));
 }
 
-/** Espera até `timeoutMs` alguma mensagem para `address` chegar; só lê os corpos no fim. */
+/**
+ * Espera até `timeoutMs` chegarem `minCount` mensagens (ao menos uma) para `address`; só lê os
+ * corpos no fim.
+ */
 export async function waitForMessagesTo(
   address: string,
   timeoutMs = 15_000,
+  minCount = 1,
 ): Promise<MailpitMessage[]> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
     const ids = await messageIdsTo(address);
-    if (ids.length > 0 || Date.now() > deadline) return readMessages(ids);
+    if (ids.length >= minCount || Date.now() > deadline) {
+      return readMessages(ids);
+    }
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
 }

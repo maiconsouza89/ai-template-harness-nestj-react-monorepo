@@ -24,6 +24,7 @@ import {
   createSignUpHook,
   createSignUpRequestPlugin,
 } from './presentation/sign-up/sign-up.hook.js';
+import { createVerifyEmailPlugin } from './presentation/verify-email/verify-email.plugin.js';
 
 /**
  * Encaminha as linhas do Better Auth ao logger do Nest, que o `main.ts` liga ao pino: saem em
@@ -59,10 +60,12 @@ export function createAuthDependencies(
       {
         webOrigin: env.WEB_ORIGIN,
         expiresInSeconds: EMAIL_VERIFICATION_EXPIRES_IN,
+        secret: env.BETTER_AUTH_SECRET,
       },
     ),
     signUpHook: createSignUpHook(env.ADMIN_EMAIL),
     signUpRequestPlugin: createSignUpRequestPlugin(AUTH_BASE_PATH),
+    verifyEmailPlugin: createVerifyEmailPlugin(emailVerificationLinks),
     rateLimitStorage: new ValkeyRateLimitStorage(redis, (message) =>
       logger.error(message),
     ),
@@ -89,7 +92,8 @@ const ACCOUNTS_PROVIDERS: Provider[] = [
  * RF-005 como configuração; o cadastro (RF-001) recebe aqui o hook, o envio da confirmação pelo
  * Módulo E-mail, o rate limit no Valkey e o logger; a confirmação (RF-002) recebe a porta dos
  * registros de confirmação, entregue à fábrica do Better Auth por `provideInjectionTokensFrom`,
- * que a registra dentro do módulo dinâmico dele. O handler do Better Auth é montado sem caminho,
+ * que a registra dentro do módulo dinâmico dele, e com ela o callback de envio grava o registro
+ * e o plugin de `/verify-email` o consome. O handler do Better Auth é montado sem caminho,
  * então o `middleware` grava `/api/auth/*` como `http.route` das requisições dele, para a métrica
  * e o span de servidor não saírem sem rota (spec da fundação, Métricas exportadas).
  */

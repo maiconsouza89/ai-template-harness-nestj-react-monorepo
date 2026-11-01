@@ -59,6 +59,11 @@ export interface AuthDependencies {
    * origem da biblioteca, que roda antes do hook.
    */
   signUpRequestPlugin: BetterAuthPlugin;
+  /**
+   * Plugin com o hook antes de `/verify-email` (RF-002), que dá ao link uso único, prazo pelo
+   * registro de confirmação e a resposta `ALREADY_VERIFIED` à conta já ativa.
+   */
+  verifyEmailPlugin: BetterAuthPlugin;
   /** Contadores do rate limit no Valkey. */
   rateLimitStorage: BetterAuthRateLimitStorage;
   /** Linhas de log da biblioteca, encaminhadas ao pino. */
@@ -83,8 +88,8 @@ export interface AuthDependencies {
  *   ela, vale um cabeçalho de um valor só e, sem cabeçalho, o endereço local em development e
  *   test (`@better-auth/core`, `utils/ip`).
  * - Com `deps` (a API em execução): hook antes do cadastro, o plugin que descarta os campos de
- *   redirecionamento do cadastro, envio do e-mail de confirmação pelo
- *   Módulo E-mail, rate limit ligado em todo ambiente com os contadores no Valkey e os logs da
+ *   redirecionamento do cadastro, o plugin de uso único do link de confirmação (RF-002), envio
+ *   do e-mail de confirmação pelo Módulo E-mail, rate limit ligado em todo ambiente com os contadores no Valkey e os logs da
  *   biblioteca no pino. Sem `deps` (seed e CLI de schema), nada disso entra e o rate limit fica
  *   desligado, porque não há requisição HTTP.
  */
@@ -122,7 +127,9 @@ export function createAuth(
         ? { enabled: true, domain: env.COOKIE_DOMAIN }
         : { enabled: false },
     },
-    plugins: deps ? [admin(), deps.signUpRequestPlugin] : [admin()],
+    plugins: deps
+      ? [admin(), deps.signUpRequestPlugin, deps.verifyEmailPlugin]
+      : [admin()],
   });
 }
 

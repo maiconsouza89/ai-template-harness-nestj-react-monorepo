@@ -4,7 +4,9 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { newId, seedAdminInicial } from '../../prisma/seed.js';
 import type { Auth } from '../../src/modules/accounts/auth.js';
+import { EMAIL_VERIFICATION_IDENTIFIER_PREFIX } from '../../src/modules/accounts/domain/email-verification-links.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
+import { waitForMessagesTo } from '../mailpit.js';
 
 export interface AdminInicial {
   userId: string;
@@ -179,4 +181,73 @@ export async function pendingAccountAna(
     userId: (response.body as { user: { id: string } }).user.id,
     ...PENDING_ACCOUNT_ANA,
   };
+}
+
+/** Token do parâmetro `token` do link `/confirmar-email` num texto, ou `undefined`. */
+export function confirmationTokenIn(text: string): string | undefined {
+  const link = /https?:\/\/\S+\/confirmar-email\?token=[^\s"<]+/.exec(
+    text,
+  )?.[0];
+  return link
+    ? (new URL(link).searchParams.get('token') ?? undefined)
+    : undefined;
+}
+
+/**
+ * Pré-requisito de Configuração do contrato do RF-002: o token do link da conta de `email` é o
+ * parâmetro `token` do link da mensagem mais recente para esse e-mail na caixa do Mailpit. Espera
+ * até chegarem `messages` mensagens para ele (1, a do cadastro; 2, a do cadastro e a de um
+ * reenvio) e devolve os tokens da mais recente para a mais antiga, na ordem da busca do Mailpit
+ * (recebimento decrescente, com milissegundos; o cabeçalho `Date` só tem segundos).
+ */
+export async function confirmationTokens(
+  email: string,
+  { messages = 1, timeoutMs = 15_000 } = {},
+): Promise<string[]> {
+  const received = await waitForMessagesTo(email, timeoutMs, messages);
+  if (received.length < messages) {
+    throw new Error(
+      `esperava ${messages} mensagem(ns) na caixa do Mailpit, chegaram ${received.length}`,
+    );
+  }
+  return received.map(({ Text }) => {
+    const token = confirmationTokenIn(Text);
+    if (!token) throw new Error('mensagem sem o link de confirmação');
+    return token;
+  });
+}
+
+/** Token do link da mensagem mais recente para `email` (veja `confirmationTokens`). */
+export async function latestConfirmationToken(
+  email: string,
+  options: { messages?: number; timeoutMs?: number } = {},
+): Promise<string> {
+  const [latest] = await confirmationTokens(email, options);
+  return latest!;
+}
+
+/** Filtro Prisma dos registros de confirmação de uma conta (tabela `verification`). */
+export function emailVerificationRecordsOf(userId: string) {
+  return {
+    value: userId,
+    identifier: { startsWith: EMAIL_VERIFICATION_IDENTIFIER_PREFIX },
+  };
+}
+
+/**
+ * Pré-requisito de Configuração do contrato do RF-002: move o vencimento do link de uma conta,
+ * alterando o `expiresAt` do registro de confirmação dela (a linha de `verification` com
+ * `identifier` começando por `email-verification:` e `value` igual ao id da conta). Devolve
+ * quantos registros mudaram.
+ */
+export async function moveEmailVerificationExpiry(
+  app: INestApplication,
+  userId: string,
+  expiresAt: Date,
+): Promise<number> {
+  const { count } = await app.get(PrismaService).verification.updateMany({
+    where: emailVerificationRecordsOf(userId),
+    data: { expiresAt },
+  });
+  return count;
 }

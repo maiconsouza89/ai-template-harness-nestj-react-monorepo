@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+import { signJWT } from 'better-auth/crypto';
 import type {
   EmailRequest,
   RequestEmailUseCase,
@@ -15,7 +17,7 @@ export type EmailRequester = Pick<RequestEmailUseCase, 'execute'>;
 
 /** Dados que o Better Auth passa ao `emailVerification.sendVerificationEmail`. */
 export interface VerificationEmailData {
-  user: { id: string };
+  user: { id: string; email: string };
   token: string;
 }
 
@@ -32,17 +34,39 @@ export type EmailVerificationLinkWriter = Pick<
   'replaceForUser'
 >;
 
-/** Configuração do callback: origem da SPA e validade do link, em segundos. */
+/** Configuração do callback: origem da SPA, validade do link em segundos e segredo do JWT. */
 export interface SendVerificationEmailOptions {
   webOrigin: string;
   expiresInSeconds: number;
+  /** `BETTER_AUTH_SECRET`, o mesmo com que a biblioteca confere o token em `/verify-email`. */
+  secret: string;
+}
+
+/**
+ * Token do link: o mesmo JWT HS256 que o Better Auth 1.7.14 gera (`createEmailVerificationToken`
+ * em `routes/email-verification`, com o e-mail em minúsculas e o prazo), acrescido de um `jti`
+ * aleatório. O da biblioteca só depende do e-mail e do segundo da emissão: um reenvio no mesmo
+ * segundo do cadastro repetiria o link anterior, que continuaria valendo. A biblioteca ignora o
+ * `jti` ao conferir o token.
+ */
+export function issueEmailVerificationToken(
+  email: string,
+  secret: string,
+  expiresInSeconds: number,
+): Promise<string> {
+  return signJWT(
+    { email: email.toLowerCase(), jti: randomUUID() },
+    secret,
+    expiresInSeconds,
+  );
 }
 
 /**
  * Callback `emailVerification.sendVerificationEmail` do Better Auth (spec, Fluxo técnico), chamado
- * no cadastro e no reenvio. Primeiro troca o registro de confirmação da conta: apaga os
- * anteriores, para os links já enviados deixarem de valer, e grava o hash do token novo com
- * vencimento em `expiresInSeconds` a partir de agora (RF-002). Depois monta o link da SPA, e não o
+ * no cadastro e no reenvio. Emite o token do link com `issueEmailVerificationToken`, no lugar
+ * do que a biblioteca passa, para cada envio ter um link próprio. Troca o registro de confirmação
+ * da conta: apaga os anteriores, para os links já enviados deixarem de valer, e grava o hash do
+ * token novo com vencimento em `expiresInSeconds` a partir de agora (RF-002). Depois monta o link da SPA, e não o
  * `GET /api/auth/verify-email` que a biblioteca gera, e pede o envio ao Módulo E-mail. O pedido
  * leva só o tipo, o id da conta e o link; nome, e-mail e senha ficam de fora. A falha ao gravar o
  * registro impede o envio, e ela ou a falha ao enfileirar sobem ao `runInBackgroundOrAwait` da
@@ -51,9 +75,14 @@ export interface SendVerificationEmailOptions {
 export function createSendVerificationEmail(
   requester: EmailRequester,
   links: EmailVerificationLinkWriter,
-  { webOrigin, expiresInSeconds }: SendVerificationEmailOptions,
+  { webOrigin, expiresInSeconds, secret }: SendVerificationEmailOptions,
 ) {
-  return async ({ user, token }: VerificationEmailData): Promise<void> => {
+  return async ({ user }: VerificationEmailData): Promise<void> => {
+    const token = await issueEmailVerificationToken(
+      user.email,
+      secret,
+      expiresInSeconds,
+    );
     const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
     await links.replaceForUser(
       user.id,
