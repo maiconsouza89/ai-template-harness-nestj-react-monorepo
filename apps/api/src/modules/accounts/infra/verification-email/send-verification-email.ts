@@ -62,11 +62,28 @@ export function issueEmailVerificationToken(
 }
 
 /**
+ * Vencimento gravado no registro de confirmação: o `exp` do próprio JWT. O `signJWT` arredonda a
+ * emissão para baixo até o segundo inteiro; calcular o prazo à parte com `Date.now()` deixaria o
+ * registro vencer até 1 s depois do token, e nessa janela o hook apagaria o registro de um link que
+ * a biblioteca rejeita como `TOKEN_EXPIRED`, e reabri-lo diria `INVALID_TOKEN` (spec, Regras).
+ */
+export function emailVerificationTokenExpiresAt(token: string): Date {
+  const payload: unknown = JSON.parse(
+    Buffer.from(token.split('.')[1] ?? '', 'base64url').toString('utf8'),
+  );
+  const exp = (payload as { exp?: unknown }).exp;
+  if (typeof exp !== 'number') {
+    throw new Error('token de confirmação sem exp');
+  }
+  return new Date(exp * 1000);
+}
+
+/**
  * Callback `emailVerification.sendVerificationEmail` do Better Auth (spec, Fluxo técnico), chamado
  * no cadastro e no reenvio. Emite o token do link com `issueEmailVerificationToken`, no lugar
  * do que a biblioteca passa, para cada envio ter um link próprio. Troca o registro de confirmação
  * da conta: apaga os anteriores, para os links já enviados deixarem de valer, e grava o hash do
- * token novo com vencimento em `expiresInSeconds` a partir de agora (RF-002). Depois monta o link da SPA, e não o
+ * token novo com vencimento igual ao `exp` do token, `expiresInSeconds` depois da emissão (RF-002). Depois monta o link da SPA, e não o
  * `GET /api/auth/verify-email` que a biblioteca gera, e pede o envio ao Módulo E-mail. O pedido
  * leva só o tipo, o id da conta e o link; nome, e-mail e senha ficam de fora. A falha ao gravar o
  * registro impede o envio, e ela ou a falha ao enfileirar sobem ao `runInBackgroundOrAwait` da
@@ -83,7 +100,7 @@ export function createSendVerificationEmail(
       secret,
       expiresInSeconds,
     );
-    const expiresAt = new Date(Date.now() + expiresInSeconds * 1000);
+    const expiresAt = emailVerificationTokenExpiresAt(token);
     await links.replaceForUser(
       user.id,
       await hashEmailVerificationToken(token),

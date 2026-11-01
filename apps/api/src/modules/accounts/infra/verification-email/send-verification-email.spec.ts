@@ -112,6 +112,26 @@ describe('createSendVerificationEmail', () => {
     );
   });
 
+  it('o registro vence no mesmo instante que o JWT, mesmo com o envio no meio de um segundo', async () => {
+    vi.useFakeTimers({ now: new Date('2026-10-31T12:00:00.900Z') });
+    const links = fakeLinks();
+    const requester = fakeRequester();
+
+    await createSendVerificationEmail(
+      requester,
+      links,
+      options,
+    )({
+      user: { id: 'conta-6', email: 'ana@example.com' },
+      token: 't',
+    });
+
+    const payload = await verifyJWT(sentToken(requester), SECRET);
+    const expiresAt = links.replaceForUser.mock.calls[0]?.[2];
+    expect(expiresAt?.getTime()).toBe((payload?.exp ?? 0) * 1000);
+    expect(expiresAt).toEqual(new Date('2026-11-01T12:00:00.000Z'));
+  });
+
   it('não grava o token em texto puro', async () => {
     const links = fakeLinks();
     const requester = fakeRequester();
