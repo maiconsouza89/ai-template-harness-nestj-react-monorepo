@@ -2,9 +2,9 @@
 
 *Gerado pela skill evaluator. Cada avaliação sobrescreve este arquivo; o histórico está no git.*
 
-- Execução: 2026-11-01T02-46-40Z
+- Execução: 2026-11-01T12-11-21Z
 - Branch: feat/rf-002-confirmar-email
-- Commit: 7b7090a
+- Commit: f468f21
 - Status: limpo
 - Itens: 28 passou, 0 falhou, 0 bloqueado, 0 manual, 0 pulado, de 28
 - Critérios: 4 verificado, 0 reprovado, 0 indeterminado, de 4
@@ -21,28 +21,28 @@
 
 ## Gates de qualidade
 
-- ✓ check: `make check`, código 0 (com `TURBO_FORCE=true`: 5 tarefas sem cache; arquivos de teste 24 de unidade e 11 de integração da API, 4 da SPA e 3 de Contratos passaram; "ok: todas as verificações passaram")
-- ✓ build: `make build`, código 0 (com `TURBO_FORCE=true`: 4 tarefas, nenhuma do cache)
+- ✓ check: `make check`, código 0 (com `TURBO_FORCE=true`: 5 tarefas, 0 do cache; arquivos de teste 24 de unidade e 11 de integração da API (67 testes de integração), 4 da SPA e 3 de Contratos passaram; "ok: todas as verificações passaram")
+- ✓ build: `make build`, código 0 (com `TURBO_FORCE=true`: 4 tarefas, 0 do cache)
 
 ## Pré-requisitos
 
 ### Serviços em execução
-- ✓ api (com o worker do Módulo E-mail): http://localhost:3000, saúde /api/health respondeu 200 `{"status":"ok","checks":{"postgres":"up","valkey":"up"}}`, recriada apontando para o banco efêmero `eval_rf002_2026_11_01t02_46_40z` e para o Valkey no banco lógico 3
+- ✓ api (com o worker do Módulo E-mail): http://localhost:3000, saúde /api/health respondeu 200 `{"status":"ok","checks":{"postgres":"up","valkey":"up"}}`, recriada apontando para o banco efêmero `eval_rf002_2026_11_01t12_11_21z` e para o Valkey no banco lógico 3
 - ✓ web: http://localhost:5173/ saudável no Compose
 - ✓ postgres: saudável no Compose (PostgreSQL 18)
 - ✓ valkey: saudável no Compose (Valkey 9), banco lógico 3 vazio no início (`dbsize` 0)
 - ✓ mailpit: saudável no Compose (axllent/mailpit:v1.32), API REST em http://localhost:8025
 
 ### Estado persistido
-- ✓ `janela-de-cadastro-livre`: chaves `rate-limit:*` apagadas no banco lógico 3 do Valkey antes de cada item; conferido: depois de um reenvio de sonda, `rate-limit:203.0.113.99|/send-verification-email` existia e o scan `rate-limit:*` ficou vazio depois da limpeza
-- ✓ `janela-de-reenvio-livre`: mesmo mecanismo; conferido: `EXISTS rate-limit:203.0.113.10|/send-verification-email` igual a 0 depois da limpeza
+- ✓ `janela-de-cadastro-livre`: chaves `rate-limit:*` apagadas no banco lógico 3 do Valkey antes de cada item; conferido: o banco lógico 3 começou vazio (`dbsize` 0) e cada item usou um IP próprio, sem nenhum 429 fora do API-REENVIO-04
+- ✓ `janela-de-reenvio-livre`: mesmo mecanismo; conferido: os três primeiros reenvios de API-REENVIO-04 responderam 200 e só o quarto do mesmo IP recebeu 429
 
 ### Entradas estáticas
 Nenhum.
 
 ### Configuração
 - ✓ `.env` copiado do `.env.example`: NODE_ENV=development e TRUSTED_PROXIES vazia em vigor no container da api (o contrato pede development e vazia); `make db-setup` aplicado ao banco efêmero ("All migrations have been successfully applied", "seed: primeiro admin criado")
-- ✓ X-Forwarded-For por item: cada cadastro e reenvio fora do navegador levou um IP 203.0.113.x exclusivo do item (de .1 a .38)
+- ✓ X-Forwarded-For por item: cada cadastro e reenvio fora do navegador levou um IP 203.0.113.x exclusivo do item (de .1 a .30)
 - ✓ Link da conta: lido da mensagem mais recente para o e-mail na caixa do Mailpit (busca `to:"<e-mail>"`), token pelo parâmetro `token`
 - ✓ Registro de confirmação: linha de `verification` com identifier `email-verification:<hash>` e value igual ao id da conta; vencimento movido com UPDATE do `expiresAt` (UTC, o PostgreSQL roda em Etc/UTC)
 
@@ -116,8 +116,8 @@ GET /api/auth/verify-email?token=T1 -> 401 {"code": "INVALID_TOKEN", ...}
 <summary>Evidência</summary>
 
 ```
-expiresAt movido para 2026-11-01T02:52:21.833 (1 minuto depois de agora)
-GET /api/auth/verify-email?token=T1 às 02:51:22 -> 200 {"status": true, "user": null}
+expiresAt movido para 2026-11-01T12:15:43.365 (1 minuto depois de agora)
+GET /api/auth/verify-email?token=T1 às 12:14:43 -> 200 {"status": true, "user": null}
 ```
 
 </details>
@@ -125,16 +125,16 @@ GET /api/auth/verify-email?token=T1 às 02:51:22 -> 200 {"status": true, "user":
 #### API-ATIVACAO-05
 - Veredito: passou
 - ✓ o banco tem exatamente um registro de confirmação para a conta de lucas@example.com | esperado 1, observado 1
-- ✓ o expiresAt desse registro fica entre 23 horas e 59 minutos e 24 horas e 1 minuto depois da resposta | esperado entre 86340 s e 86460 s, observado 86400,0 s
-- ✓ o identifier e o value desse registro não contêm o token do link que chegou para lucas@example.com | observado identifier `email-verification:cfe7e668...` (hash) e value igual ao id da conta
+- ✓ o expiresAt desse registro fica entre 23 horas e 59 minutos e 24 horas e 1 minuto depois da resposta | esperado entre 86340 s e 86460 s, observado 86399,9 s
+- ✓ o identifier e o value desse registro não contêm o token do link que chegou para lucas@example.com | observado identifier `email-verification:62399511...` (hash) e value igual ao id da conta
 
 <details>
 <summary>Evidência</summary>
 
 ```
 antes: nenhuma conta lucas@example.com
-POST /api/auth/sign-up/email -> 200, resposta em 2026-11-01T02:51:23.487Z
-verification: id a66f3d75-..., identifier email-verification:cfe7e6689e5d..., value ERy2roZIJu4I1VF87HXHHeUh0AV2ZNdG, expiresAt 2026-11-02T02:51:23.481
+POST /api/auth/sign-up/email -> 200, resposta em 2026-11-01T12:14:45.137Z
+verification: id c0a5e038-..., identifier email-verification:623995112b9b..., value ztIDK81vCRxdBiCoY5yC5icuoKIulQj9, expiresAt 2026-11-02T12:14:45.000 (segundo inteiro, igual ao exp do JWT)
 token do link no Mailpit: eyJ<mascarado>, ausente em identifier e value
 ```
 
@@ -152,8 +152,9 @@ token do link no Mailpit: eyJ<mascarado>, ausente em identifier e value
 
 ```
 duas GET /api/auth/verify-email?token=T1 em paralelo (duas threads):
-  200 {"status": true, "user": null}
   200 {"status": true, "code": "ALREADY_VERIFIED"}
+  200 {"status": true, "user": null}
+verification com value=<id da conta> -> 0 linhas
 ```
 
 </details>
@@ -168,8 +169,8 @@ duas GET /api/auth/verify-email?token=T1 em paralelo (duas threads):
 <summary>Evidência</summary>
 
 ```
-expiresAt movido para 2026-11-01T02:50:29.133 (1 minuto antes de agora)
-GET /api/auth/verify-email?token=T1 às 02:51:29 -> 401 {"code": "TOKEN_EXPIRED", ...}
+expiresAt movido para 2026-11-01T12:13:49.063 (1 minuto antes de agora)
+GET /api/auth/verify-email?token=T1 às 12:14:49 -> 401 {"code": "TOKEN_EXPIRED", ...}
 ```
 
 </details>
@@ -194,16 +195,16 @@ segunda GET com T1 -> 401 {"code": "TOKEN_EXPIRED", "message": "Este link expiro
 - Veredito: passou
 - ✓ a resposta é 200 com status verdadeiro | observado 200 `{"status": true}`
 - ✓ o banco tem exatamente um registro de confirmação para a conta de nina@example.com | esperado 1, observado 1
-- `*` esse registro não é o R1 | interpretado como: id e identifier diferentes dos de R1 | observado id 2d8b48c5-... e identifier `...15f58635...` contra R1 5420c2ad-... e `...7d7439d4...` | passou
-- ✓ o expiresAt desse registro fica entre 23 horas e 59 minutos e 24 horas e 1 minuto depois da resposta | esperado entre 86340 s e 86460 s, observado 86399,5 s
+- `*` esse registro não é o R1 | interpretado como: id e identifier diferentes dos de R1 | observado id 5493b561-... e identifier `...101a591e...` contra R1 b0c04daf-... e `...8b87af74...` | passou
+- ✓ o expiresAt desse registro fica entre 23 horas e 59 minutos e 24 horas e 1 minuto depois da resposta | esperado entre 86340 s e 86460 s, observado 86399,3 s
 
 <details>
 <summary>Evidência</summary>
 
 ```
-R1: 5420c2ad-a37f-4399-87cc-03d436c23755, email-verification:7d7439d48a8f..., expiresAt 2026-11-02T02:51:33.185
+R1: b0c04daf-24ec-46a2-bbe2-65f2e2f9339d, email-verification:8b87af7427b2..., expiresAt 2026-11-02T12:14:52.000
 POST /api/auth/send-verification-email {"email":"nina@example.com"} (203.0.113.10) -> 200 {"status": true}
-depois: 1 linha, 2d8b48c5-2bcd-43d0-a770-c9aa486c7206, email-verification:15f58635a32d...
+depois: 1 linha, 5493b561-11e7-460e-b2ae-3c6c8006e800, email-verification:101a591ec634..., expiresAt 2026-11-02T12:14:53.000
 ```
 
 </details>
@@ -249,7 +250,7 @@ GET /api/auth/verify-email?token=T2 -> 200 {"status": true, "user": null}
 <summary>Evidência</summary>
 
 ```
-três POST /api/auth/send-verification-email (nico@example.com, 203.0.113.16) em 1,5 s -> 200, 200, 200
+três POST /api/auth/send-verification-email (nico@example.com, 203.0.113.16) em 1,52 s -> 200, 200, 200
 quarto POST do mesmo IP -> 429 {"message": "Too many requests. Please try again later."}, x-retry-after: 58
 ```
 
@@ -284,7 +285,7 @@ GET /api/auth/verify-email?token=<alterado> -> 401 {"code": "INVALID_TOKEN", ...
 ```
 GET /api/auth/verify-email?token=T1 -> 200
 docker compose logs api --since <início do item> -> 0 linhas na janela
-conferência ampla: docker compose logs api --since 15m | grep -cE "verify-email|example.com|eyJhbGci" -> 0 (as 104 linhas da janela de 4 min são do GET /api/health)
+conferência ampla: docker compose logs api --since 10m -> 57 linhas, 0 com T1, pia@example.com ou Pia Torres, 0 com verify-email
 ```
 
 </details>
@@ -293,7 +294,7 @@ conferência ampla: docker compose logs api --since 15m | grep -cE "verify-email
 
 #### WRK-REENVIO-01
 - Veredito: passou
-- ✓ em até 2 minutos a caixa tem exatamente duas mensagens para rita@example.com | esperado 2, observado 2 em 3,0 s
+- ✓ em até 2 minutos a caixa tem exatamente duas mensagens para rita@example.com | esperado 2, observado 2 na primeira consulta (0,0 s depois da resposta)
 - ✓ a mais recente tem um link que começa com o WEB_ORIGIN do .env seguido de /confirmar-email?token= | esperado `http://localhost:5173/confirmar-email?token=`, observado `http://localhost:5173/confirmar-email?token=eyJ<mascarado>`
 - ✓ o token desse link é diferente do token da mensagem do cadastro | observado diferente
 - ✓ o corpo da mais recente diz "O link vale por 24 horas." | observado presente no texto
@@ -303,7 +304,7 @@ conferência ampla: docker compose logs api --since 15m | grep -cE "verify-email
 
 ```
 POST /api/auth/send-verification-email {"email":"rita@example.com"} -> 200 {"status": true}
-Mailpit: 2 mensagens "Confirme seu e-mail", a mais recente criada em 2026-11-01T02:51:55.264Z
+Mailpit: 2 mensagens "Confirme seu e-mail", a mais recente criada em 2026-11-01T12:15:16.829Z
 ```
 
 </details>
@@ -340,10 +341,10 @@ espera de 61 s; Mailpit: 1 mensagem para raul@example.com; verification: 0 linha
 <summary>Evidência</summary>
 
 ```
-rede: GET /api/v1/session 401; GET /api/auth/verify-email?token=eyJ<mascarado> 200
+rede: GET /api/auth/verify-email?token=eyJ<mascarado> 200; GET /api/v1/session 401
 main: "E-mail confirmado\n\nSua conta está ativa.\n\nEntrar"
 banco: sara.m@example.com emailVerified t
-screenshot: <tmp>/evaluator-rf002-2026-11-01T02-46-40Z/UI_ATIVACAO_01.png (apagado na derrubada)
+screenshot: <tmp>/evaluator-rf002-2026-11-01T12-11-21Z/UI_ATIVACAO_01.png (apagado na derrubada)
 ```
 
 </details>
@@ -380,7 +381,7 @@ main: "Conta já confirmada\n\nEsta conta já está confirmada.\n\nEntrar"
 <summary>Evidência</summary>
 
 ```
-expiresAt movido para 1 minuto antes de agora (2026-11-01T02:53:48.264)
+expiresAt movido para 1 minuto antes de agora
 rede: GET /api/auth/verify-email?token=eyJ<mascarado> 401
 main: "Link expirado\n\nEste link expirou. Peça um novo link abaixo.\n\nE-mail\nReenviar o link"
 ```
@@ -399,7 +400,7 @@ main: "Link expirado\n\nEste link expirou. Peça um novo link abaixo.\n\nE-mail\
 <summary>Evidência</summary>
 
 ```
-rede: GET /api/v1/session 401; GET /api/auth/verify-email?token=eyJ<mascarado> 401;
+rede: GET /api/auth/verify-email?token=eyJ<mascarado> 401; GET /api/v1/session 401;
       POST /api/auth/send-verification-email {"email":"teo@example.com"} 200; GET /api/v1/session 401
 main depois do clique: "Link expirado\n\nEste link expirou. Peça um novo link abaixo.\n\nSe o e-mail tiver uma conta pendente, enviamos um novo link."
 ```
@@ -454,7 +455,7 @@ main: "Link inválido\n\nEste link não vale mais. Peça um novo link abaixo.\n\
 <summary>Evidência</summary>
 
 ```
-reenvio prévio (203.0.113.36) -> 200 {"status": true}
+reenvio prévio (203.0.113.28) -> 200 {"status": true}
 L1 no navegador: GET /api/auth/verify-email?token=eyJ<mascarado> 401
 ```
 
@@ -545,7 +546,7 @@ Mailpit: 1 mensagem para cada; só o link de yuri@example.com aberto: GET verify
 #### E2E-REENVIO-01 *
 - Veredito: passou
 - `*` o primeiro link mostra que expirou e oferece o reenvio | observado "Link expirado", "Este link expirou. Peça um novo link abaixo.", campo de e-mail e botão "Reenviar o link" | passou
-- ✓ em até 2 minutos a caixa tem a mensagem nova para zeca@example.com com um token diferente do primeiro | observado 2 mensagens em 2,1 s, tokens diferentes
+- ✓ em até 2 minutos a caixa tem a mensagem nova para zeca@example.com com um token diferente do primeiro | observado 2 mensagens na primeira consulta depois do reenvio, tokens diferentes
 - `*` o link novo mostra que o e-mail foi confirmado | observado "E-mail confirmado" e "Sua conta está ativa." | passou
 - ✓ o banco tem a conta de zeca@example.com com e-mail verificado | esperado t, observado t
 - ✓ base visual mecânica, em cada tela | nenhum achado
@@ -555,7 +556,7 @@ Mailpit: 1 mensagem para cada; só o link de yuri@example.com aberto: GET verify
 <summary>Evidência</summary>
 
 ```
-/cadastro (Zeca, zeca@example.com) -> POST 200; expiresAt movido para 1 minuto antes de agora
+/cadastro (Zeca, zeca@example.com, Jornada123) -> POST 200; expiresAt movido para 1 minuto antes de agora
 link 1: GET verify-email 401; reenvio pela tela: POST /api/auth/send-verification-email {"email":"zeca@example.com"} 200
 link 2: GET verify-email 200
 ```
@@ -568,7 +569,7 @@ link 2: GET verify-email 200
 | --- | --- | --- |
 | Instalar dependências | 5 | `compose.yaml`: o serviço api instala nos volumes ao subir; `scripts/db-setup.sh` garante as dependências |
 | Ambiente e serviços | 1 e 2 | contrato (Docker Compose) e `compose.yaml`: o ambiente local já no ar, com a api recriada por um override do Compose na pasta temporária (`COMPOSE_FILE`) |
-| Banco efêmero e migração | 5 | `scripts/db-setup.sh`: banco `eval_rf002_2026_11_01t02_46_40z` no postgres do Compose, `DATABASE_URL` da api trocada pelo override, `make db-setup` migra e cria o admin |
+| Banco efêmero e migração | 5 | `scripts/db-setup.sh`: banco `eval_rf002_2026_11_01t12_11_21z` no postgres do Compose, `DATABASE_URL` da api trocada pelo override, `make db-setup` migra e cria o admin |
 | Isolamento do Valkey | 4 e 6 | avaliação do RF-001: `REDIS_URL=redis://valkey:6379/3` no override, banco lógico 3 vazio antes da avaliação |
 | Estado persistido | 1 | contrato: janelas de rate limit livres; chaves `rate-limit:*` apagadas no Valkey |
 | Limpeza entre itens | 4 e 6 | como no RF-001: DELETE da tabela verification e das contas sem papel admin (account e session em cascata), `rate-limit:*` no Valkey e DELETE /api/v1/messages no Mailpit |
@@ -577,22 +578,23 @@ link 2: GET verify-email 200
 | Logs da api | 1 e 3 | contrato e spec, Verificação por superfície: `docker compose logs api --since <início do item>` |
 | Caixa de e-mail | 3 | spec, Verificação por superfície (ADR-0016): API REST do Mailpit |
 | Banco | 1 | contrato, Configuração: registro em `verification` por identifier `email-verification:` e value igual ao id da conta |
-| Navegador | 3 | spec, Verificação por superfície (ADR-0024): Chromium headless pelo `playwright-core` do `@playwright/cli` no cache do npx, dirigido por script Node, um contexto sem cookie por item |
+| Navegador | 3 | spec, Verificação por superfície (ADR-0024): Chromium headless pelo `playwright-core` 1.64 do `@playwright/cli` no cache do npx, dirigido por script Node, um contexto sem cookie por item |
 | Serviço api parado | 3 | spec: `docker compose stop api` e religada com `docker compose up -d --wait --no-deps api` |
 | Base visual | 6 | `evaluate` no navegador (imagens, caixas na janela, corte por `overflow`, `elementFromPoint`) e screenshot por item, revisado sem achados |
 
 ## Limpeza e ambiente
 
 - Sobras removidas: Nenhuma. Nenhum banco `eval_rf002_*`, nenhuma pasta `evaluator-rf002-*` e nenhum PID de avaliação anterior no início.
-- Derrubada: completa. Nenhum PID no `processos.lock` (o navegador fechou com o script); api recriada sem o override, de volta à `DATABASE_URL` do banco `app` e ao Valkey no banco 0, saudável; banco lógico 3 do Valkey esvaziado; banco `eval_rf002_2026_11_01t02_46_40z` apagado; pasta `/tmp/evaluator-rf002-2026-11-01T02-46-40Z` apagada, com os screenshots.
+- Derrubada: completa. Nenhum PID no `processos.lock` (o navegador fechou com cada script); api recriada sem o override, de volta à `DATABASE_URL` do banco `app` e ao Valkey no banco 0, saudável; banco lógico 3 do Valkey esvaziado; caixa do Mailpit esvaziada; banco `eval_rf002_2026_11_01t12_11_21z` apagado; pasta `/tmp/evaluator-rf002-2026-11-01T12-11-21Z` apagada, com os screenshots.
 
 ## Avisos
 
-- Avaliado com 1 arquivo fora de commit, só documentação: `docs/features/RF-002-confirmar-e-mail/orquestracao.md`. O código avaliado é o do commit 7b7090a.
-- Depois dos gates, a api do Compose parou com `ERR_MODULE_NOT_FOUND` em `/app/apps/api/dist/instrumentation.js`: o `make build` no host reescreve `apps/api/dist`, que é bind mount do `nest start --watch` do container. A primeira passada dos itens de API e Worker recebeu `Connection reset by peer` em todos; a api foi reiniciada (`docker compose restart api`, com o override), voltou saudável no banco efêmero e todos os itens foram repetidos do início. O veredito registrado é o da repetição.
-- API-SIGILO-01: a rota `/api/auth/verify-email` não escreve linha de log na api (0 linhas capturadas na janela do item; o log HTTP da api só registrou o GET /api/health); os bullets de ausência passam sobre o que foi capturado, e uma busca ampla nos últimos 15 minutos de log não achou token, e-mail nem `verify-email`.
+- Avaliado com 1 arquivo fora de commit, só documentação: `docs/features/RF-002-confirmar-e-mail/orquestracao.md`. O código avaliado é o do commit f468f21.
+- Os gates rodaram antes de a api ser recriada apontando para o banco efêmero: o `make build` no host reescreve `apps/api/dist`, que é bind mount do `nest start --watch` do container, e derrubou a api na avaliação anterior. Nesta ordem a api subiu saudável depois do build e não houve erro de transporte em nenhum item.
+- API-SIGILO-01: a rota `/api/auth/verify-email` não escreve linha de log na api (0 linhas capturadas na janela do item); os bullets de ausência passam sobre o que foi capturado, e uma busca ampla nos últimos 10 minutos de log (57 linhas) não achou token, e-mail, nome nem `verify-email`.
 - A SPA mostra "Entrar" também na barra de navegação; os bullets de "Entrar" (UI-ATIVACAO-01, UI-ATIVACAO-02, UI-VISUAL-01) foram conferidos no "Entrar" do card da confirmação.
 - Os itens usam o Valkey (banco lógico 3) e o Mailpit compartilhados do ambiente de desenvolvimento: a caixa do Mailpit foi esvaziada antes de cada item.
+- E2E-INTEGRACAO-01 e E2E-REENVIO-01 não dão nome às contas; o cadastro usou Yuri, Yasmin e Zeca.
 
 ## Motivo do aborto
 
