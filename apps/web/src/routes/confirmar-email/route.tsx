@@ -1,5 +1,5 @@
 import { verifyEmailMessages, verifyEmailStates } from '@app/contracts';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useFetcher, useLoaderData } from 'react-router';
 import { AlertIcon } from '../../components/alert-icon.js';
 import type { VerifyEmailResendResult } from './action.js';
@@ -31,12 +31,43 @@ function ResendNotice({
 }
 
 /**
+ * Mostra o aviso de link enviado no lugar do campo: só depois de um reenvio com 200 que a pessoa
+ * ainda não dispensou com "Enviar para outro e-mail". Cada reenvio devolve um resultado novo, então
+ * o aviso volta no reenvio seguinte.
+ */
+export function showsResendSent(
+  result: VerifyEmailResendResult | undefined,
+  dismissed: VerifyEmailResendResult | undefined,
+): boolean {
+  return result?.status === 'sent' && result !== dismissed;
+}
+
+/** Aviso genérico do reenvio, com o botão que volta ao campo (spec, Contratos de interface). */
+export function ResendSent({ onAnotherEmail }: { onAnotherEmail: () => void }) {
+  return (
+    <div className="mt-6">
+      <p role="status">{verifyEmailMessages.resendSent}</p>
+      <button
+        type="button"
+        className="btn-secondary mt-6"
+        onClick={onAnotherEmail}
+      >
+        Enviar para outro e-mail
+      </button>
+    </div>
+  );
+}
+
+/**
  * Reenvio do link nos estados de link vencido e que não vale: campo "E-mail" e botão "Reenviar o
- * link". Depois do 200, o aviso genérico ocupa o lugar do campo.
+ * link". Depois do 200, o aviso genérico ocupa o lugar do campo, com o botão "Enviar para outro
+ * e-mail", que volta ao campo com o e-mail digitado; o limite de reenvios continua na API.
  */
 function ResendForm() {
   const fetcher = useFetcher<VerifyEmailResendResult>();
   const inputRef = useRef<HTMLInputElement>(null);
+  const [email, setEmail] = useState('');
+  const [dismissed, setDismissed] = useState<VerifyEmailResendResult>();
   const sending = fetcher.state !== 'idle';
   const result = sending ? undefined : fetcher.data;
   const error = result?.status === 'invalid' ? result.error : undefined;
@@ -47,12 +78,15 @@ function ResendForm() {
     }
   }, [result]);
 
-  if (result?.status === 'sent') {
-    return (
-      <p role="status" className="mt-6">
-        {verifyEmailMessages.resendSent}
-      </p>
-    );
+  // De volta ao campo pelo "Enviar para outro e-mail": o foco vai para o e-mail digitado.
+  useEffect(() => {
+    if (dismissed) {
+      inputRef.current?.focus();
+    }
+  }, [dismissed]);
+
+  if (showsResendSent(result, dismissed)) {
+    return <ResendSent onAnotherEmail={() => setDismissed(result)} />;
   }
 
   const id = 'confirmar-email-email';
@@ -76,6 +110,8 @@ function ResendForm() {
             type="email"
             autoComplete="email"
             className="text-input"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
             aria-invalid={error ? true : undefined}
             aria-describedby={error ? errorId : undefined}
           />

@@ -5,6 +5,7 @@ import { getQueueToken } from '@nestjs/bullmq';
 import type { Queue } from 'bullmq';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
+import { RequestEmailUseCase } from '../../src/modules/email/email.module.js';
 import { EMAIL_SEND_QUEUE } from '../../src/modules/email/infra/queue/email-send.queue.js';
 import { PrismaService } from '../../src/platform/prisma/prisma.service.js';
 import { createTestApp, isolatedEmailQueue } from '../create-test-app.js';
@@ -70,6 +71,11 @@ describe('Confirmação de e-mail (integração, banco app_test)', () => {
       select: { emailVerified: true },
     });
     return user.emailVerified;
+  }
+
+  /** Troca o e-mail da conta no banco, como API-ATIVACAO-07 e 08 pedem. */
+  async function changeEmail(userId: string, email: string) {
+    await prisma.user.update({ where: { id: userId }, data: { email } });
   }
 
   function records(userId: string) {
@@ -217,7 +223,7 @@ describe('Confirmação de e-mail (integração, banco app_test)', () => {
     expect(await emailVerified(userId)).toBe(true);
   });
 
-  it('dois pedidos simultâneos com o mesmo link ativam a conta uma vez', async () => {
+  it('dois pedidos simultâneos com o mesmo link ativam a conta uma vez, sem erro', async () => {
     const email = uniqueEmail('lis');
     const userId = await signUp('203.0.113.67', email);
     const token = await latestConfirmationToken(email);
@@ -227,17 +233,79 @@ describe('Confirmação de e-mail (integração, banco app_test)', () => {
       verify(token, '203.0.113.69'),
     ]);
 
-    const activated = responses.filter(
-      (r) => r.status === 200 && r.body.code === undefined,
-    );
-    expect(activated).toHaveLength(1);
-    const other = responses.find((r) => !activated.includes(r))!;
+    expect(responses.map((r) => r.status)).toEqual([200, 200]);
     expect(
-      (other.status === 200 && other.body.code === 'ALREADY_VERIFIED') ||
-        (other.status === 401 && other.body.code === 'INVALID_TOKEN'),
-    ).toBe(true);
+      responses.filter((r) => r.body.code !== 'ALREADY_VERIFIED').length,
+    ).toBeGreaterThanOrEqual(1);
     expect(await emailVerified(userId)).toBe(true);
     expect(await records(userId)).toHaveLength(0);
+  });
+
+  it('a recusa da biblioteca mantém o registro, e o mesmo link ativa a conta depois', async () => {
+    const email = uniqueEmail('lino');
+    const userId = await signUp('203.0.113.75', email);
+    const token = await latestConfirmationToken(email);
+    await changeEmail(userId, `outro-${email}`);
+
+    const refused = await verify(token).expect(401);
+    expect(refused.body).toMatchObject({ code: 'USER_NOT_FOUND' });
+    expect(await emailVerified(userId)).toBe(false);
+    expect(await records(userId)).toHaveLength(1);
+
+    await changeEmail(userId, email);
+    const response = await verify(token).expect(200);
+    expect(response.body).toEqual({ status: true, user: null });
+    expect(await emailVerified(userId)).toBe(true);
+    expect(await records(userId)).toHaveLength(0);
+  });
+
+  it('o reenvio com o pedido de envio recusado responde 500, mantém o registro anterior e o link dele ativa a conta', async () => {
+    const email = uniqueEmail('omar');
+    const userId = await signUp('203.0.113.76', email);
+    const token = await latestConfirmationToken(email);
+    const [before] = await records(userId);
+    const requestEmail = app.get(RequestEmailUseCase, { strict: false });
+    const execute = vi
+      .spyOn(requestEmail, 'execute')
+      .mockRejectedValueOnce(new Error('fila fora'));
+
+    try {
+      await resend('203.0.113.77', email).expect(500);
+    } finally {
+      execute.mockRestore();
+    }
+    const rows = await records(userId);
+    expect(rows.map(({ id }) => id)).toEqual([before!.id]);
+
+    await verify(token).expect(200);
+    expect(await emailVerified(userId)).toBe(true);
+  });
+
+  it('o envio apaga os registros vencidos há mais de 7 dias e mantém os mais novos', async () => {
+    const oldEmail = uniqueEmail('paulo');
+    const oldUser = await signUp('203.0.113.83', oldEmail);
+    const recentEmail = uniqueEmail('pedro');
+    const recentUser = await signUp('203.0.113.84', recentEmail);
+    await moveEmailVerificationExpiry(
+      app,
+      oldUser,
+      new Date(Date.now() - 8 * DAY_MS),
+    );
+    await moveEmailVerificationExpiry(
+      app,
+      recentUser,
+      new Date(Date.now() - DAY_MS),
+    );
+
+    const newUser = await signUp(
+      '203.0.113.85',
+      uniqueEmail('priscila'),
+      'Priscila Lima',
+    );
+
+    expect(await records(oldUser)).toHaveLength(0);
+    expect(await records(recentUser)).toHaveLength(1);
+    expect(await records(newUser)).toHaveLength(1);
   });
 
   it('o quarto reenvio em 60 segundos do mesmo IP responde 429 com X-Retry-After', async () => {

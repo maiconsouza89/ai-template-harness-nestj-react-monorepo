@@ -13,6 +13,7 @@ import {
 } from './routes/confirmar-email/loader.js';
 import { VerifyEmailRoute } from './routes/confirmar-email/route.js';
 import { ErrorPage } from './routes/error-page.js';
+import { HomeRoute } from './routes/home/route.js';
 import { rootLoader } from './routes/root/loader.js';
 import { RootRoute } from './routes/root/route.js';
 
@@ -35,6 +36,7 @@ export const router = createBrowserRouter([
     loader: rootLoader,
     errorElement: <ErrorPage />,
     children: [
+      { index: true, Component: HomeRoute },
       { path: 'cadastro', Component: SignUpRoute, action: signUpAction },
       {
         path: 'confirmar-email',

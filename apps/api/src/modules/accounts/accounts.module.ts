@@ -93,9 +93,9 @@ const ACCOUNTS_PROVIDERS: Provider[] = [
  * Módulo E-mail, o rate limit no Valkey e o logger; a confirmação (RF-002) recebe a porta dos
  * registros de confirmação, entregue à fábrica do Better Auth por `provideInjectionTokensFrom`,
  * que a registra dentro do módulo dinâmico dele, e com ela o callback de envio grava o registro
- * e o plugin de `/verify-email` o consome. O handler do Better Auth é montado sem caminho,
- * então o `middleware` grava `/api/auth/*` como `http.route` das requisições dele, para a métrica
- * e o span de servidor não saírem sem rota (spec da fundação, Métricas exportadas).
+ * e o plugin de `/verify-email` o apaga depois de a biblioteca ativar a conta. O handler do
+ * Better Auth é montado sem caminho, então o `middleware` grava `/api/auth/*` como `http.route`
+ * das requisições dele, para a métrica e o span de servidor não saírem sem rota (spec da fundação, Métricas exportadas).
  */
 @Module({
   imports: [

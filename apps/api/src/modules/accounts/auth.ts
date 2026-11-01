@@ -60,8 +60,8 @@ export interface AuthDependencies {
    */
   signUpRequestPlugin: BetterAuthPlugin;
   /**
-   * Plugin com o hook antes de `/verify-email` (RF-002), que dá ao link uso único, prazo pelo
-   * registro de confirmação e a resposta `ALREADY_VERIFIED` à conta já ativa.
+   * Plugin com os hooks antes e depois de `/verify-email` (RF-002), que dão ao link uso único,
+   * prazo pelo registro de confirmação e a resposta `ALREADY_VERIFIED` à conta já ativa.
    */
   verifyEmailPlugin: BetterAuthPlugin;
   /** Contadores do rate limit no Valkey. */

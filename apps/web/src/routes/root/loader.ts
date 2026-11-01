@@ -6,7 +6,8 @@ export interface RootLoaderData {
   session: SessionResponse | null;
   /**
    * A API não respondeu já na primeira leitura: a sessão é desconhecida e a barra fica anônima.
-   * A página inicial mostra a página de erro; uma tela filha trata a API fora por conta própria.
+   * Cada rota filha decide o que mostrar: a página inicial lança a página de erro, e
+   * `/confirmar-email` mostra o próprio aviso.
    */
   unavailable?: ApiUnavailableError;
 }
@@ -14,11 +15,11 @@ export interface RootLoaderData {
 /**
  * Cria o `loader` da rota raiz, que lê a sessão pela API. Outros status viram erro de rota,
  * mostrado pela página de erro. Com a API fora do ar (`ApiUnavailableError`), a primeira leitura
- * devolve a sessão anônima com `unavailable`, para a página inicial cair na página de erro e uma
- * tela filha, como `/confirmar-email`, mostrar o próprio aviso de servidor fora (RF-002,
- * UI-FALHA-01); uma releitura, como a que o roteador faz depois de qualquer `action`, mantém a
- * última sessão lida, para a tela aberta não perder o que foi digitado. Assim nenhuma rota precisa
- * se declarar neutra para a sessão.
+ * devolve a sessão anônima com `unavailable`, para a página inicial (rota `index`) cair na página
+ * de erro e uma tela filha, como `/confirmar-email`, mostrar o próprio aviso de servidor fora
+ * (RF-002, UI-FALHA-01 e UI-FALHA-02); uma releitura, como a que o roteador faz depois de
+ * qualquer `action`, mantém a última sessão lida, para a tela aberta não perder o que foi
+ * digitado. Assim nenhuma rota precisa se declarar neutra para a sessão.
  */
 export function createRootLoader(): () => Promise<RootLoaderData> {
   let last: RootLoaderData | undefined;

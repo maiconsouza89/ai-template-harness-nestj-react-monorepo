@@ -31,8 +31,14 @@ export function confirmEmailUrl(webOrigin: string, token: string): string {
 /** O que o callback usa da porta dos registros de confirmação. */
 export type EmailVerificationLinkWriter = Pick<
   EmailVerificationLinks,
-  'replaceForUser'
+  'create' | 'deleteOlderForUser' | 'deleteExpiredBefore' | 'deleteById'
 >;
+
+/** Registros vencidos há mais que isto saem na limpeza de cada envio (spec, Regras; hipótese). */
+export const EXPIRED_LINK_RETENTION_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** Quantos registros vencidos cada envio apaga no máximo (spec, Regras; hipótese). */
+export const EXPIRED_LINK_CLEANUP_BATCH = 100;
 
 /** Configuração do callback: origem da SPA, validade do link em segundos e segredo do JWT. */
 export interface SendVerificationEmailOptions {
@@ -79,20 +85,30 @@ export function emailVerificationTokenExpiresAt(token: string): Date {
 }
 
 /**
- * Callback `emailVerification.sendVerificationEmail` do Better Auth (spec, Fluxo técnico), chamado
- * no cadastro e no reenvio. Emite o token do link com `issueEmailVerificationToken`, no lugar
- * do que a biblioteca passa, para cada envio ter um link próprio. Troca o registro de confirmação
- * da conta: apaga os anteriores, para os links já enviados deixarem de valer, e grava o hash do
- * token novo com vencimento igual ao `exp` do token, `expiresInSeconds` depois da emissão (RF-002). Depois monta o link da SPA, e não o
- * `GET /api/auth/verify-email` que a biblioteca gera, e pede o envio ao Módulo E-mail. O pedido
- * leva só o tipo, o id da conta e o link; nome, e-mail e senha ficam de fora. A falha ao gravar o
- * registro impede o envio, e ela ou a falha ao enfileirar sobem ao `runInBackgroundOrAwait` da
- * biblioteca, que no cadastro a registra sem desfazer a conta e no reenvio responde 500.
+ * Callback `emailVerification.sendVerificationEmail` do Better Auth (spec, Fluxo técnico do
+ * reenvio), chamado no cadastro e no reenvio. Emite o token do link com
+ * `issueEmailVerificationToken`, no lugar do que a biblioteca passa, para cada envio ter um link
+ * próprio, e então:
+ *
+ * 1. grava o registro do hash do token novo, com vencimento igual ao `exp` dele, sem apagar os
+ *    anteriores; se a gravação falha, nada mais acontece e os links já enviados seguem valendo;
+ * 2. apaga até `EXPIRED_LINK_CLEANUP_BATCH` registros, de qualquer conta, vencidos há mais de
+ *    `EXPIRED_LINK_RETENTION_MS`;
+ * 3. pede o envio ao Módulo E-mail com o link da SPA, e não o `GET /api/auth/verify-email` que a
+ *    biblioteca gera; o pedido leva só o tipo, o id da conta e o link;
+ * 4. com o pedido na fila, apaga os registros da conta anteriores ao novo, e os links já enviados
+ *    deixam de valer.
+ *
+ * Se a limpeza ou o pedido falham, apaga o registro novo, que nenhum e-mail leva, e os anteriores
+ * continuam valendo. Toda falha sobe ao `runInBackgroundOrAwait` da biblioteca, que no cadastro a
+ * registra sem desfazer a conta e no reenvio responde 500. A falha ao apagar os anteriores, com o
+ * e-mail já na fila, também sobe, e o registro novo fica: o link que vai chegar continua valendo.
  */
 export function createSendVerificationEmail(
   requester: EmailRequester,
   links: EmailVerificationLinkWriter,
   { webOrigin, expiresInSeconds, secret }: SendVerificationEmailOptions,
+  now: () => Date = () => new Date(),
 ) {
   return async ({ user }: VerificationEmailData): Promise<void> => {
     const token = await issueEmailVerificationToken(
@@ -100,18 +116,27 @@ export function createSendVerificationEmail(
       secret,
       expiresInSeconds,
     );
-    const expiresAt = emailVerificationTokenExpiresAt(token);
-    await links.replaceForUser(
+    const created = await links.create(
       user.id,
       await hashEmailVerificationToken(token),
-      expiresAt,
+      emailVerificationTokenExpiresAt(token),
     );
     const request: EmailRequest = {
       type: 'verify-email',
       userId: user.id,
       url: confirmEmailUrl(webOrigin, token),
     };
-    await requester.execute(request);
+    try {
+      await links.deleteExpiredBefore(
+        new Date(now().getTime() - EXPIRED_LINK_RETENTION_MS),
+        EXPIRED_LINK_CLEANUP_BATCH,
+      );
+      await requester.execute(request);
+    } catch (error) {
+      await links.deleteById(created.id).catch(() => undefined);
+      throw error;
+    }
+    await links.deleteOlderForUser(created);
   };
 }
 

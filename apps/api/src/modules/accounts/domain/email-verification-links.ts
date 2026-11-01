@@ -16,20 +16,40 @@ export interface EmailVerificationLink {
   expiresAt: Date;
 }
 
+/** Registro recém-gravado: o `createdAt` separa os anteriores da conta dos posteriores. */
+export interface CreatedEmailVerificationLink {
+  id: string;
+  userId: string;
+  createdAt: Date;
+}
+
 /**
- * Porta dos registros de confirmação. `replaceForUser` apaga todos os registros da conta e grava
- * o do token novo de uma vez; `deleteById` informa se apagou, para só um de dois pedidos
- * simultâneos com o mesmo link consumir o registro.
+ * Porta dos registros de confirmação (spec, Componentes e Modelo de dados). O envio grava o
+ * registro novo com `create`, limpa os vencidos de qualquer conta com `deleteExpiredBefore`, pede
+ * o envio e só então apaga os anteriores da conta com `deleteOlderForUser`; se o pedido falha,
+ * desfaz o novo com `deleteById`. A abertura do link busca por `findByTokenHash` e consome o
+ * registro com `deleteById` depois de a biblioteca ativar a conta.
  */
 export abstract class EmailVerificationLinks {
-  abstract replaceForUser(
+  /** Grava o registro do token novo da conta, sem tocar nos anteriores. */
+  abstract create(
     userId: string,
     tokenHash: string,
     expiresAt: Date,
-  ): Promise<void>;
+  ): Promise<CreatedEmailVerificationLink>;
+  /**
+   * Apaga os registros da mesma conta criados antes de `link`, e não os criados depois, para dois
+   * envios simultâneos não apagarem o registro um do outro. Devolve quantos apagou.
+   */
+  abstract deleteOlderForUser(
+    link: CreatedEmailVerificationLink,
+  ): Promise<number>;
+  /** Apaga até `limit` registros, de qualquer conta, com `expiresAt` antes de `cutoff`. */
+  abstract deleteExpiredBefore(cutoff: Date, limit: number): Promise<number>;
   abstract findByTokenHash(
     tokenHash: string,
   ): Promise<EmailVerificationLink | null>;
+  /** Apaga um registro pelo id; informa se ele ainda existia. */
   abstract deleteById(id: string): Promise<boolean>;
 }
 

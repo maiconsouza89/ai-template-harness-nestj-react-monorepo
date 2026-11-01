@@ -2,18 +2,23 @@ import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../../platform/prisma/prisma.service.js';
 import {
+  type CreatedEmailVerificationLink,
   EMAIL_VERIFICATION_IDENTIFIER_PREFIX,
   EmailVerificationLinks,
   emailVerificationIdentifier,
   type EmailVerificationLink,
 } from '../../domain/email-verification-links.js';
 
+/** Filtro dos registros de confirmação entre as linhas da tabela `verification`. */
+const EMAIL_VERIFICATION_RECORDS = {
+  identifier: { startsWith: EMAIL_VERIFICATION_IDENTIFIER_PREFIX },
+};
+
 /**
  * Registros de confirmação na tabela `verification` da fundação (spec, Modelo de dados), pelo
- * Prisma. A troca apaga os registros da conta por prefixo de `identifier` e `value` e grava o
- * novo numa transação, com uma trava de transação por conta no PostgreSQL: dois envios
- * simultâneos da mesma conta (cadastro e reenvio, ou dois reenvios) se enfileiram, e sobra um
- * registro só.
+ * Prisma. Cada operação é um comando só, sem transação nem trava: os anteriores de um registro
+ * são os da mesma conta com `createdAt` menor, então dois envios simultâneos da mesma conta não
+ * apagam o registro um do outro, e o mais novo sobrevive ao envio seguinte.
  */
 @Injectable()
 export class PrismaEmailVerificationLinksRepository extends EmailVerificationLinks {
@@ -21,29 +26,53 @@ export class PrismaEmailVerificationLinksRepository extends EmailVerificationLin
     super();
   }
 
-  async replaceForUser(
+  async create(
     userId: string,
     tokenHash: string,
     expiresAt: Date,
-  ): Promise<void> {
-    const lockKey = `${EMAIL_VERIFICATION_IDENTIFIER_PREFIX}${userId}`;
-    await this.prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT 1 FROM pg_advisory_xact_lock(hashtext(${lockKey}::text))`;
-      await tx.verification.deleteMany({
-        where: {
-          value: userId,
-          identifier: { startsWith: EMAIL_VERIFICATION_IDENTIFIER_PREFIX },
-        },
-      });
-      await tx.verification.create({
-        data: {
-          id: randomUUID(),
-          identifier: emailVerificationIdentifier(tokenHash),
-          value: userId,
-          expiresAt,
-        },
-      });
+  ): Promise<CreatedEmailVerificationLink> {
+    const row = await this.prisma.verification.create({
+      data: {
+        id: randomUUID(),
+        identifier: emailVerificationIdentifier(tokenHash),
+        value: userId,
+        expiresAt,
+      },
+      select: { id: true, value: true, createdAt: true },
     });
+    return { id: row.id, userId: row.value, createdAt: row.createdAt };
+  }
+
+  async deleteOlderForUser(
+    link: CreatedEmailVerificationLink,
+  ): Promise<number> {
+    const { count } = await this.prisma.verification.deleteMany({
+      where: {
+        ...EMAIL_VERIFICATION_RECORDS,
+        value: link.userId,
+        createdAt: { lt: link.createdAt },
+        id: { not: link.id },
+      },
+    });
+    return count;
+  }
+
+  /**
+   * O `deleteMany` do Prisma não tem limite: busca os ids do lote e apaga por eles. Um envio
+   * simultâneo que apague parte do mesmo lote não atrapalha, só reduz a contagem.
+   */
+  async deleteExpiredBefore(cutoff: Date, limit: number): Promise<number> {
+    const rows = await this.prisma.verification.findMany({
+      where: { ...EMAIL_VERIFICATION_RECORDS, expiresAt: { lt: cutoff } },
+      select: { id: true },
+      orderBy: { expiresAt: 'asc' },
+      take: limit,
+    });
+    if (rows.length === 0) return 0;
+    const { count } = await this.prisma.verification.deleteMany({
+      where: { id: { in: rows.map(({ id }) => id) } },
+    });
+    return count;
   }
 
   async findByTokenHash(
