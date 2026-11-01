@@ -1,10 +1,18 @@
 import { describe, expect, it } from 'vitest';
 import {
   passwordSchema,
+  requestPasswordResetSchema,
+  requestPasswordResetStates,
   resendVerificationEmailSchema,
+  resetPasswordCodes,
+  resetPasswordFormSchema,
+  resetPasswordMessages,
+  resetPasswordSchema,
+  resetPasswordStates,
   signUpErrorCodes,
   signUpMessages,
   signUpSchema,
+  toResetPasswordFieldErrors,
   toSignUpFieldErrors,
   verifyEmailCodes,
   verifyEmailMessages,
@@ -142,5 +150,136 @@ describe('mensagens da confirmação', () => {
       userNotFound: 'USER_NOT_FOUND',
       alreadyVerified: 'ALREADY_VERIFIED',
     });
+  });
+});
+
+describe('requestPasswordResetSchema', () => {
+  it('aceita e-mail válido e o devolve em minúsculas', () => {
+    const result = requestPasswordResetSchema.safeParse({
+      email: ' Rosa@Example.com ',
+    });
+    expect(result.success && result.data).toEqual({
+      email: 'rosa@example.com',
+    });
+  });
+
+  it('recusa e-mail inválido ou ausente com a mensagem de e-mail', () => {
+    for (const body of [{ email: 'abc' }, { email: '' }, {}]) {
+      const result = requestPasswordResetSchema.safeParse(body);
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe(
+        signUpMessages.emailInvalid,
+      );
+    }
+  });
+});
+
+describe('resetPasswordSchema', () => {
+  it('aceita o token e a nova senha dentro da regra', () => {
+    const body = { token: 'Xk3abc', newPassword: 'Nova12345' };
+    const result = resetPasswordSchema.safeParse(body);
+    expect(result.success && result.data).toEqual(body);
+  });
+
+  it.each(['semnumero', '12345678', 'Nova123'])(
+    'recusa a nova senha %s com a regra no campo newPassword',
+    (newPassword) => {
+      const result = resetPasswordSchema.safeParse({
+        token: 'Xk3abc',
+        newPassword,
+      });
+      expect(result.success).toBe(false);
+      expect(toResetPasswordFieldErrors(result.error!)).toEqual([
+        { field: 'newPassword', message: rule },
+      ]);
+    },
+  );
+
+  it('recusa token vazio ou ausente sem apontá-lo como campo do formulário', () => {
+    for (const body of [
+      { token: '', newPassword: 'Nova12345' },
+      { newPassword: 'Nova12345' },
+    ]) {
+      const result = resetPasswordSchema.safeParse(body);
+      expect(result.success).toBe(false);
+      expect(result.error?.issues[0]?.message).toBe(
+        resetPasswordMessages.invalidToken,
+      );
+      expect(toResetPasswordFieldErrors(result.error!)).toEqual([]);
+    }
+  });
+});
+
+describe('resetPasswordFormSchema', () => {
+  it('aceita a nova senha dentro da regra repetida na confirmação', () => {
+    const form = { newPassword: 'Nova12345', confirmPassword: 'Nova12345' };
+    const result = resetPasswordFormSchema.safeParse(form);
+    expect(result.success && result.data).toEqual(form);
+  });
+
+  it('recusa senhas diferentes com a mensagem no campo de confirmação', () => {
+    const result = resetPasswordFormSchema.safeParse({
+      newPassword: 'Nova12345',
+      confirmPassword: 'Nova54321',
+    });
+    expect(result.success).toBe(false);
+    expect(toResetPasswordFieldErrors(result.error!)).toEqual([
+      { field: 'confirmPassword', message: 'As senhas não conferem.' },
+    ]);
+  });
+
+  it('recusa a nova senha fora da regra com a regra no campo da nova senha', () => {
+    const result = resetPasswordFormSchema.safeParse({
+      newPassword: 'semnumero',
+      confirmPassword: 'semnumero',
+    });
+    expect(result.success).toBe(false);
+    expect(toResetPasswordFieldErrors(result.error!)).toEqual([
+      { field: 'newPassword', message: rule },
+    ]);
+  });
+
+  it('aponta a regra e a diferença juntas, na ordem da tela', () => {
+    const result = resetPasswordFormSchema.safeParse({
+      confirmPassword: 'Nova123',
+      newPassword: 'Nova12',
+    });
+    expect(result.success).toBe(false);
+    expect(toResetPasswordFieldErrors(result.error!)).toEqual([
+      { field: 'newPassword', message: rule },
+      { field: 'confirmPassword', message: 'As senhas não conferem.' },
+    ]);
+  });
+});
+
+describe('textos da recuperação', () => {
+  it('expõe os códigos das respostas', () => {
+    expect(resetPasswordCodes).toEqual({
+      validation: 'VALIDATION_ERROR',
+      invalidToken: 'INVALID_TOKEN',
+      userNotFound: 'USER_NOT_FOUND',
+    });
+  });
+
+  it('usa os textos dos estados das duas telas', () => {
+    expect(requestPasswordResetStates.form.title).toBe('Recuperar a senha');
+    expect(requestPasswordResetStates.sent.text).toBe(
+      'Se o e-mail tiver conta, enviamos o link.',
+    );
+    expect(resetPasswordStates.form.title).toBe('Definir nova senha');
+    expect(resetPasswordStates.changed).toEqual({
+      title: 'Senha alterada',
+      text: 'Sua senha foi trocada. Entre com a nova senha.',
+    });
+    expect(resetPasswordStates.invalid).toEqual({
+      title: 'Link inválido',
+      text: 'Este link não vale mais. Peça outro link.',
+    });
+    expect(resetPasswordMessages.tooManyRequests).toBe(
+      'Muitas tentativas. Tente de novo em alguns instantes.',
+    );
+    expect(resetPasswordMessages.serverUnavailable).toBe(
+      'O servidor não respondeu. Tente de novo.',
+    );
   });
 });
