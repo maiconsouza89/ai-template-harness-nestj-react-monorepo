@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/compare/v1.2.0...v1.3.0) (2026-11-01)
+
+
+### Adicionado
+
+* **accounts:** permite confirmar o e-mail pelo link de uso único ([#16](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/issues/16)) ([0b15c9a](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/commit/0b15c9ac2b9f27152e45d05023d9b1e5b9a19bb7))
+
 ## [1.2.0](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/compare/v1.1.0...v1.2.0) (2026-11-01)
 
 
