@@ -32,6 +32,11 @@ export function RootRoute() {
   const data = useLoaderData() as RootLoaderData;
   const outlet = useOutlet();
 
+  // API fora já na primeira leitura: sem tela filha, a página inicial vira a página de erro.
+  if (outlet === null && data.unavailable) {
+    throw data.unavailable;
+  }
+
   return (
     <>
       <NavBar anonymous={data.session === null} />

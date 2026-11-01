@@ -45,10 +45,13 @@ describe('rootLoader', () => {
     );
   });
 
-  it('lança ApiUnavailableError quando a rede falha', async () => {
+  it('devolve a sessão anônima com a API fora quando a primeira leitura falha', async () => {
     fetchMock.mockRejectedValue(new TypeError('fetch failed'));
 
-    await expect(rootLoader()).rejects.toBeInstanceOf(ApiUnavailableError);
+    const data = await rootLoader();
+
+    expect(data.session).toBeNull();
+    expect(data.unavailable).toBeInstanceOf(ApiUnavailableError);
   });
 
   it('mantém a última sessão lida quando a releitura não alcança a API', async () => {
