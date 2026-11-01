@@ -2,9 +2,9 @@
 
 *Gerado pela skill evaluator. Cada avaliação sobrescreve este arquivo; o histórico está no git.*
 
-- Execução: 2026-11-01T15-54-41Z
+- Execução: 2026-11-01T16-17-44Z
 - Branch: feat/rf-005-recuperar-senha
-- Commit: 01578f3
+- Commit: 11e5c60
 - Status: limpo
 - Itens: 45 passou, 0 falhou, 0 bloqueado, 0 manual, 0 pulado, de 45
 - Critérios: 5 verificado, 0 reprovado, 0 indeterminado, de 5
@@ -22,13 +22,13 @@
 
 ## Gates de qualidade
 
-- ✓ check: `make check`, código 0 (com `TURBO_FORCE=true`: 5 tarefas, 0 do cache; API 28 arquivos de unidade (168 testes) e 14 de integração (104 testes), SPA 11 arquivos (91 testes), Contratos 3 arquivos (34 testes); "ok: todas as verificações passaram")
+- ✓ check: `make check`, código 0 (com `TURBO_FORCE=true`: 5 tarefas, 0 do cache; API 28 arquivos de unidade (169 testes) e 14 de integração (105 testes), SPA 11 arquivos (91 testes), Contratos 3 arquivos (34 testes); "ok: todas as verificações passaram")
 - ✓ build: `make build`, código 0 (com `TURBO_FORCE=true`: 4 tarefas, 0 do cache)
 
 ## Pré-requisitos
 
 ### Serviços em execução
-- ✓ api (com o worker do Módulo E-mail): http://localhost:3000, saúde /api/health respondeu 200 `{"status":"ok","checks":{"postgres":"up","valkey":"up"}}`, recriada apontando para o banco efêmero `eval_rf005_2026_11_01t15_54_41z` e para o Valkey no banco lógico 3; parada e religada em UI-FALHA-01 e UI-FALHA-02, de volta saudável
+- ✓ api (com o worker do Módulo E-mail): http://localhost:3000, saúde /api/health respondeu 200 `{"status":"ok","checks":{"postgres":"up","valkey":"up"}}`, recriada apontando para o banco efêmero `eval_rf005_2026_11_01t16_17_44z` e para o Valkey no banco lógico 3; parada e religada em UI-FALHA-01 e UI-FALHA-02, de volta saudável
 - ✓ web: http://localhost:5173/ respondeu 200, saudável no Compose
 - ✓ postgres: saudável no Compose (PostgreSQL 18)
 - ✓ valkey: saudável no Compose (Valkey 9), banco lógico 3 vazio no início (`dbsize` 0); parado e religado em API-PEDIDO-03 e API-PEDIDO-04, de volta saudável (`/api/health` com valkey up)
@@ -43,15 +43,15 @@
 Nenhum.
 
 ### Configuração
-- ✓ `.env` copiado do `.env.example` (idênticos): NODE_ENV=development e TRUSTED_PROXIES vazia em vigor no container da api (o contrato pede development e vazia); `make db-setup` aplicado ao banco efêmero (migrações aplicadas, "seed: primeiro admin criado")
-- ✓ X-Forwarded-For de cadastro e pedido de recuperação: cada item fora do navegador usou um IP 203.0.113.x exclusivo (de .1 a .29 nos itens de API e Worker, de .101 a .110 nos de UI)
+- ✓ `.env` copiado do `.env.example` (idênticos): NODE_ENV=development e TRUSTED_PROXIES vazia em vigor no container da api (o contrato pede development e vazia); `make db-setup` aplicado ao banco efêmero (migração `20261029000000_init` aplicada, "seed: primeiro admin criado")
+- ✓ X-Forwarded-For de cadastro e pedido de recuperação: cada item fora do navegador usou um IP 203.0.113.x exclusivo (de .1 a .29 nos itens de API e Worker, de .101 a .116 nos de UI e E2E)
 - ✓ X-Forwarded-For de entrada: cada POST /api/auth/sign-in/email fora do navegador usou um IP 198.51.100.x exclusivo da requisição
 - ✓ Link de recuperação: lido da mensagem mais recente de assunto "Redefina sua senha" para o e-mail na caixa do Mailpit (busca `to:"<e-mail>" subject:"Redefina sua senha"`), token pelo parâmetro `token`
-- ✓ Registro de recuperação: linha de `verification` com identifier `reset-password:<hash>` e value igual ao id da conta; vencimento movido com UPDATE do `expiresAt`
+- ✓ Registro de recuperação: linha de `verification` com identifier `reset-password:<hash>` e value igual ao id da conta; vencimento movido com UPDATE do `expiresAt` (coluna sem fuso, em UTC)
 - ✓ Sessão aberta antes: cookie de sessão da resposta de POST /api/auth/sign-in/email com o e-mail e a senha da conta
 
 ### Dependências externas
-- ✓ DEP-1 serviço de envio de e-mail: Mailpit v1.32 do Compose, lido e esvaziado pela API REST (`/api/v1/search`, `/api/v1/message/<id>`, DELETE `/api/v1/messages`); as mensagens chegaram em menos de 2 segundos
+- ✓ DEP-1 serviço de envio de e-mail: Mailpit v1.32 do Compose, lido e esvaziado pela API REST (`/api/v1/search`, `/api/v1/message/<id>`, DELETE `/api/v1/messages`); as mensagens chegaram em menos de 1 segundo
 
 ## Itens
 
@@ -61,8 +61,8 @@ Nenhum.
 - Veredito: passou
 - ✓ a resposta é 200 com status verdadeiro | esperado 200 com status true, observado 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 - ✓ o banco tem exatamente um registro de recuperação para a conta de rosa@example.com | esperado 1, observado 1
-- ✓ o expiresAt desse registro fica entre 59 e 61 minutos depois da resposta | esperado entre 59 e 61 min, observado 60.00 min (expiresAt 2026-11-01 16:59:36.21, resposta 2026-11-01T15:59:36.216814 UTC)
-- ✓ o identifier e o value desse registro não contêm o token do link que chegou para rosa@example.com | esperado token ausente de identifier e value, observado identifier=reset-password:acb1cc6408be7e3..., value=id da conta; token presente: False
+- ✓ o expiresAt desse registro fica entre 59 e 61 minutos depois da resposta | esperado entre 59 e 61 min, observado 60.00 min (expiresAt 2026-11-01 17:23:38.675, resposta 2026-11-01T16:23:38.685Z)
+- ✓ o identifier e o value desse registro não contêm o token do link que chegou para rosa@example.com | esperado token ausente de identifier e value, observado identifier=reset-password:f65c73d9da3abf5..., value=id da conta: true; token presente: false
 
 <details>
 <summary>Evidência</summary>
@@ -70,7 +70,7 @@ Nenhum.
 ```
 conta-ativa rosa@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
 POST request-password-reset rosa@example.com (XFF 203.0.113.1) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-token do link tUDK<mascarado> (24 caracteres), identifier reset-password:acb1cc64...
+token do link 8krk<mascarado> (24 caracteres), identifier reset-password:f65c73d9...
 ```
 
 </details>
@@ -78,9 +78,9 @@ token do link tUDK<mascarado> (24 caracteres), identifier reset-password:acb1cc6
 #### API-PEDIDO-02
 - Veredito: passou
 - ✓ a resposta é 200 | esperado 200, observado 200
-- ✓ o corpo é igual a C | esperado {"status": true, "message": "If this email exists in our system, check your email for the reset link"}, observado {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+- ✓ o corpo é igual a C | esperado {"status":true,"message":"If this email exists in our system, check your email for the reset link"}, observado {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 - ✓ o banco não tem conta com o e-mail sem.conta@example.com | esperado 0, observado 0
-- ✓ o banco não ganhou registro de recuperação durante o item | esperado 1, observado 1
+- ✓ o banco não ganhou registro de recuperação durante o item | esperado 1 (antes), observado 1
 
 <details>
 <summary>Evidência</summary>
@@ -96,9 +96,9 @@ POST request-password-reset sem.conta@example.com (XFF 203.0.113.2) -> 200 {"sta
 #### API-PEDIDO-03
 - Veredito: passou
 - ✓ a resposta é 200 | esperado 200, observado 200
-- ✓ o corpo é igual a C | esperado {"status": true, "message": "If this email exists in our system, check your email for the reset link"}, observado {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+- ✓ o corpo é igual a C | esperado {"status":true,"message":"If this email exists in our system, check your email for the reset link"}, observado {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 - ✓ o banco tem exatamente um registro de recuperação para a conta de sara@example.com | esperado 1, observado 1
-- ✓ esse registro é o R1 | esperado 5NsS<mascarado>, observado ['5NsS<mascarado>']
+- ✓ esse registro é o R1 | esperado mPFl<mascarado>, observado ["mPFl<mascarado>"]
 
 <details>
 <summary>Evidência</summary>
@@ -106,11 +106,11 @@ POST request-password-reset sem.conta@example.com (XFF 203.0.113.2) -> 200 {"sta
 ```
 conta-ativa sara@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
 POST request-password-reset sara@example.com (XFF 203.0.113.3) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-R1 = 5NsS<mascarado>
+R1 = mPFl<mascarado> (51b1<mascarado>)
 docker compose stop valkey
 POST request-password-reset sara@example.com (XFF 203.0.113.3) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 tempo da resposta: 0.0s
-valkey religado; /api/health {'status': 'ok', 'checks': {'postgres': 'up', 'valkey': 'up'}}
+valkey religado; /api/health {"status":"ok","checks":{"postgres":"up","valkey":"up"}}
 ```
 
 </details>
@@ -128,8 +128,8 @@ conta-ativa saulo@example.com: role=user emailVerified=t banned=f sessões=0 reg
 POST request-password-reset saulo@example.com (XFF 203.0.113.4) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 docker compose stop valkey
 POST request-password-reset saulo@example.com (XFF 203.0.113.4) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-valkey religado; /api/health {'status': 'ok', 'checks': {'postgres': 'up', 'valkey': 'up'}}
-POST reset-password T1=KLbu<mascarado> -> 200 {"status":true}
+valkey religado; /api/health {"status":"ok","checks":{"postgres":"up","valkey":"up"}}
+POST reset-password T1=9pNA<mascarado> -> 200 {"status":true}
 ```
 
 </details>
@@ -144,7 +144,7 @@ POST reset-password T1=KLbu<mascarado> -> 200 {"status":true}
 
 ```
 conta-ativa tito@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-cinco pedidos do IP 203.0.113.5: [200, 200, 200, 200, 200] em 0.1s
+cinco pedidos do IP 203.0.113.5: [200,200,200,200,200] em 0.1s
 sexto pedido -> 429 {"message":"Too many requests. Please try again later."}; X-Retry-After=60
 ```
 
@@ -162,7 +162,7 @@ sexto pedido -> 429 {"message":"Too many requests. Please try again later."}; X-
 conta-ativa hugo@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
 conta-ativa iris@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
 POST request-password-reset hugo@example.com (XFF 203.0.113.6) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-expiresAt de hugo movido para 2026-11-01 15:58:54.768
+expiresAt de hugo movido para 2026-11-01 16:22:59.18
 POST request-password-reset iris@example.com (XFF 203.0.113.6) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 ```
 
@@ -183,7 +183,7 @@ conta-ativa tais@example.com: role=user emailVerified=t banned=f sessões=0 regi
 POST request-password-reset tais@example.com (XFF 203.0.113.7) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 POST request-password-reset tais@example.com (XFF 203.0.113.7) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 mensagens na caixa para tais: 2
-POST reset-password T1=uF6P<mascarado> -> 400 {"message":"Invalid token","code":"INVALID_TOKEN"}
+POST reset-password T1=xESH<mascarado> -> 400 {"message":"Invalid token","code":"INVALID_TOKEN"}
 ```
 
 </details>
@@ -201,7 +201,7 @@ POST reset-password T1=uF6P<mascarado> -> 400 {"message":"Invalid token","code":
 conta-ativa teo@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
 POST request-password-reset teo@example.com (XFF 203.0.113.8) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 POST request-password-reset teo@example.com (XFF 203.0.113.8) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-POST reset-password T2=pCsw<mascarado> -> 200 {"status":true}
+POST reset-password T2=Zavd<mascarado> -> 200 {"status":true}
 ```
 
 </details>
@@ -218,7 +218,7 @@ POST reset-password T2=pCsw<mascarado> -> 200 {"status":true}
 ```
 conta-ativa ugo@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
 POST request-password-reset ugo@example.com (XFF 203.0.113.9) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-GET reset-password-status?token=c0cB<mascarado> -> 200 {"valid":true}
+GET reset-password-status?token=5DPx<mascarado> -> 200 {"valid":true}
 ```
 
 </details>
@@ -234,6 +234,7 @@ GET reset-password-status?token=c0cB<mascarado> -> 200 {"valid":true}
 ```
 conta-ativa una@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
 POST request-password-reset una@example.com (XFF 203.0.113.10) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+expiresAt movido para 2026-11-01 16:23:04.764
 GET reset-password-status (vencido) -> 400 {"code":"INVALID_TOKEN","message":"Este link não vale mais. Peça outro link."}
 ```
 
@@ -282,8 +283,9 @@ GET reset-password-status?token=abc -> 400 {"code":"INVALID_TOKEN","message":"Es
 
 ```
 conta-ativa vitor@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset vitor@example.com (XFF 203.0.113.12) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-POST reset-password -> 200 {"status":true}; set-cookie=[]
+POST request-password-reset vitor@example.com (XFF 203.0.113.13) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST reset-password -> 200 {"status":true}
+set-cookie=[]
 ```
 
 </details>
@@ -299,9 +301,9 @@ POST reset-password -> 200 {"status":true}; set-cookie=[]
 
 ```
 conta-ativa vera@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset vera@example.com (XFF 203.0.113.13) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST request-password-reset vera@example.com (XFF 203.0.113.14) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 senha trocada: POST reset-password -> 200 {"status":true}
-POST sign-in/email Antiga123 -> 401 {"message":"Invalid email or password","code":"INVALID_EMAIL_OR_PASSWORD"} set-cookie=[]
+POST sign-in/email vera@example.com Antiga123 (XFF 198.51.100.1) -> 401 {"message":"Invalid email or password","code":"INVALID_EMAIL_OR_PASSWORD"} set-cookie=[]
 ```
 
 </details>
@@ -309,7 +311,7 @@ POST sign-in/email Antiga123 -> 401 {"message":"Invalid email or password","code
 #### API-TROCA-03
 - Veredito: passou
 - ✓ a resposta é 200 | esperado 200, observado 200
-- ✓ a resposta define o cookie de sessão | esperado cookie de sessão, observado ['better-auth.session_token']
+- ✓ a resposta define o cookie de sessão | esperado cookie de sessão, observado ["better-auth.session_token"]
 - ✓ o banco tem uma sessão para a conta de vilma@example.com | esperado 1, observado 1
 
 <details>
@@ -317,9 +319,9 @@ POST sign-in/email Antiga123 -> 401 {"message":"Invalid email or password","code
 
 ```
 conta-ativa vilma@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset vilma@example.com (XFF 203.0.113.14) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST request-password-reset vilma@example.com (XFF 203.0.113.15) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 senha trocada: POST reset-password -> 200 {"status":true}
-POST sign-in/email Nova12345 -> 200 set-cookie=['better-auth.session_token']
+POST sign-in/email vilma@example.com Nova12345 (XFF 198.51.100.2) -> 200 set-cookie=["better-auth.session_token"]
 ```
 
 </details>
@@ -334,8 +336,8 @@ POST sign-in/email Nova12345 -> 200 set-cookie=['better-auth.session_token']
 
 ```
 conta-ativa valter@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset valter@example.com (XFF 203.0.113.15) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-expiresAt movido para 2026-11-01 16:01:11.573
+POST request-password-reset valter@example.com (XFF 203.0.113.16) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+expiresAt movido para 2026-11-01 16:25:12.728
 POST reset-password -> 200 {"status":true}
 ```
 
@@ -351,8 +353,8 @@ POST reset-password -> 200 {"status":true}
 <summary>Evidência</summary>
 
 ```
-POST sign-up/email wanda -> 200; emailVerified=f
-POST request-password-reset wanda@example.com (XFF 203.0.113.16) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST sign-up/email wanda (XFF 203.0.113.17) -> 200; emailVerified=f
+POST request-password-reset wanda@example.com (XFF 203.0.113.17) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 POST reset-password -> 200 {"status":true}
 ```
 
@@ -369,7 +371,7 @@ POST reset-password -> 200 {"status":true}
 
 ```
 conta-ativa xico@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset xico@example.com (XFF 203.0.113.17) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST request-password-reset xico@example.com (XFF 203.0.113.18) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 primeiro POST reset-password -> 200 {"status":true}
 segundo POST reset-password -> 400 {"message":"Invalid token","code":"INVALID_TOKEN"}
 ```
@@ -387,7 +389,8 @@ segundo POST reset-password -> 400 {"message":"Invalid token","code":"INVALID_TO
 
 ```
 conta-ativa xena@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset xena@example.com (XFF 203.0.113.18) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST request-password-reset xena@example.com (XFF 203.0.113.19) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+expiresAt movido para 2026-11-01 16:23:17.242
 POST reset-password (vencido) -> 400 {"message":"Invalid token","code":"INVALID_TOKEN"}
 ```
 
@@ -395,18 +398,19 @@ POST reset-password (vencido) -> 400 {"message":"Invalid token","code":"INVALID_
 
 #### API-USO-03
 - Veredito: passou
-- ✓ uma resposta é 200 e a outra é 400 com o código INVALID_TOKEN | esperado 200 e 400 INVALID_TOKEN, observado 400 e 200 INVALID_TOKEN
+- ✓ uma resposta é 200 e a outra é 400 com o código INVALID_TOKEN | esperado 200 e 400 INVALID_TOKEN, observado 200 e 400 INVALID_TOKEN
 - ✓ o banco não tem registro de recuperação para a conta de ximena@example.com | esperado 0, observado 0
-- ✓ só a senha da requisição que recebeu 200 entra por POST /api/auth/sign-in/email | esperado Outra12345 200 e Nova12345 401, observado Outra12345 200 e Nova12345 401
+- ✓ só a senha da requisição que recebeu 200 entra por POST /api/auth/sign-in/email | esperado Nova12345 200 e Outra12345 401, observado Nova12345 200 e Outra12345 401
 
 <details>
 <summary>Evidência</summary>
 
 ```
 conta-ativa ximena@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset ximena@example.com (XFF 203.0.113.19) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-concorrentes: Nova12345 -> 400 {"message":"Invalid token","code":"INVALID_TOKEN"}; Outra12345 -> 200 {"status":true}
-sign-in Outra12345 -> 200; sign-in Nova12345 -> 401
+POST request-password-reset ximena@example.com (XFF 203.0.113.20) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+concorrentes: Nova12345 -> 200 {"status":true}; Outra12345 -> 400 {"message":"Invalid token","code":"INVALID_TOKEN"}
+POST sign-in/email ximena@example.com Nova12345 (XFF 198.51.100.3) -> 200 set-cookie=["better-auth.session_token"]
+POST sign-in/email ximena@example.com Outra12345 (XFF 198.51.100.4) -> 401 {"message":"Invalid email or password","code":"INVALID_EMAIL_OR_PASSWORD"} set-cookie=[]
 ```
 
 </details>
@@ -414,7 +418,7 @@ sign-in Outra12345 -> 200; sign-in Nova12345 -> 401
 #### API-REGRA-01
 - Veredito: passou
 - ✓ a resposta é 400 | esperado 400, observado 400
-- ✓ o corpo traz o código VALIDATION_ERROR e o campo newPassword com a mensagem "A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número." | esperado VALIDATION_ERROR, newPassword: A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número., observado VALIDATION_ERROR, {'newPassword': 'A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número.'}
+- ✓ o corpo traz o código VALIDATION_ERROR e o campo newPassword com a mensagem "A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número." | esperado VALIDATION_ERROR, newPassword: A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número., observado VALIDATION_ERROR, {"field":"newPassword","message":"A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número."}
 - ✓ o hash da credencial da conta de yago@example.com é o mesmo de antes do item | esperado igual, observado igual
 - ✓ o banco continua com um registro de recuperação para essa conta | esperado 1, observado 1
 
@@ -423,7 +427,7 @@ sign-in Outra12345 -> 200; sign-in Nova12345 -> 401
 
 ```
 conta-ativa yago@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset yago@example.com (XFF 203.0.113.20) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST request-password-reset yago@example.com (XFF 203.0.113.21) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 POST reset-password newPassword=semnumero -> 400 {"code":"VALIDATION_ERROR","message":"Confira os campos destacados.","fields":[{"field":"newPassword","message":"A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número."}]}
 ```
 
@@ -432,7 +436,7 @@ POST reset-password newPassword=semnumero -> 400 {"code":"VALIDATION_ERROR","mes
 #### API-REGRA-02
 - Veredito: passou
 - ✓ a resposta é 400 | esperado 400, observado 400
-- ✓ o corpo traz o código VALIDATION_ERROR e o campo newPassword | esperado VALIDATION_ERROR com newPassword, observado VALIDATION_ERROR, ['newPassword']
+- ✓ o corpo traz o código VALIDATION_ERROR e o campo newPassword | esperado VALIDATION_ERROR com newPassword, observado VALIDATION_ERROR, ["newPassword"]
 - ✓ o hash da credencial da conta de yan@example.com é o mesmo de antes do item | esperado igual, observado igual
 
 <details>
@@ -440,7 +444,7 @@ POST reset-password newPassword=semnumero -> 400 {"code":"VALIDATION_ERROR","mes
 
 ```
 conta-ativa yan@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset yan@example.com (XFF 203.0.113.21) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST request-password-reset yan@example.com (XFF 203.0.113.22) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 POST reset-password newPassword=12345678 -> 400 {"code":"VALIDATION_ERROR","message":"Confira os campos destacados.","fields":[{"field":"newPassword","message":"A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número."}]}
 ```
 
@@ -449,7 +453,7 @@ POST reset-password newPassword=12345678 -> 400 {"code":"VALIDATION_ERROR","mess
 #### API-REGRA-03
 - Veredito: passou
 - ✓ a resposta é 400 | esperado 400, observado 400
-- ✓ o corpo traz o código VALIDATION_ERROR e o campo newPassword | esperado VALIDATION_ERROR com newPassword, observado VALIDATION_ERROR, ['newPassword']
+- ✓ o corpo traz o código VALIDATION_ERROR e o campo newPassword | esperado VALIDATION_ERROR com newPassword, observado VALIDATION_ERROR, ["newPassword"]
 - ✓ o hash da credencial da conta de yvone@example.com é o mesmo de antes do item | esperado igual, observado igual
 
 <details>
@@ -457,7 +461,7 @@ POST reset-password newPassword=12345678 -> 400 {"code":"VALIDATION_ERROR","mess
 
 ```
 conta-ativa yvone@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset yvone@example.com (XFF 203.0.113.22) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST request-password-reset yvone@example.com (XFF 203.0.113.23) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 POST reset-password newPassword=Nova123 -> 400 {"code":"VALIDATION_ERROR","message":"Confira os campos destacados.","fields":[{"field":"newPassword","message":"A senha precisa ter no mínimo 8 caracteres, com pelo menos uma letra e um número."}]}
 ```
 
@@ -473,8 +477,10 @@ POST reset-password newPassword=Nova123 -> 400 {"code":"VALIDATION_ERROR","messa
 
 ```
 conta-ativa zeno@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-sessões abertas antes: sign-in -> 200, 200; sessões no banco: 2
-POST request-password-reset zeno@example.com (XFF 203.0.113.23) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST sign-in/email zeno@example.com Antiga123 (XFF 198.51.100.5) -> 200 set-cookie=["better-auth.session_token"]
+POST sign-in/email zeno@example.com Antiga123 (XFF 198.51.100.6) -> 200 set-cookie=["better-auth.session_token"]
+sessões no banco antes: 2
+POST request-password-reset zeno@example.com (XFF 203.0.113.24) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 POST reset-password -> 200 {"status":true}
 ```
 
@@ -490,8 +496,9 @@ POST reset-password -> 200 {"status":true}
 
 ```
 conta-ativa zuleica@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-sessão aberta antes: sign-in -> 200; GET /api/v1/session com C1 antes da troca -> 200
-POST request-password-reset zuleica@example.com (XFF 203.0.113.24) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST sign-in/email zuleica@example.com Antiga123 (XFF 198.51.100.7) -> 200 set-cookie=["better-auth.session_token"]
+GET /api/v1/session com C1 antes da troca -> 200
+POST request-password-reset zuleica@example.com (XFF 203.0.113.25) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 POST reset-password -> 200 {"status":true}
 GET /api/v1/session com C1 -> 401 {"message":"Unauthorized","statusCode":401}
 ```
@@ -509,8 +516,8 @@ GET /api/v1/session com C1 -> 401 {"message":"Unauthorized","statusCode":401}
 
 ```
 conta-ativa bia@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset bia@example.com (XFF 203.0.113.25) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-linhas de log da api desde 2026-11-01T16:00:28.859420Z: 0
+POST request-password-reset bia@example.com (XFF 203.0.113.26) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+linhas de log da api desde 2026-11-01T16:24:28.591Z: 0
 ```
 
 </details>
@@ -527,9 +534,9 @@ linhas de log da api desde 2026-11-01T16:00:28.859420Z: 0
 
 ```
 conta-ativa bruno@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset bruno@example.com (XFF 203.0.113.26) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST request-password-reset bruno@example.com (XFF 203.0.113.27) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 POST reset-password -> 200 {"status":true}
-linhas de log da api desde 2026-11-01T16:00:33.898347Z: 0
+linhas de log da api desde 2026-11-01T16:24:33.169Z: 0
 ```
 
 </details>
@@ -538,23 +545,23 @@ linhas de log da api desde 2026-11-01T16:00:33.898347Z: 0
 
 #### WRK-EMAIL-01
 - Veredito: passou
-- ✓ em até 2 minutos a caixa tem uma mensagem para zilda@example.com com o assunto "Redefina sua senha" | esperado mensagem em até 120s, observado 1 mensagem(ns) em 0.5s
-- ✓ essa mensagem tem um link que começa com o WEB_ORIGIN do .env seguido de /redefinir-senha?token= | esperado http://localhost:5173/redefinir-senha?token=..., observado http://localhost:5173/redefinir-senha?token=CzSw<mascarado>
-- ✓ o corpo dela diz "Olá, Zilda Rocha!" | esperado no texto e no HTML, observado texto: True, HTML: True
-- ✓ o corpo dela diz "O link vale por 1 hora e só pode ser usado uma vez." | esperado no texto e no HTML, observado texto: True, HTML: True
+- ✓ em até 2 minutos a caixa tem uma mensagem para zilda@example.com com o assunto "Redefina sua senha" | esperado mensagem em até 120s, observado 1 mensagem(ns) em 0.3s
+- ✓ essa mensagem tem um link que começa com o WEB_ORIGIN do .env seguido de /redefinir-senha?token= | esperado http://localhost:5173/redefinir-senha?token=..., observado http://localhost:5173/redefinir-senha?token=scAE<mascarado>
+- ✓ o corpo dela diz "Olá, Zilda Rocha!" | esperado no texto, observado texto: true, HTML: true
+- ✓ o corpo dela diz "O link vale por 1 hora e só pode ser usado uma vez." | esperado no texto, observado texto: true, HTML: true
 
 <details>
 <summary>Evidência</summary>
 
 ```
 conta-ativa zilda@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
-POST request-password-reset zilda@example.com (XFF 203.0.113.27) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
-Subject=Redefina sua senha To=['zilda@example.com']
+POST request-password-reset zilda@example.com (XFF 203.0.113.28) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+Subject=Redefina sua senha To=["zilda@example.com"]
 Text: Olá, Zilda Rocha!
 
 Recebemos um pedido para trocar a senha da sua conta. Para definir uma nova senha, abra o link abaixo:
 
-http://localhost:5173/redefinir-senha?token=CzSw<mascarado>
+http://localhost:5173/redefinir-senha?token=scAE<mascarado>
 
 O link vale por 1 hora e só pode ser usado uma vez.
 
@@ -572,7 +579,7 @@ Se você não pediu a troca, ignore esta mensagem: sua senha continua a mesma.
 <summary>Evidência</summary>
 
 ```
-POST request-password-reset ninguem -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
+POST request-password-reset ninguem@example.com (XFF 203.0.113.29) -> 200 {"status":true,"message":"If this email exists in our system, check your email for the reset link"}
 depois de 60s: mensagens para ninguem: 0; total na caixa: 0
 ```
 
@@ -592,12 +599,12 @@ depois de 60s: mensagens para ninguem: 0; total na caixa: 0
 <summary>Evidência</summary>
 
 ```
-conta-ativa alice.r@example.com: role=user emailVerified=t banned=f
+conta-ativa alice.r@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
 GET /api/v1/session -> 401
 POST /api/auth/request-password-reset -> 200 {"email":"alice.r@example.com"}
 GET /api/v1/session -> 401
 main: Recuperar a senha | Se o e-mail tiver conta, enviamos o link. | Enviar para outro e-mail
-screenshots: shots/UI-PEDIDO-01-1.png
+base visual (depois de enviar): 0 imagem(ns), 0 quebrada(s); 7 elementos; achados []; shots/UI-PEDIDO-01-1.png
 ```
 
 </details>
@@ -618,7 +625,7 @@ GET /api/v1/session -> 401
 POST /api/auth/request-password-reset -> 200 {"email":"beto.n@example.com"}
 GET /api/v1/session -> 401
 main: Recuperar a senha | Se o e-mail tiver conta, enviamos o link. | Enviar para outro e-mail
-screenshots: shots/UI-PEDIDO-02-1.png
+base visual (depois de enviar): 0 imagem(ns), 0 quebrada(s); 7 elementos; achados []; shots/UI-PEDIDO-02-1.png
 ```
 
 </details>
@@ -636,7 +643,7 @@ screenshots: shots/UI-PEDIDO-02-1.png
 ```
 GET /api/v1/session -> 401
 GET /api/v1/session -> 401
-screenshots: shots/UI-PEDIDO-03-1.png
+base visual (erro de campo): 0 imagem(ns), 0 quebrada(s); 9 elementos; achados []; shots/UI-PEDIDO-03-1.png
 ```
 
 </details>
@@ -652,12 +659,12 @@ screenshots: shots/UI-PEDIDO-03-1.png
 <summary>Evidência</summary>
 
 ```
-conta-ativa carla@example.com: role=user emailVerified=t banned=f
-POST request-password-reset carla@example.com (XFF 203.0.113.103) -> 200
-link aberto: http://localhost:5173/redefinir-senha?token=GxFc<mascarado>
+conta-ativa carla@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
+POST request-password-reset carla@example.com (XFF 203.0.113.104) -> 200
+link aberto: http://localhost:5173/redefinir-senha?token=Ozsj<mascarado>
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=GxFc<mascarado> -> 200
-screenshots: shots/UI-REDEFINIR-01-1.png
+GET /api/auth/reset-password-status?token=Ozsj<mascarado> -> 200
+base visual (formulário aberto pelo link): 0 imagem(ns), 0 quebrada(s); 10 elementos; achados []; shots/UI-REDEFINIR-01-1.png
 ```
 
 </details>
@@ -667,7 +674,7 @@ screenshots: shots/UI-REDEFINIR-01-1.png
 - ✓ `*` base visual (formulário) | interpretado como: imagens carregadas, elementos visíveis dentro da janela, sem corte por overflow de ancestral e com o centro recebendo o clique (elementFromPoint), e screenshot revisado sem corte, sobreposição ou layout desmontado | observado 0 imagem(ns), 0 quebrada(s); 10 elementos conferidos, 0 achado(s); shots/UI-REDEFINIR-02-1.png | passou
 - ✓ a página envia POST /api/auth/reset-password e recebe 200 | esperado 1 POST, 200, observado 1 POST, status 200
 - ✓ `*` a tela diz "Senha alterada" | interpretado como: texto visível no card, no título h1 da rota | observado h1: ["Senha alterada"] | passou
-- ✓ a tela tem um link ou botão "Entrar" para /entrar | esperado link ou botão visível para /entrar, observado a visível=true href=/entrar (no card, dentro de main)
+- ✓ a tela tem um link ou botão "Entrar" para /entrar | esperado link ou botão visível para /entrar, observado a visível=true href=/entrar (dentro de main)
 - ✓ a tela não mostra os campos de senha | esperado 0, observado 0
 - ✓ a página não envia uma segunda requisição a /api/auth/reset-password-status | esperado 1, observado 1 (antes do clique 1)
 - ✓ `*` base visual (senha alterada) | interpretado como: imagens carregadas, elementos visíveis dentro da janela, sem corte por overflow de ancestral e com o centro recebendo o clique (elementFromPoint), e screenshot revisado sem corte, sobreposição ou layout desmontado | observado 0 imagem(ns), 0 quebrada(s); 8 elementos conferidos, 0 achado(s); shots/UI-REDEFINIR-02-2.png | passou
@@ -676,14 +683,15 @@ screenshots: shots/UI-REDEFINIR-01-1.png
 <summary>Evidência</summary>
 
 ```
-conta-ativa davi@example.com: role=user emailVerified=t banned=f
-POST request-password-reset davi@example.com (XFF 203.0.113.104) -> 200
-link aberto: http://localhost:5173/redefinir-senha?token=z6V3<mascarado>
+conta-ativa davi@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
+POST request-password-reset davi@example.com (XFF 203.0.113.105) -> 200
+link aberto: http://localhost:5173/redefinir-senha?token=0Nul<mascarado>
+base visual (formulário): 0 imagem(ns), 0 quebrada(s); 10 elementos; achados []; shots/UI-REDEFINIR-02-1.png
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=z6V3<mascarado> -> 200
-POST /api/auth/reset-password -> 200 {"token":"z6V3<mascarado>","newPassword":"Nova12345"}
+GET /api/auth/reset-password-status?token=0Nul<mascarado> -> 200
+POST /api/auth/reset-password -> 200 {"token":"0Nul<mascarado>","newPassword":"Nova12345"}
 GET /api/v1/session -> 401
-screenshots: shots/UI-REDEFINIR-02-1.png, shots/UI-REDEFINIR-02-2.png
+base visual (senha alterada): 0 imagem(ns), 0 quebrada(s); 8 elementos; achados []; shots/UI-REDEFINIR-02-2.png
 ```
 
 </details>
@@ -699,13 +707,13 @@ screenshots: shots/UI-REDEFINIR-02-1.png, shots/UI-REDEFINIR-02-2.png
 <summary>Evidência</summary>
 
 ```
-conta-ativa dora@example.com: role=user emailVerified=t banned=f
-POST request-password-reset dora@example.com (XFF 203.0.113.105) -> 200
-link aberto: http://localhost:5173/redefinir-senha?token=UR8w<mascarado>
+conta-ativa dora@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
+POST request-password-reset dora@example.com (XFF 203.0.113.106) -> 200
+link aberto: http://localhost:5173/redefinir-senha?token=YeBT<mascarado>
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=UR8w<mascarado> -> 200
+GET /api/auth/reset-password-status?token=YeBT<mascarado> -> 200
 GET /api/v1/session -> 401
-screenshots: shots/UI-REDEFINIR-03-1.png
+base visual (senhas diferentes): 0 imagem(ns), 0 quebrada(s); 11 elementos; achados []; shots/UI-REDEFINIR-03-1.png
 ```
 
 </details>
@@ -721,13 +729,13 @@ screenshots: shots/UI-REDEFINIR-03-1.png
 <summary>Evidência</summary>
 
 ```
-conta-ativa duda@example.com: role=user emailVerified=t banned=f
-POST request-password-reset duda@example.com (XFF 203.0.113.106) -> 200
-link aberto: http://localhost:5173/redefinir-senha?token=XmC4<mascarado>
+conta-ativa duda@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
+POST request-password-reset duda@example.com (XFF 203.0.113.107) -> 200
+link aberto: http://localhost:5173/redefinir-senha?token=q6vf<mascarado>
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=XmC4<mascarado> -> 200
+GET /api/auth/reset-password-status?token=q6vf<mascarado> -> 200
 GET /api/v1/session -> 401
-screenshots: shots/UI-REDEFINIR-04-1.png
+base visual (senha fora da regra): 0 imagem(ns), 0 quebrada(s); 11 elementos; achados []; shots/UI-REDEFINIR-04-1.png
 ```
 
 </details>
@@ -735,7 +743,7 @@ screenshots: shots/UI-REDEFINIR-04-1.png
 #### UI-INVALIDO-01 *
 - Veredito: passou
 - ✓ `*` a tela diz "Link inválido" | interpretado como: texto visível no card, no título h1 da rota | observado h1: ["Link inválido"] | passou
-- ✓ a tela tem um link ou botão "Pedir outro link" para /recuperar-senha | esperado link ou botão visível para /recuperar-senha, observado a visível=true href=/recuperar-senha
+- ✓ a tela tem um link ou botão "Pedir outro link" para /recuperar-senha | esperado link ou botão visível para /recuperar-senha, observado a visível=true href=/recuperar-senha (dentro de main)
 - ✓ a tela não mostra os campos de senha | esperado 0, observado 0
 - ✓ `*` base visual (link vencido) | interpretado como: imagens carregadas, elementos visíveis dentro da janela, sem corte por overflow de ancestral e com o centro recebendo o clique (elementFromPoint), e screenshot revisado sem corte, sobreposição ou layout desmontado | observado 0 imagem(ns), 0 quebrada(s); 8 elementos conferidos, 0 achado(s); shots/UI-INVALIDO-01-1.png | passou
 
@@ -743,13 +751,13 @@ screenshots: shots/UI-REDEFINIR-04-1.png
 <summary>Evidência</summary>
 
 ```
-conta-ativa enzo@example.com: role=user emailVerified=t banned=f
-POST request-password-reset enzo@example.com (XFF 203.0.113.107) -> 200
-vencimento movido para 1 minuto antes de agora
-link aberto: http://localhost:5173/redefinir-senha?token=Etya<mascarado>
+conta-ativa enzo@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
+POST request-password-reset enzo@example.com (XFF 203.0.113.108) -> 200
+vencimento movido para 2026-11-01 16:27:01.492
+link aberto: http://localhost:5173/redefinir-senha?token=dGEO<mascarado>
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=Etya<mascarado> -> 400
-screenshots: shots/UI-INVALIDO-01-1.png
+GET /api/auth/reset-password-status?token=dGEO<mascarado> -> 400
+base visual (link vencido): 0 imagem(ns), 0 quebrada(s); 8 elementos; achados []; shots/UI-INVALIDO-01-1.png
 ```
 
 </details>
@@ -757,7 +765,7 @@ screenshots: shots/UI-INVALIDO-01-1.png
 #### UI-INVALIDO-02 *
 - Veredito: passou
 - ✓ `*` a tela diz "Link inválido" | interpretado como: texto visível no card, no título h1 da rota | observado h1: ["Link inválido"] | passou
-- ✓ a tela tem um link ou botão "Pedir outro link" para /recuperar-senha | esperado link ou botão visível para /recuperar-senha, observado a visível=true href=/recuperar-senha
+- ✓ a tela tem um link ou botão "Pedir outro link" para /recuperar-senha | esperado link ou botão visível para /recuperar-senha, observado a visível=true href=/recuperar-senha (dentro de main)
 - ✓ a tela não mostra os campos de senha | esperado 0, observado 0
 - ✓ `*` base visual (link usado) | interpretado como: imagens carregadas, elementos visíveis dentro da janela, sem corte por overflow de ancestral e com o centro recebendo o clique (elementFromPoint), e screenshot revisado sem corte, sobreposição ou layout desmontado | observado 0 imagem(ns), 0 quebrada(s); 8 elementos conferidos, 0 achado(s); shots/UI-INVALIDO-02-1.png | passou
 
@@ -765,13 +773,13 @@ screenshots: shots/UI-INVALIDO-01-1.png
 <summary>Evidência</summary>
 
 ```
-conta-ativa eva@example.com: role=user emailVerified=t banned=f
-POST request-password-reset eva@example.com (XFF 203.0.113.108) -> 200
+conta-ativa eva@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
+POST request-password-reset eva@example.com (XFF 203.0.113.109) -> 200
 POST reset-password com o token de L1 -> 200 {"status":true}
-link aberto: http://localhost:5173/redefinir-senha?token=5DC8<mascarado>
+link aberto: http://localhost:5173/redefinir-senha?token=2PSM<mascarado>
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=5DC8<mascarado> -> 400
-screenshots: shots/UI-INVALIDO-02-1.png
+GET /api/auth/reset-password-status?token=2PSM<mascarado> -> 400
+base visual (link usado): 0 imagem(ns), 0 quebrada(s); 8 elementos; achados []; shots/UI-INVALIDO-02-1.png
 ```
 
 </details>
@@ -780,7 +788,7 @@ screenshots: shots/UI-INVALIDO-02-1.png
 - Veredito: passou
 - ✓ `*` a tela diz "Link inválido" | interpretado como: texto visível no card, no título h1 da rota | observado h1: ["Link inválido"] | passou
 - ✓ a página não envia requisição a /api/auth/reset-password-status | esperado 0, observado 0
-- ✓ a tela tem um link ou botão "Pedir outro link" para /recuperar-senha | esperado link ou botão visível para /recuperar-senha, observado a visível=true href=/recuperar-senha
+- ✓ a tela tem um link ou botão "Pedir outro link" para /recuperar-senha | esperado link ou botão visível para /recuperar-senha, observado a visível=true href=/recuperar-senha (dentro de main)
 - ✓ `*` base visual (sem token) | interpretado como: imagens carregadas, elementos visíveis dentro da janela, sem corte por overflow de ancestral e com o centro recebendo o clique (elementFromPoint), e screenshot revisado sem corte, sobreposição ou layout desmontado | observado 0 imagem(ns), 0 quebrada(s); 8 elementos conferidos, 0 achado(s); shots/UI-INVALIDO-03-1.png | passou
 
 <details>
@@ -788,7 +796,7 @@ screenshots: shots/UI-INVALIDO-02-1.png
 
 ```
 GET /api/v1/session -> 401
-screenshots: shots/UI-INVALIDO-03-1.png
+base visual (sem token): 0 imagem(ns), 0 quebrada(s); 8 elementos; achados []; shots/UI-INVALIDO-03-1.png
 ```
 
 </details>
@@ -797,7 +805,7 @@ screenshots: shots/UI-INVALIDO-03-1.png
 - Veredito: passou
 - ✓ a página envia POST /api/auth/reset-password e recebe 400 | esperado 1 POST, 400, observado 1 POST, status 400
 - ✓ `*` a tela diz "Link inválido" | interpretado como: texto visível no card, no título h1 da rota | observado h1: ["Link inválido"] | passou
-- ✓ a tela tem um link ou botão "Pedir outro link" para /recuperar-senha | esperado link ou botão visível para /recuperar-senha, observado a visível=true href=/recuperar-senha
+- ✓ a tela tem um link ou botão "Pedir outro link" para /recuperar-senha | esperado link ou botão visível para /recuperar-senha, observado a visível=true href=/recuperar-senha (dentro de main)
 - ✓ a tela não diz "Senha alterada" | esperado ausente, observado ausente
 - ✓ `*` base visual (link recusado ao salvar) | interpretado como: imagens carregadas, elementos visíveis dentro da janela, sem corte por overflow de ancestral e com o centro recebendo o clique (elementFromPoint), e screenshot revisado sem corte, sobreposição ou layout desmontado | observado 0 imagem(ns), 0 quebrada(s); 8 elementos conferidos, 0 achado(s); shots/UI-INVALIDO-04-1.png | passou
 
@@ -805,16 +813,16 @@ screenshots: shots/UI-INVALIDO-03-1.png
 <summary>Evidência</summary>
 
 ```
-conta-ativa ema@example.com: role=user emailVerified=t banned=f
-POST request-password-reset ema@example.com (XFF 203.0.113.109) -> 200
-link aberto: http://localhost:5173/redefinir-senha?token=sHDr<mascarado>
+conta-ativa ema@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
+POST request-password-reset ema@example.com (XFF 203.0.113.111) -> 200
+link aberto: http://localhost:5173/redefinir-senha?token=0v3P<mascarado>
 campos de senha à vista antes do segundo pedido: 2
-POST request-password-reset ema@example.com (XFF 203.0.113.109) -> 200
+POST request-password-reset ema@example.com (XFF 203.0.113.111) -> 200
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=sHDr<mascarado> -> 200
-POST /api/auth/reset-password -> 400 {"token":"sHDr<mascarado>","newPassword":"Nova12345"}
+GET /api/auth/reset-password-status?token=0v3P<mascarado> -> 200
+POST /api/auth/reset-password -> 400 {"token":"0v3P<mascarado>","newPassword":"Nova12345"}
 GET /api/v1/session -> 401
-screenshots: shots/UI-INVALIDO-04-1.png
+base visual (link recusado ao salvar): 0 imagem(ns), 0 quebrada(s); 8 elementos; achados []; shots/UI-INVALIDO-04-1.png
 ```
 
 </details>
@@ -835,8 +843,8 @@ GET /api/v1/session -> 401
 POST /api/auth/request-password-reset -> falhou: net::ERR_CONNECTION_REFUSED {"email":"fabia@example.com"}
 GET /api/v1/session -> falhou: net::ERR_CONNECTION_REFUSED
 main: Recuperar a senha | O servidor não respondeu. Tente de novo. | E-mail | Enviar o link
+base visual (api fora no envio): 0 imagem(ns), 0 quebrada(s); 10 elementos; achados []; shots/UI-FALHA-01-1.png
 api religada: /api/health {"status":"ok","checks":{"postgres":"up","valkey":"up"}}
-screenshots: shots/UI-FALHA-01-1.png
 ```
 
 </details>
@@ -856,8 +864,8 @@ docker compose stop api
 GET /api/v1/session -> falhou: net::ERR_CONNECTION_REFUSED
 GET /api/auth/reset-password-status?token=abc -> falhou: net::ERR_CONNECTION_REFUSED
 main: Definir nova senha | O servidor não respondeu. Tente de novo.
+base visual (api fora ao abrir): 0 imagem(ns), 0 quebrada(s); 7 elementos; achados []; shots/UI-FALHA-02-1.png
 api religada: /api/health {"status":"ok","checks":{"postgres":"up","valkey":"up"}}
-screenshots: shots/UI-FALHA-02-1.png
 ```
 
 </details>
@@ -875,12 +883,13 @@ screenshots: shots/UI-FALHA-02-1.png
 <summary>Evidência</summary>
 
 ```
-conta-ativa gil@example.com: role=user emailVerified=t banned=f
-POST request-password-reset gil@example.com (XFF 203.0.113.110) -> 200
-link aberto: http://localhost:5173/redefinir-senha?token=rNN7<mascarado>
+conta-ativa gil@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
+POST request-password-reset gil@example.com (XFF 203.0.113.114) -> 200
+link aberto: http://localhost:5173/redefinir-senha?token=oPVM<mascarado>
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=rNN7<mascarado> -> 200
-screenshots: shots/UI-VISUAL-01-1.png
+GET /api/auth/reset-password-status?token=oPVM<mascarado> -> 200
+medidas: {"btn":{"bg":"rgb(0, 0, 0)","color":"rgb(255, 255, 255)","radius":"999px"},"card":{"bg":"rgb(255, 255, 255)","radius":"16px","cls":"card-content mx-auto w-full max-w-[490px]"},"font":"\"Inter Variable\", system-ui, \"Helvetica Neue\", Arial, sans-serif","sw":375,"cw":375,"nav":{"vis":true,"bottom":76,"cardTop":108}}
+base visual (375px): 0 imagem(ns), 0 quebrada(s); 10 elementos; achados []; shots/UI-VISUAL-01-1.png
 ```
 
 </details>
@@ -901,17 +910,24 @@ screenshots: shots/UI-VISUAL-01-1.png
 <summary>Evidência</summary>
 
 ```
-conta-ativa elisa.m@example.com: role=user emailVerified=t banned=f
-sessão aberta antes: sign-in -> 200; GET /api/v1/session com C1 -> 200
-e-mail chegou em 0.0s; link http://localhost:5173/redefinir-senha?token=4rRX<mascarado>
+conta-ativa elisa.m@example.com: role=user emailVerified=t banned=f sessões=0 registros de recuperação=0
+POST sign-in/email elisa.m@example.com Antiga123 (XFF 198.51.100.1) -> 200 set-cookie=["better-auth.session_token"]
+GET /api/v1/session com C1 antes -> 200
+base visual (pedido enviado): 0 imagem(ns), 0 quebrada(s); 7 elementos; achados []; shots/E2E-RECUPERACAO-01-1.png
+e-mail chegou em 0.0s
+link aberto: http://localhost:5173/redefinir-senha?token=yGi8<mascarado>
+base visual (formulário pelo link): 0 imagem(ns), 0 quebrada(s); 10 elementos; achados []; shots/E2E-RECUPERACAO-01-2.png
+base visual (senha alterada): 0 imagem(ns), 0 quebrada(s); 8 elementos; achados []; shots/E2E-RECUPERACAO-01-3.png
 GET /api/v1/session -> 401
 POST /api/auth/request-password-reset -> 200 {"email":"elisa.m@example.com"}
 GET /api/v1/session -> 401
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=4rRX<mascarado> -> 200
-POST /api/auth/reset-password -> 200 {"token":"4rRX<mascarado>","newPassword":"Jornada456"}
+GET /api/auth/reset-password-status?token=yGi8<mascarado> -> 200
+POST /api/auth/reset-password -> 200 {"token":"yGi8<mascarado>","newPassword":"Jornada456"}
 GET /api/v1/session -> 401
-screenshots: shots/E2E-RECUPERACAO-01-1.png, shots/E2E-RECUPERACAO-01-2.png, shots/E2E-RECUPERACAO-01-3.png
+POST sign-in/email elisa.m@example.com Jornada456 (XFF 198.51.100.2) -> 200 set-cookie=["better-auth.session_token"]
+POST sign-in/email elisa.m@example.com Antiga123 (XFF 198.51.100.3) -> 401 {"message":"Invalid email or password","code":"INVALID_EMAIL_OR_PASSWORD"} set-cookie=[]
+GET /api/v1/session com C1 -> 401
 ```
 
 </details>
@@ -930,9 +946,14 @@ screenshots: shots/E2E-RECUPERACAO-01-1.png, shots/E2E-RECUPERACAO-01-2.png, sho
 <summary>Evidência</summary>
 
 ```
+base visual (cadastro de fabio@example.com): 0 imagem(ns), 0 quebrada(s); 7 elementos; achados []; shots/E2E-INTEGRACAO-01-1.png
+base visual (cadastro de gabi@example.com): 0 imagem(ns), 0 quebrada(s); 7 elementos; achados []; shots/E2E-INTEGRACAO-01-2.png
 cadastros pela tela: 200, 200
-e-mails marcados como verificados: [["fabio@example.com","t"],["gabi@example.com","t"]]
+e-mails marcados como verificados: fabio@example.com|t; gabi@example.com|t
 e-mail chegou em 0.0s
+link aberto: http://localhost:5173/redefinir-senha?token=EyN5<mascarado>
+h1 depois de salvar: ["Senha alterada"]
+base visual (senha alterada): 0 imagem(ns), 0 quebrada(s); 8 elementos; achados []; shots/E2E-INTEGRACAO-01-3.png
 GET /api/v1/session -> 401
 POST /api/auth/sign-up/email -> 200 {"name":"Fabio","email":"fabio@example.com","password":"Jornada123"}
 GET /api/v1/session -> 401
@@ -943,11 +964,12 @@ GET /api/v1/session -> 401
 POST /api/auth/request-password-reset -> 200 {"email":"fabio@example.com"}
 GET /api/v1/session -> 401
 GET /api/v1/session -> 401
-GET /api/auth/reset-password-status?token=AzH2<mascarado> -> 200
-POST /api/auth/reset-password -> 200 {"token":"AzH2<mascarado>","newPassword":"Jornada789"}
+GET /api/auth/reset-password-status?token=EyN5<mascarado> -> 200
+POST /api/auth/reset-password -> 200 {"token":"EyN5<mascarado>","newPassword":"Jornada789"}
 GET /api/v1/session -> 401
-h1 depois de salvar: ["Senha alterada"]
-screenshots: shots/E2E-INTEGRACAO-01-1.png, shots/E2E-INTEGRACAO-01-2.png, shots/E2E-INTEGRACAO-01-3.png
+POST sign-in/email fabio@example.com Jornada789 (XFF 198.51.100.4) -> 200 set-cookie=["better-auth.session_token"]
+POST sign-in/email fabio@example.com Jornada123 (XFF 198.51.100.5) -> 401 {"message":"Invalid email or password","code":"INVALID_EMAIL_OR_PASSWORD"} set-cookie=[]
+POST sign-in/email gabi@example.com Jornada123 (XFF 198.51.100.6) -> 200 set-cookie=["better-auth.session_token"]
 ```
 
 </details>
@@ -958,12 +980,12 @@ screenshots: shots/E2E-INTEGRACAO-01-1.png, shots/E2E-INTEGRACAO-01-2.png, shots
 | --- | --- | --- |
 | Instalar dependências | 5 | `compose.yaml`: o serviço api instala nos volumes ao subir; `scripts/db-setup.sh` garante as dependências |
 | Ambiente e serviços | 1 e 2 | contrato (Docker Compose) e `compose.yaml`: o ambiente local já no ar, com a api recriada por um override do Compose na pasta temporária (`COMPOSE_FILE`) |
-| Banco efêmero e migração | 5 | `scripts/db-setup.sh`: banco `eval_rf005_2026_11_01t15_54_41z` no postgres do Compose, `DATABASE_URL` da api trocada pelo override, `make db-setup` migra e cria o admin |
-| Isolamento do Valkey | 4 e 6 | avaliação do RF-002: `REDIS_URL=redis://valkey:6379/3` no override, banco lógico 3 vazio antes da avaliação |
+| Banco efêmero e migração | 5 | `scripts/db-setup.sh`: banco `eval_rf005_2026_11_01t16_17_44z` no postgres do Compose, `DATABASE_URL` da api trocada pelo override, `make db-setup` migra e cria o admin |
+| Isolamento do Valkey | 4 e 6 | avaliações anteriores: `REDIS_URL=redis://valkey:6379/3` no override, banco lógico 3 vazio antes da avaliação |
 | Estado persistido | 1, 3 e 6 | contrato (atributos da `conta-ativa` e janelas livres) e spec (factory da conta ativa nos testes): a conta criada pela rota de cadastro e ajustada no banco, porque a factory roda dentro da aplicação de teste |
 | Limpeza entre itens | 4 e 6 | DELETE da tabela verification e das contas sem papel admin (account e session em cascata), `rate-limit:*` no Valkey e DELETE /api/v1/messages no Mailpit |
 | Gates | 1 | contrato: `make check` e `make build` na raiz |
-| Cliente HTTP | 6 | `urllib` do Python, com o X-Forwarded-For do contrato e o Origin da SPA |
+| Cliente HTTP | 6 | `fetch` do Node 26, com o X-Forwarded-For do contrato e o Origin da SPA |
 | Logs da api | 1 e 3 | contrato e spec, Verificação por superfície: `docker compose logs api --since <início do item>` |
 | Caixa de e-mail | 3 | spec, Verificação por superfície (ADR-0016): API REST do Mailpit |
 | Banco | 1 | contrato, Configuração: registro em `verification` por identifier `reset-password:` e value igual ao id da conta; `psql` no host |
@@ -975,15 +997,15 @@ screenshots: shots/E2E-INTEGRACAO-01-1.png, shots/E2E-INTEGRACAO-01-2.png, shots
 ## Limpeza e ambiente
 
 - Sobras removidas: Nenhuma. Nenhum banco `eval_rf005_*`, nenhuma pasta `evaluator-rf005-*` e nenhum PID de avaliação anterior no início.
-- Derrubada: completa. Nenhum PID no `processos.lock` (o navegador fechou com o script); api recriada sem o override, de volta à `DATABASE_URL` do banco `app` e ao Valkey no banco 0, saudável; banco lógico 3 do Valkey esvaziado; caixa do Mailpit esvaziada; banco `eval_rf005_2026_11_01t15_54_41z` apagado; pasta `/tmp/evaluator-rf005-2026-11-01T15-54-41Z` apagada, com os screenshots.
+- Derrubada: completa. Nenhum PID no `processos.lock` (o navegador fechou com o script); api recriada sem o override, de volta à `DATABASE_URL` do banco `app` e ao Valkey no banco 0, saudável; banco lógico 3 do Valkey esvaziado; caixa do Mailpit esvaziada; banco `eval_rf005_2026_11_01t16_17_44z` apagado; pasta `/tmp/evaluator-rf005-2026-11-01T16-17-44Z` apagada, com os screenshots.
 
 ## Avisos
 
-- Avaliado com 1 arquivo fora de commit, só documentação: `docs/features/RF-005-recuperar-senha/orquestracao.md`. O código avaliado é o do commit 01578f3.
+- Avaliado com 1 arquivo fora de commit, só documentação: `docs/features/RF-005-recuperar-senha/orquestracao.md`. O código avaliado é o do commit 11e5c60, que inclui a correção da retenção do job reset-password na fila (fix-runner, ciclo 1).
 - Os gates rodaram antes de a api ser recriada apontando para o banco efêmero, porque o `make build` no host reescreve `apps/api/dist`, bind mount do `nest start --watch` do container.
-- API-SIGILO-01 e API-SIGILO-02: as rotas `/api/auth/request-password-reset` e `/api/auth/reset-password` não escrevem linha de log na api no caminho feliz (0 linhas capturadas na janela de cada item); os bullets de ausência passam sobre o que foi capturado, e uma busca ampla em todo o log da api durante a avaliação (238 linhas) não achou e-mail `@example.com`, nome (Rosa Lima, Bia Nunes, Bruno Reis, Zilda Rocha), senha (Antiga123, Nova12345, Sigilo12345, Jornada), `token=` nem o caminho das rotas de recuperação.
+- API-SIGILO-01 e API-SIGILO-02: as rotas `/api/auth/request-password-reset` e `/api/auth/reset-password` não escrevem linha de log na api no caminho feliz (0 linhas capturadas na janela de cada item, enquanto o health check da api aparece no log); os bullets de ausência passam sobre o que foi capturado, e uma busca ampla em todo o log da api desde a subida até o fim dos itens de API e Worker (92 linhas) não achou e-mail `@example.com`, nome (Rosa Lima, Bia Nunes, Bruno Reis, Zilda Rocha), senha (Antiga123, Nova12345, Sigilo12345), nem `token=`.
 - A SPA mostra "Entrar" também na barra de navegação; o bullet de "Entrar" de UI-REDEFINIR-02 foi conferido no "Entrar" do card, dentro de `main`.
-- Os itens usam o Valkey (banco lógico 3) e o Mailpit compartilhados do ambiente de desenvolvimento: a caixa do Mailpit (que tinha 5 mensagens do desenvolvimento no início) foi esvaziada antes de cada item. API-PEDIDO-03 e API-PEDIDO-04 pararam o serviço valkey inteiro, compartilhado com o ambiente de desenvolvimento, e o religaram no fim do item.
+- Os itens usam o Valkey (banco lógico 3) e o Mailpit compartilhados do ambiente de desenvolvimento: a caixa do Mailpit foi esvaziada antes de cada item. API-PEDIDO-03 e API-PEDIDO-04 pararam o serviço valkey inteiro, compartilhado com o ambiente de desenvolvimento, e o religaram no fim do item.
 - Itens que não dão nome às contas usaram como nome o primeiro nome do e-mail (Rui, Sara, Alice ...).
 - Nos itens de UI, o pedido de recuperação feito pelo navegador não leva X-Forwarded-For (o contrato só o exige fora do navegador): o contador de rate limit é o do endereço local, zerado antes de cada item.
 
