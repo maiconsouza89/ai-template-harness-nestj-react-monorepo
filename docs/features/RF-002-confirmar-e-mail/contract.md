@@ -8,8 +8,8 @@
 - API NestJS (com o worker do Módulo E-mail no mesmo processo), SPA Web, PostgreSQL, Redis (serviço Valkey) e Mailpit no Docker Compose, salvo onde o item para um deles.
 
 ### Estado persistido
-- `janela-de-cadastro-livre`: nenhum contador de rate limit de cadastro no Valkey para o IP de onde o item envia o cadastro. Usado por: E2E-CONFIRMACAO-01, E2E-INTEGRACAO-01, E2E-REENVIO-01
-- `janela-de-reenvio-livre`: nenhum contador de rate limit de reenvio de confirmação no Valkey para o IP de onde o item envia o reenvio. Usado por: API-REENVIO-01, API-REENVIO-02, API-REENVIO-03, API-REENVIO-04, WRK-REENVIO-01, WRK-REENVIO-02, UI-REENVIO-01, UI-INVALIDO-03, E2E-REENVIO-01
+- `janela-de-cadastro-livre`: nenhum contador de rate limit de cadastro no Valkey para o IP de onde o item envia o cadastro. Usado por: API-LIMPEZA-01, E2E-CONFIRMACAO-01, E2E-INTEGRACAO-01, E2E-REENVIO-01
+- `janela-de-reenvio-livre`: nenhum contador de rate limit de reenvio de confirmação no Valkey para o IP de onde o item envia o reenvio. Usado por: API-REENVIO-01, API-REENVIO-02, API-REENVIO-03, API-REENVIO-04, WRK-REENVIO-01, WRK-REENVIO-02, UI-REENVIO-01, UI-REENVIO-02, UI-INVALIDO-03, E2E-REENVIO-01
 
 ### Configuração
 - Arquivo `.env` copiado do `.env.example`, com NODE_ENV igual a development e TRUSTED_PROXIES vazia, e o `make db-setup` aplicado.
@@ -31,14 +31,14 @@ Cada gate precisa passar para a feature ser considerada pronta.
 
 | Critério de aceitação | Coberto por |
 | --- | --- |
-| Link aberto dentro de 24 horas ativa a conta e não pode ser usado de novo. | API-ATIVACAO-01, API-ATIVACAO-02, API-ATIVACAO-03, API-ATIVACAO-04, API-ATIVACAO-05, API-ATIVACAO-06, API-SIGILO-01, UI-ATIVACAO-01, UI-ATIVACAO-02, UI-FALHA-01, UI-VISUAL-01, E2E-CONFIRMACAO-01 |
-| Link aberto depois de 24 horas não ativa a conta e a tela oferece reenvio. | API-VENCIDO-01, API-VENCIDO-02, UI-VENCIDO-01, UI-REENVIO-01, E2E-REENVIO-01 |
-| Depois de um reenvio, o link anterior não ativa mais a conta. | API-REENVIO-01, API-REENVIO-02, API-REENVIO-03, API-REENVIO-04, API-INVALIDO-01, WRK-REENVIO-01, WRK-REENVIO-02, UI-INVALIDO-01, UI-INVALIDO-02, UI-INVALIDO-03, E2E-REENVIO-01 |
+| Link aberto dentro de 24 horas ativa a conta e não pode ser usado de novo. | API-ATIVACAO-01, API-ATIVACAO-02, API-ATIVACAO-03, API-ATIVACAO-04, API-ATIVACAO-05, API-ATIVACAO-06, API-ATIVACAO-07, API-ATIVACAO-08, API-SIGILO-01, UI-ATIVACAO-01, UI-ATIVACAO-02, UI-FALHA-01, UI-FALHA-02, UI-VISUAL-01, E2E-CONFIRMACAO-01 |
+| Link aberto depois de 24 horas não ativa a conta e a tela oferece reenvio. | API-VENCIDO-01, API-VENCIDO-02, API-LIMPEZA-01, UI-VENCIDO-01, UI-REENVIO-01, UI-REENVIO-02, E2E-REENVIO-01 |
+| Depois de um reenvio, o link anterior não ativa mais a conta. | API-REENVIO-01, API-REENVIO-02, API-REENVIO-03, API-REENVIO-04, API-REENVIO-05, API-REENVIO-06, API-INVALIDO-01, WRK-REENVIO-01, WRK-REENVIO-02, UI-INVALIDO-01, UI-INVALIDO-02, UI-INVALIDO-03, E2E-REENVIO-01 |
 | RF-001 → RF-002: a conta criada no cadastro fica ativa ao abrir o link recebido no e-mail daquele cadastro, e só ela. | E2E-INTEGRACAO-01, E2E-CONFIRMACAO-01 |
 
 ## API HTTP
 
-Modo de verificação: requisições HTTP contra a API em execução no ambiente local, inspecionando status, cabeçalhos e corpo, o estado do PostgreSQL (alterado só onde o item pede) e as linhas de log do serviço api escritas durante o item.
+Modo de verificação: requisições HTTP contra a API em execução no ambiente local, inspecionando status, cabeçalhos e corpo, o estado do PostgreSQL (alterado só onde o item pede) e as linhas de log do serviço api escritas durante o item, com o serviço valkey parado e religado onde o item pede.
 
 ### Ativação pelo link
 
@@ -83,14 +83,31 @@ Modo de verificação: requisições HTTP contra a API em execução no ambiente
   - o banco tem exatamente um registro de confirmação para a conta de lucas@example.com
   - o expiresAt desse registro fica entre 23 horas e 59 minutos e 24 horas e 1 minuto depois da resposta
   - o identifier e o value desse registro não contêm o token do link que chegou para lucas@example.com
+  - o expiresAt desse registro é igual, ao segundo, ao instante de expiração (campo exp do payload) do token do link que chegou para lucas@example.com
 
 #### API-ATIVACAO-06
 - **Dado:** a conta pendente de lis@example.com criada por POST /api/auth/sign-up/email e o token T1 do link dela.
 - **Quando:** duas requisições sem cookie pedem ao mesmo tempo GET /api/auth/verify-email?token=T1.
 - **Então:**
-  - exatamente uma resposta é 200 sem o código ALREADY_VERIFIED
-  - a outra resposta é 200 com o código ALREADY_VERIFIED ou 401 com o código INVALID_TOKEN
+  - as duas respostas são 200
+  - ao menos uma resposta não traz o código ALREADY_VERIFIED
   - o banco tem a conta de lis@example.com com e-mail verificado
+  - o banco não tem registro de confirmação para essa conta
+
+#### API-ATIVACAO-07
+- **Dado:** a conta pendente de lina@example.com criada por POST /api/auth/sign-up/email, o token T1 do link dela e o e-mail da conta trocado no banco para lina.outra@example.com.
+- **Quando:** uma requisição sem cookie pede GET /api/auth/verify-email?token=T1.
+- **Então:**
+  - a resposta é 401
+  - a conta continua com e-mail não verificado
+  - o banco continua com um registro de confirmação para essa conta
+
+#### API-ATIVACAO-08
+- **Dado:** a conta pendente de lino@example.com criada por POST /api/auth/sign-up/email, o token T1 do link dela, o e-mail da conta trocado no banco para lino.outro@example.com, uma requisição GET /api/auth/verify-email?token=T1 já respondida com 401 e o e-mail da conta trocado de volta para lino@example.com.
+- **Quando:** uma requisição sem cookie pede de novo GET /api/auth/verify-email?token=T1.
+- **Então:**
+  - a resposta é 200
+  - o banco tem a conta de lino@example.com com e-mail verificado
   - o banco não tem registro de confirmação para essa conta
 
 ### Link vencido
@@ -144,6 +161,31 @@ Modo de verificação: requisições HTTP contra a API em execução no ambiente
 - **Então:**
   - a resposta é 429
   - a resposta traz o cabeçalho X-Retry-After
+
+#### API-REENVIO-05
+- **Dado:** a conta pendente de omar@example.com criada por POST /api/auth/sign-up/email, com o registro de confirmação R1 do cadastro, e depois o serviço valkey parado.
+- **Quando:** uma requisição sem cookie pede POST /api/auth/send-verification-email com o e-mail omar@example.com.
+- **Então:**
+  - a resposta é 500
+  - o banco tem exatamente um registro de confirmação para a conta de omar@example.com
+  - esse registro é o R1
+
+#### API-REENVIO-06
+- **Dado:** a conta pendente de otto@example.com criada por POST /api/auth/sign-up/email, o token T1 do link do cadastro, um POST /api/auth/send-verification-email com o e-mail otto@example.com já respondido com 500 com o serviço valkey parado e, depois, o serviço valkey religado.
+- **Quando:** uma requisição sem cookie pede GET /api/auth/verify-email?token=T1.
+- **Então:**
+  - a resposta é 200
+  - o banco tem a conta de otto@example.com com e-mail verificado
+
+### Limpeza dos registros vencidos
+
+#### API-LIMPEZA-01
+- **Dado:** `janela-de-cadastro-livre`, a conta pendente de paulo@example.com com o vencimento do link movido para 8 dias antes de agora, a conta pendente de pedro@example.com com o vencimento do link movido para 1 dia antes de agora, ambas criadas por POST /api/auth/sign-up/email, e nenhuma conta com o e-mail priscila@example.com.
+- **Quando:** uma requisição sem cookie pede POST /api/auth/sign-up/email com nome Priscila Lima, e-mail priscila@example.com e senha Segura123.
+- **Então:**
+  - o banco não tem registro de confirmação para a conta de paulo@example.com
+  - o banco continua com um registro de confirmação para a conta de pedro@example.com
+  - o banco tem exatamente um registro de confirmação para a conta de priscila@example.com
 
 ### Link inválido
 
@@ -206,7 +248,17 @@ Modo de verificação: navegador dirigido contra a SPA em execução no ambiente
 - **Então:**
   - a página envia POST /api/auth/send-verification-email com o e-mail teo@example.com e recebe 200
   - a tela informa que um novo link foi enviado se o e-mail tiver conta pendente
+  - a tela mostra o botão "Enviar para outro e-mail"
+  - a tela não mostra o campo de e-mail
   - a página não envia uma segunda requisição a /api/auth/verify-email
+
+#### UI-REENVIO-02
+- **Dado:** `janela-de-reenvio-livre`, a conta pendente de tina@example.com criada por POST /api/auth/sign-up/email, o vencimento do link dela movido para 1 minuto antes de agora e a tela de link expirado aberta por esse link, já com o reenvio para tina@example.com feito pela tela e o aviso de link enviado na tela.
+- **Quando:** a pessoa clica em "Enviar para outro e-mail".
+- **Então:**
+  - a tela mostra o campo de e-mail com rótulo visível e o valor tina@example.com
+  - a tela mostra o botão "Reenviar o link"
+  - a página não envia requisição a /api/auth/verify-email
 
 ### Link inválido
 
@@ -243,6 +295,13 @@ Modo de verificação: navegador dirigido contra a SPA em execução no ambiente
   - a tela mostra o aviso de que o servidor não respondeu
   - a tela não diz que o e-mail foi confirmado
   - a página não mostra a página de erro
+
+#### UI-FALHA-02
+- **Dado:** o serviço api parado.
+- **Quando:** a pessoa abre a raiz da SPA no navegador.
+- **Então:**
+  - a página mostra que o servidor não respondeu
+  - a página não mostra o texto "Nenhuma sessão aberta."
 
 ### Aparência
 

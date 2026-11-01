@@ -29,3 +29,11 @@ Spec: spec.md. Contrato: contract.md.
 8. **SPA Web, loader:** criar o loader de `/confirmar-email` que confirma o link e devolve o estado, sem chamar a API quando falta o token.
 9. **SPA Web, reenvio:** criar a `action` do reenvio com o campo de e-mail, os avisos de sucesso, limite e servidor fora, sem revalidar a confirmação.
 10. **SPA Web, tela:** montar os quatro estados e o botão "Entrar" com as classes do `DESIGN.md` e registrar a rota como filha da raiz.
+
+## Fase 4: revisão do PR #16
+
+11. **Módulo Contas, registros de confirmação:** separar na porta e na implementação a gravação do registro novo, a remoção dos anteriores da conta e a limpeza dos vencidos além do prazo de retenção (spec, Regras e Modelo de dados).
+12. **Módulo Contas, callback de envio:** gravar o registro novo, limpar os vencidos, pedir o envio e só então apagar os anteriores, desfazendo o registro novo quando o pedido falha.
+13. **Módulo Contas, plugin de confirmação:** deixar de apagar o registro antes da biblioteca e apagá-lo no hook `after` quando a resposta não é erro, cobrindo corrida, recusa da biblioteca, reenvio com a fila fora e limpeza na integração.
+14. **SPA Web, tela de confirmação:** acrescentar o botão "Enviar para outro e-mail" depois do aviso do reenvio, que volta ao campo com o e-mail digitado.
+15. **SPA Web, página inicial:** mover a página inicial para uma rota índice da raiz, que mostra a página de erro com a API fora, e tirar da raiz a dedução pela ausência de tela filha.
