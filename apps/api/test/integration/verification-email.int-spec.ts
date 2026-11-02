@@ -6,7 +6,10 @@ import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { EmailTransport } from '../../src/modules/email/domain/email-transport.js';
 import { RequestEmailUseCase } from '../../src/modules/email/email.module.js';
-import { EMAIL_SEND_QUEUE } from '../../src/modules/email/infra/queue/email-send.queue.js';
+import {
+  EMAIL_SEND_JOB_OPTIONS,
+  EMAIL_SEND_QUEUE,
+} from '../../src/modules/email/infra/queue/email-send.queue.js';
 import { EmailSendProcessor } from '../../src/modules/email/infra/queue/email-send.processor.js';
 import { NodemailerEmailTransport } from '../../src/modules/email/infra/smtp/nodemailer-email.transport.js';
 import { ENV } from '../../src/platform/config/config.module.js';
@@ -46,7 +49,11 @@ async function waitForJob(
       'delayed',
     ]);
     const job = jobs.find((candidate) => candidate.data?.userId === userId);
-    if (job && (await isDone(job))) return job;
+    // A lista é um retrato: o job pode ter concluído entre ela e o `isDone`, que lê o estado
+    // atual. Relê o job para devolver os campos do estado que o `isDone` viu.
+    if (job?.id && (await isDone(job))) {
+      return (await queue.getJob(job.id)) ?? job;
+    }
     if (Date.now() > deadline) {
       throw new Error(`Job da conta ${userId} não terminou a tempo`);
     }
@@ -144,27 +151,59 @@ describe('E-mail de confirmação (integração)', () => {
       const account = await createAccount(app, 'Rui Campos');
       created.push(account.email);
       const url = `${env.WEB_ORIGIN}/confirmar-email?token=token-de-teste`;
+      // Com o worker pausado, o job fica pendente e dá para ler os dados antes do envio.
+      const { worker } = app.get(EmailSendProcessor);
+      await worker.pause();
+
+      try {
+        await app
+          .get(RequestEmailUseCase)
+          .execute({ type: 'verify-email', userId: account.userId, url });
+
+        const job = await waitForJob(queue, account.userId, async () => true);
+        expect(job.name).toBe('verify-email');
+        expect(await job.getState()).toBe('waiting');
+        expect(job.data).toEqual({
+          type: 'verify-email',
+          userId: account.userId,
+          url,
+        });
+        const serialized = JSON.stringify(job.data);
+        expect(serialized).not.toContain(account.email);
+        expect(serialized).not.toContain(account.name);
+        expect(job.opts).toMatchObject({
+          attempts: 5,
+          backoff: { type: 'exponential', delay: 5000 },
+          removeOnComplete: { age: 86400 },
+          removeOnFail: { age: 604800 },
+        });
+      } finally {
+        worker.resume();
+      }
+    });
+
+    it('o job concluído fica na fila só com o tipo e o id da conta, sem o link', async () => {
+      const account = await createAccount(app, 'Tito Reis');
+      created.push(account.email);
+      const url = `${env.WEB_ORIGIN}/confirmar-email?token=token-de-teste`;
 
       await app
         .get(RequestEmailUseCase)
         .execute({ type: 'verify-email', userId: account.userId, url });
 
-      const job = await waitForJob(queue, account.userId, async () => true);
-      expect(job.name).toBe('verify-email');
+      // O worker regrava os dados logo depois de o job concluir; espera a regravação.
+      const job = await waitForJob(
+        queue,
+        account.userId,
+        async (candidate) =>
+          (await candidate.isCompleted()) && !('url' in candidate.data),
+      );
+      expect(job.returnvalue).toBe('sent');
       expect(job.data).toEqual({
         type: 'verify-email',
         userId: account.userId,
-        url,
       });
-      const serialized = JSON.stringify(job.data);
-      expect(serialized).not.toContain(account.email);
-      expect(serialized).not.toContain(account.name);
-      expect(job.opts).toMatchObject({
-        attempts: 5,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: { age: 86400 },
-        removeOnFail: { age: 604800 },
-      });
+      expect(JSON.stringify(job.asJSON())).not.toContain('token=');
     });
 
     it('conclui sem enviar o job de uma conta que não existe mais', async () => {
@@ -224,6 +263,68 @@ describe('E-mail de confirmação (integração)', () => {
       expect(flaky.attempts).toBe(2);
       expect(job.attemptsMade).toBeGreaterThan(1);
       expect(await waitForMessagesTo(account.email)).toHaveLength(1);
+    }, 30_000);
+  });
+
+  describe('com o SMTP sempre fora', () => {
+    let app: INestApplication<App>;
+    let queue: Queue;
+
+    beforeAll(async () => {
+      app = await createTestApp((builder) =>
+        isolatedEmailQueue(`bull-int-${randomUUID()}`)(builder)
+          .overrideProvider(EmailTransport)
+          .useValue(
+            new FlakyEmailTransport(
+              new NodemailerEmailTransport(loadEnv()),
+              Number.POSITIVE_INFINITY,
+            ),
+          ),
+      );
+      queue = app.get<Queue>(getQueueToken(EMAIL_SEND_QUEUE));
+    });
+
+    afterAll(async () => {
+      await queue.obliterate({ force: true });
+      await app.close();
+    });
+
+    it('espera a nova tentativa com o link e, esgotadas as tentativas, fica falho sem ele', async () => {
+      const account = await createAccount(app, 'Vera Luz');
+      const url = 'http://localhost:5173/confirmar-email?token=token-de-teste';
+      // As opções da fila com 2 tentativas e backoff curto, para esgotar sem esperar os 75 s.
+      await queue.add(
+        'verify-email',
+        { type: 'verify-email', userId: account.userId, url },
+        {
+          ...EMAIL_SEND_JOB_OPTIONS,
+          attempts: 2,
+          backoff: { type: 'fixed', delay: 1_500 },
+        },
+      );
+
+      const waiting = await waitForJob(queue, account.userId, (candidate) =>
+        candidate.isDelayed(),
+      );
+      expect(waiting.attemptsMade).toBe(1);
+      expect(waiting.data).toEqual({
+        type: 'verify-email',
+        userId: account.userId,
+        url,
+      });
+
+      const failed = await waitForJob(
+        queue,
+        account.userId,
+        async (candidate) =>
+          (await candidate.isFailed()) && !('url' in candidate.data),
+      );
+      expect(failed.attemptsMade).toBe(2);
+      expect(failed.data).toEqual({
+        type: 'verify-email',
+        userId: account.userId,
+      });
+      expect(JSON.stringify(failed.asJSON())).not.toContain('token=');
     }, 30_000);
   });
 });

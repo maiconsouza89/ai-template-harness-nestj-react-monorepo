@@ -2,7 +2,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { resetPasswordMessages, signUpMessages } from '@app/contracts';
 import type { INestApplication } from '@nestjs/common';
 import { getQueueToken } from '@nestjs/bullmq';
-import type { Queue } from 'bullmq';
+import type { Job, Queue } from 'bullmq';
 import request from 'supertest';
 import type { App } from 'supertest/types.js';
 import { PASSWORD_RESET_IDENTIFIER_PREFIX } from '../../src/modules/accounts/domain/password-reset-links.js';
@@ -221,27 +221,32 @@ describe('Recuperação de senha (integração, banco app_test)', () => {
       expect(await records(iris.userId)).toHaveLength(1);
     });
 
-    it('o job que entregou o e-mail sai do Valkey e não deixa o token guardado', async () => {
+    it('o job que entregou o e-mail fica concluído só com o tipo e o id da conta, sem o token', async () => {
       const lia = await account('lia');
       const token = await requestToken('203.0.113.148', lia.email);
 
-      // O job conclui logo depois de o Mailpit receber a mensagem; espera a remoção dele.
-      let holding: string[] = [];
+      // O job conclui logo depois de o Mailpit receber a mensagem, e o worker regrava os dados
+      // em seguida; espera a regravação.
+      let job: Job | undefined;
       for (const deadline = Date.now() + 2_000; Date.now() < deadline;) {
-        const jobs = await queue.getJobs([
-          'completed',
-          'failed',
-          'active',
-          'waiting',
-          'delayed',
-        ]);
-        holding = jobs
-          .filter((job) => JSON.stringify(job.data).includes(token))
-          .map((job) => `${job.id}`);
-        if (holding.length === 0) break;
+        const jobs = await queue.getJobs(['completed']);
+        job = jobs.find(
+          (candidate) =>
+            candidate.name === 'reset-password' &&
+            candidate.data?.userId === lia.userId,
+        );
+        if (job && !('url' in job.data)) break;
         await new Promise((resolve) => setTimeout(resolve, 100));
       }
-      expect(holding).toEqual([]);
+      expect(job?.data).toEqual({
+        type: 'reset-password',
+        userId: lia.userId,
+      });
+      expect(job?.opts).toMatchObject({
+        removeOnComplete: { age: 86400 },
+        removeOnFail: { age: 604800 },
+      });
+      expect(JSON.stringify(job?.asJSON())).not.toContain(token);
     });
   });
 
