@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/compare/v1.4.0...v1.4.1) (2026-11-02)
+
+
+### Corrigido
+
+* **email:** tira o link com token dos jobs terminados da fila ([#20](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/issues/20)) ([a7f7d32](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/commit/a7f7d3250869d878dfdacd26ccafad7657a262e3))
+
 ## [1.4.0](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/compare/v1.3.0...v1.4.0) (2026-11-02)
 
 
