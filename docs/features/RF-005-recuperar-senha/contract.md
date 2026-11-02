@@ -8,7 +8,7 @@
 - API NestJS (com o worker do Módulo E-mail no mesmo processo), SPA Web, PostgreSQL, Redis (serviço Valkey) e Mailpit no Docker Compose, salvo onde o item para um deles.
 
 ### Estado persistido
-- `conta-ativa`: conta com o e-mail e o nome que o item indica, papel usuário, e-mail verificado, sem banimento, credencial de senha Antiga123, nenhuma sessão e nenhum registro de recuperação. Usado por: API-PEDIDO-01, API-PEDIDO-02, API-PEDIDO-03, API-PEDIDO-04, API-PEDIDO-05, API-LIMPEZA-01, API-REPEDIDO-01, API-REPEDIDO-02, API-CHECAGEM-01, API-CHECAGEM-02, API-CHECAGEM-03, API-TROCA-01, API-TROCA-02, API-TROCA-03, API-TROCA-04, API-USO-01, API-USO-02, API-USO-03, API-REGRA-01, API-REGRA-02, API-REGRA-03, API-SESSAO-01, API-SESSAO-02, API-SIGILO-01, API-SIGILO-02, WRK-EMAIL-01, UI-PEDIDO-01, UI-REDEFINIR-01, UI-REDEFINIR-02, UI-REDEFINIR-03, UI-REDEFINIR-04, UI-INVALIDO-01, UI-INVALIDO-02, UI-INVALIDO-04, UI-VISUAL-01, E2E-RECUPERACAO-01
+- `conta-ativa`: conta com o e-mail e o nome que o item indica, papel usuário, e-mail verificado, sem banimento, credencial de senha Antiga123, nenhuma sessão e nenhum registro de recuperação. Usado por: API-PEDIDO-01, API-PEDIDO-02, API-PEDIDO-03, API-PEDIDO-04, API-PEDIDO-05, API-LIMPEZA-01, API-REPEDIDO-01, API-REPEDIDO-02, API-CHECAGEM-01, API-CHECAGEM-02, API-CHECAGEM-03, API-TROCA-01, API-TROCA-02, API-TROCA-03, API-TROCA-04, API-USO-01, API-USO-02, API-USO-03, API-REGRA-01, API-REGRA-02, API-REGRA-03, API-SESSAO-01, API-SESSAO-02, API-SIGILO-01, API-SIGILO-02, WRK-EMAIL-01, WRK-SIGILO-01, WRK-SIGILO-02, UI-PEDIDO-01, UI-REDEFINIR-01, UI-REDEFINIR-02, UI-REDEFINIR-03, UI-REDEFINIR-04, UI-INVALIDO-01, UI-INVALIDO-02, UI-INVALIDO-04, UI-VISUAL-01, E2E-RECUPERACAO-01
 - `janela-de-recuperacao-livre`: nenhum contador de rate limit de pedido de recuperação no Valkey para o IP de onde o item envia o pedido. Usado por: API-PEDIDO-05, UI-PEDIDO-01, UI-PEDIDO-02, E2E-RECUPERACAO-01, E2E-INTEGRACAO-01
 - `janela-de-cadastro-livre`: nenhum contador de rate limit de cadastro no Valkey para o IP de onde o item envia o cadastro. Usado por: API-TROCA-05, E2E-INTEGRACAO-01
 
@@ -18,10 +18,11 @@
 - Toda requisição POST /api/auth/sign-in/email feita fora do navegador leva um cabeçalho X-Forwarded-For com um IP de documentação (198.51.100.0/24) exclusivo daquela requisição, para o limite de entradas da biblioteca não afetar o item.
 - O link de recuperação de uma conta é o da mensagem mais recente de assunto "Redefina sua senha" para o e-mail dela na caixa do Mailpit; o token é o valor do parâmetro token desse link.
 - O registro de recuperação de uma conta é a linha da tabela verification cujo identifier começa com reset-password: e cujo value é o id da conta; mover o vencimento do link é alterar o expiresAt desse registro.
+- O job reset-password de uma conta é o job da fila email.send de nome reset-password cujos dados têm o userId igual ao id da conta.
 - Uma sessão aberta antes é a que um POST /api/auth/sign-in/email com o e-mail e a senha da conta abriu, guardada pelo cookie de sessão da resposta.
 
 ### Dependências externas
-- DEP-1 serviço de envio de e-mail, simulado pelo Mailpit do Compose: os e-mails são lidos pela API REST dele, em até 2 minutos depois do envio.
+- DEP-1 serviço de envio de e-mail, simulado pelo Mailpit do Compose: os e-mails são lidos pela API REST dele, em até 2 minutos depois do envio, e o serviço é parado pelo Compose no item que o pede.
 
 ## Gates de qualidade
 
@@ -35,7 +36,7 @@ Cada gate precisa passar para a feature ser considerada pronta.
 | Critério de aceitação | Coberto por |
 | --- | --- |
 | E-mail com conta e e-mail sem conta recebem a mesma resposta na tela. | API-PEDIDO-02, API-PEDIDO-03, API-PEDIDO-05, WRK-EMAIL-02, UI-PEDIDO-01, UI-PEDIDO-02, UI-PEDIDO-03, UI-FALHA-01 |
-| Link aberto dentro de 1 hora troca a senha; a senha antiga deixa de entrar e a nova entra. | API-PEDIDO-01, API-PEDIDO-04, API-CHECAGEM-01, API-TROCA-01, API-TROCA-02, API-TROCA-03, API-TROCA-04, API-TROCA-05, API-REGRA-01, API-REGRA-02, API-REGRA-03, API-SIGILO-01, API-SIGILO-02, WRK-EMAIL-01, UI-REDEFINIR-01, UI-REDEFINIR-02, UI-REDEFINIR-03, UI-REDEFINIR-04, UI-FALHA-02, UI-VISUAL-01, E2E-RECUPERACAO-01 |
+| Link aberto dentro de 1 hora troca a senha; a senha antiga deixa de entrar e a nova entra. | API-PEDIDO-01, API-PEDIDO-04, API-CHECAGEM-01, API-TROCA-01, API-TROCA-02, API-TROCA-03, API-TROCA-04, API-TROCA-05, API-REGRA-01, API-REGRA-02, API-REGRA-03, API-SIGILO-01, API-SIGILO-02, WRK-EMAIL-01, WRK-SIGILO-01, WRK-SIGILO-02, UI-REDEFINIR-01, UI-REDEFINIR-02, UI-REDEFINIR-03, UI-REDEFINIR-04, UI-FALHA-02, UI-VISUAL-01, E2E-RECUPERACAO-01 |
 | Link usado uma vez ou aberto depois de 1 hora não troca a senha. | API-LIMPEZA-01, API-REPEDIDO-01, API-REPEDIDO-02, API-CHECAGEM-02, API-CHECAGEM-03, API-CHECAGEM-04, API-USO-01, API-USO-02, API-USO-03, UI-INVALIDO-01, UI-INVALIDO-02, UI-INVALIDO-03, UI-INVALIDO-04 |
 | Depois da troca, sessões abertas antes dela deixam de ter acesso. | API-SESSAO-01, API-SESSAO-02, E2E-RECUPERACAO-01 |
 | RF-001 → RF-005: o e-mail cadastrado recebe o link de recuperação e a nova senha passa a valer para aquela conta. | E2E-INTEGRACAO-01, WRK-EMAIL-01 |
@@ -411,7 +412,7 @@ Modo de verificação: navegador dirigido contra a SPA em execução no ambiente
 
 ## Worker
 
-Modo de verificação: pedidos feitos pela API em execução no ambiente local, seguidos da leitura da caixa de teste pela API REST do Mailpit.
+Modo de verificação: pedidos feitos pela API em execução no ambiente local, seguidos da leitura da caixa de teste pela API REST do Mailpit e das chaves da fila email.send no Valkey, com o serviço mailpit parado onde o item pede.
 
 ### E-mail de recuperação
 
@@ -430,6 +431,26 @@ Modo de verificação: pedidos feitos pela API em execução no ambiente local, 
 - **Então:**
   - a resposta é 200 com status verdadeiro
   - depois de 1 minuto a caixa não tem mensagem para ninguem@example.com
+
+### Sigilo do link na fila
+
+#### WRK-SIGILO-01
+- **Dado:** `conta-ativa` de wilson@example.com, nome Wilson Baptista.
+- **Quando:** uma requisição sem cookie pede POST /api/auth/request-password-reset com o e-mail wilson@example.com.
+- **Então:**
+  - em até 2 minutos a caixa tem uma mensagem para wilson@example.com com o assunto "Redefina sua senha"
+  - o job reset-password dessa conta fica concluído na fila email.send
+  - os dados desse job concluído têm só os campos type e userId
+  - nenhum campo desse job no Valkey contém o token do link da mensagem
+
+#### WRK-SIGILO-02
+- **Dado:** `conta-ativa` de yuri@example.com, nome Yuri Matos, e o serviço mailpit parado durante todo o item.
+- **Quando:** uma requisição sem cookie pede POST /api/auth/request-password-reset com o e-mail yuri@example.com.
+- **Então:**
+  - em até 3 minutos o job reset-password dessa conta fica no estado falho na fila email.send
+  - o job registra 5 tentativas
+  - os dados desse job falho têm só os campos type e userId
+  - nenhum campo desse job no Valkey contém o trecho token=
 
 ## E2E
 

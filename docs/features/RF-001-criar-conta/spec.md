@@ -1,7 +1,7 @@
 # Spec: RF-001 Criar conta
 
 PRD: docs/product/prd.md versão 0.1.0
-HLD: docs/architecture/hld.md versão 0.2.6
+HLD: docs/architecture/hld.md versão 0.3.0
 Complexidade: complexa
 
 ---
@@ -17,6 +17,7 @@ Incluído
 - Recusa de e-mail já cadastrado, sem diferença entre maiúsculas e minúsculas, com a sugestão de entrar ou recuperar a senha na tela.
 - Conta criada com papel usuário e situação pendente (e-mail não verificado), com o e-mail gravado em minúsculas e a senha só como hash.
 - Módulo E-mail novo: fila `email.send` no BullMQ, worker no mesmo processo da API, e-mail de confirmação em pt-BR renderizado no envio e entregue por SMTP (Nodemailer) ao Mailpit no ambiente local.
+- Sigilo do link na fila: o worker tira o link com o token dos dados do job quando ele conclui e quando falha de vez, e o job fica na fila só com o tipo e o id da conta até a retenção vencer; a regra vale para todo tipo de e-mail de `email.send` que leva link com token.
 - Link de confirmação válido por 24 horas, apontando para a tela `/confirmar-email` da SPA.
 - Tela de "link enviado" com o botão de reenvio sempre visível, pela rota nativa `POST /api/auth/send-verification-email`, o que cobre a falha no envio prevista no RF.
 - Rate limit do Better Auth ligado, com contadores no Valkey: 100 requisições a cada 10 segundos por IP e caminho, e 5 cadastros a cada 60 segundos por IP.
@@ -32,7 +33,7 @@ Entradas
 Saídas
 - Conta pendente na tabela `user` (com `emailVerified` falso e `role` igual a `user`) e a credencial na tabela `account`: RF-002 ativa, RF-003 autentica e RF-005 redefine a senha dessa conta.
 - E-mail de confirmação com o link `<WEB_ORIGIN>/confirmar-email?token=<token>`, em que o token é o do Better Auth (`emailVerification.expiresIn` de 86400 segundos): RF-002 constrói a tela que abre esse link e chama `GET /api/auth/verify-email?token=`.
-- O Módulo E-mail com o caso de uso de pedido de envio exportado por `email.module.ts` e a fila `email.send`: RF-002 (reenvio), RF-005 (recuperação) e RF-007 (aviso de troca) acrescentam um tipo de e-mail cada.
+- O Módulo E-mail com o caso de uso de pedido de envio exportado por `email.module.ts` e a fila `email.send`: RF-002 (reenvio), RF-005 (recuperação) e RF-007 (aviso de troca) acrescentam um tipo de e-mail cada, com as opções de tentativas e retenção e a regra de sigilo do link na fila de Regras e fluxos.
 - `passwordSchema` e as mensagens da regra de senha em Contratos: RF-005 e RF-007 aplicam a mesma regra à senha nova.
 - O rate limit ligado com armazenamento no Valkey, onde RF-003 e RF-005 acrescentam as regras de sign-in e recuperação.
 - A tela `/cadastro`, com os links "Entrar" e "Recuperar a senha" para as rotas `/entrar` e `/recuperar-senha`, que RF-003 e RF-005 constroem.
@@ -60,7 +61,8 @@ Regras
 - Falha ao enfileirar ou ao enviar o e-mail não desfaz a conta; a tela de "link enviado" sempre oferece o reenvio (PRD, RF-001 Erros previstos; HLD, Padrões adotados).
 - O job em `email.send` leva o tipo do e-mail, o id da conta e o link; o endereço e o nome são lidos da conta no envio, e a senha nunca entra no job (HLD, Fluxo de dados).
 - O envio tenta até 5 vezes, com backoff exponencial a partir de 5 segundos; esgotadas as tentativas, o job fica como falho na fila para inspeção (ADR-0015; HLD, Interfaces públicas).
-- Jobs concluídos ficam 24 horas e falhos ficam 7 dias na fila, a retenção que a fundação deixou para quem registrasse a primeira fila (spec da fundação, Hipóteses).
+- Jobs concluídos ficam 24 horas e falhos ficam 7 dias na fila, a retenção que a fundação deixou para quem registrasse a primeira fila (spec da fundação, Hipóteses). A retenção e as tentativas são as mesmas para todo tipo de e-mail de `email.send`.
+- Sigilo do link na fila: o link leva o token em texto puro e fica nos dados do job só enquanto o envio precisa dele, com o job pendente, em processamento ou esperando nova tentativa. Quando o job conclui (com o e-mail entregue ou descartado pelo envio) e quando falha de vez (esgotou as 5 tentativas ou foi recusado sem nova tentativa), o worker regrava os dados só com `type` e `userId`; o job continua na fila com o estado, as tentativas e o motivo da falha até a retenção vencer. A regra vale para todo tipo de e-mail de `email.send` que leva link com token (`verify-email` aqui, o reenvio do RF-002 e `reset-password` do RF-005) (decisão da revisão de segurança do RF-005, "apagar só o link").
 - A senha nunca aparece em texto puro: o campo da tela é do tipo senha, a resposta do cadastro não a devolve, o banco guarda só o hash scrypt em `account.password`, e nem o e-mail nem o job a contêm (PRD, Segurança e autorização).
 - Nenhum log da API contém a senha, o nome ou o e-mail do cadastro, nem o token do link (PRD, Compliance; ADR-0018).
 - Rate limit por IP: 5 cadastros a cada 60 segundos em `/sign-up/email` e 100 requisições a cada 10 segundos nas demais rotas de `/api/auth`, que passam a valer também em development e test; o pedido além do limite recebe 429 (HLD, Interfaces públicas).
@@ -110,7 +112,7 @@ Fluxo técnico do caso principal
 | Módulo E-mail | `apps/api/src/modules/email/email.module.ts` | Novo. Registra a fila `email.send`, o processor, as portas por `useClass` e reexporta o caso de uso de pedido de envio, a fronteira pública do módulo (ADR-0025). |
 | Módulo E-mail | `apps/api/src/modules/email/domain/` | Novo. Tipo do pedido (`verify-email`, id da conta, link), portas `EmailQueue`, `EmailRecipients` e `EmailTransport` como classe abstrata, e o template do e-mail de confirmação em pt-BR (assunto, texto e HTML). |
 | Módulo E-mail | `apps/api/src/modules/email/application/request-email/`, `apps/api/src/modules/email/application/send-email/` | Novo. `request-email.use-case.ts` enfileira o pedido; `send-email.use-case.ts` lê o destinatário, renderiza e entrega, e descarta o job de conta que não existe mais ou que já tem o e-mail verificado. |
-| Módulo E-mail | `apps/api/src/modules/email/infra/queue/email-send.processor.ts`, `apps/api/src/modules/email/infra/queue/bullmq-email.queue.ts`, `apps/api/src/modules/email/infra/smtp/nodemailer-email.transport.ts`, `apps/api/src/modules/email/infra/prisma-email-recipients.repository.ts` | Novo. Worker de `email.send` (`WorkerHost` do `@nestjs/bullmq`) com conexão própria, produtor com 5 tentativas, backoff, retenção e o registro do desfecho do `add` que passa do limite, transporte Nodemailer pelas variáveis SMTP e leitura de nome, e-mail e `emailVerified` pelo Prisma. |
+| Módulo E-mail | `apps/api/src/modules/email/infra/queue/email-send.processor.ts`, `apps/api/src/modules/email/infra/queue/email-send.queue.ts`, `apps/api/src/modules/email/infra/queue/bullmq-email.queue.ts`, `apps/api/src/modules/email/infra/smtp/nodemailer-email.transport.ts`, `apps/api/src/modules/email/infra/prisma-email-recipients.repository.ts` | Novo. Worker de `email.send` (`WorkerHost` do `@nestjs/bullmq`) com conexão própria, que regrava os dados do job sem o link quando ele conclui e quando falha de vez; produtor com 5 tentativas, backoff e retenção iguais para todo tipo e o registro do desfecho do `add` que passa do limite; transporte Nodemailer pelas variáveis SMTP e leitura de nome, e-mail e `emailVerified` pelo Prisma. |
 | Redis | `apps/api/src/platform/queue/queue.module.ts`, `apps/api/src/app.module.ts` | Novo `queue.module.ts` com o `BullModule.forRootAsync` a partir de `REDIS_URL`, em conexões próprias do BullMQ separadas da conexão `REDIS` compartilhada: a do produtor sem fila offline e a do worker com ela; registrado no `AppModule` junto com o `EmailModule`. |
 | Redis | `apps/api/src/platform/config/env.ts`, `.env.example`, `apps/api/.env.test` | Variável `TRUSTED_PROXIES`, lista de CIDRs separada por vírgula, vazia no local e no teste e obrigatória com `NODE_ENV=production`; `ADMIN_EMAIL` passa a ser lida pela API, opcional, para o hook de cadastro. |
 | SPA Web | `apps/web/src/routes/cadastro/route.tsx`, `apps/web/src/routes/cadastro/action.ts`, `apps/web/src/main.tsx` | Nova rota `/cadastro` filha da raiz: formulário, `action` que valida e chama a API, estado de link enviado com o botão de reenvio, mensagens de erro por campo e os links para `/entrar` e `/recuperar-senha`, com as classes do `DESIGN.md`. |
@@ -161,7 +163,12 @@ Fila `email.send` (interna, BullMQ)
 { "type": "verify-email", "userId": "Yp3m2...", "url": "http://localhost:5173/confirmar-email?token=eyJ..." }
 ```
 
-- Opções: `attempts` 5, `backoff` exponencial com `delay` de 5000 ms, `removeOnComplete` com `age` de 86400 s e `removeOnFail` com `age` de 604800 s.
+- Opções: `attempts` 5, `backoff` exponencial com `delay` de 5000 ms, `removeOnComplete` com `age` de 86400 s e `removeOnFail` com `age` de 604800 s, as mesmas para todo tipo de e-mail da fila.
+- Dados do job concluído ou falho de vez, depois de o worker tirar o link:
+
+```json
+{ "type": "verify-email", "userId": "Yp3m2..." }
+```
 
 E-mail de confirmação (Módulo E-mail para o Servidor SMTP)
 - Remetente `SMTP_FROM`, destinatário o e-mail da conta, assunto "Confirme seu e-mail", corpo em texto e HTML em pt-BR com a saudação pelo nome, o link e a frase "O link vale por 24 horas.".
@@ -181,7 +188,7 @@ Sem migração: o cadastro grava nas tabelas da fundação.
 
 Valkey (efêmero)
 - `rate-limit:<chave do Better Auth>`: contador inteiro com expiração igual à janela da regra (60 s no cadastro, 10 s no geral).
-- Chaves do BullMQ da fila `email.send`, com a retenção de Regras e fluxos.
+- Chaves do BullMQ da fila `email.send`, com a retenção de Regras e fluxos; o campo `data` do hash do job guarda `type`, `userId` e `url` enquanto o envio está pendente e só `type` e `userId` depois que o job conclui ou falha de vez.
 
 ---
 
@@ -195,9 +202,11 @@ Valkey (efêmero)
 | Senha fora da regra | SPA Web, `signUpSchema`; Módulo Contas, hook antes do cadastro | 400 `VALIDATION_ERROR` com o campo `password`, sem criar conta | A regra inteira abaixo do campo de senha |
 | Campo obrigatório vazio ou e-mail inválido | SPA Web, `signUpSchema`; Módulo Contas, hook antes do cadastro | 400 `VALIDATION_ERROR` com cada campo recusado, sem criar conta | Mensagem abaixo do campo, com o foco no primeiro campo recusado |
 | Falha no envio do e-mail (Valkey fora ao enfileirar) | Módulo E-mail, produtor da fila | Erro capturado pelo `runInBackgroundOrAwait` do Better Auth e registrado no log, sem dado pessoal; o cadastro responde 200 com a conta criada | A mensagem de link enviado com o botão "Reenviar o link" |
-| Falha no envio do e-mail (SMTP fora ou recusando) | Módulo E-mail, worker | Nova tentativa até 5, com backoff exponencial a partir de 5 s; depois o job fica como falho | A mesma tela; o botão "Reenviar o link" gera um novo job |
+| Falha no envio do e-mail (SMTP fora ou recusando) | Módulo E-mail, worker | Nova tentativa até 5, com backoff exponencial a partir de 5 s, com o link ainda nos dados; depois o job fica como falho, só com `type` e `userId` nos dados | A mesma tela; o botão "Reenviar o link" gera um novo job |
 | Conta do job não existe mais | Módulo E-mail, caso de uso de envio | Job concluído sem envio, com log pelo id da conta | nada |
 | Conta do job já tem o e-mail verificado | Módulo E-mail, caso de uso de envio | Job concluído sem envio, com log pelo id do job e da conta | nada |
+| Dados do job fora do formato | Módulo E-mail, worker | Job falho sem nova tentativa (`UnrecoverableError`), com os dados regravados só com `type` e `userId` | nada |
+| Falha ao tirar o link dos dados do job (worker cai ou Valkey fora entre concluir e regravar) | Módulo E-mail, worker | O erro vai ao log por `describeError`, com o id do job e da conta e sem o link; o job fica com o link nos dados até a retenção vencer (risco aceito, ver Decisões) | nada |
 | Enfileiramento além de 3 segundos (Valkey lento) | Módulo E-mail, produtor da fila | O pedido é tratado como falho para o Better Auth; se o `add` termina depois, o log registra o id do job, e se falha, o erro por `describeError` | A tela de link enviado com o botão "Reenviar o link" |
 | Limite de cadastros por IP excedido | Módulo Contas, rate limit do Better Auth | 429 com `X-Retry-After` | "Muitas tentativas. Tente de novo em alguns instantes." |
 | Valkey fora do ar no rate limit | Módulo Contas, `valkey-rate-limit.storage.ts` | Libera a requisição (fail-open) só com a conexão caída ou sem resposta em 500 ms, e registra o erro por `describeError` | nada; o cadastro segue |
@@ -213,8 +222,8 @@ Unidade (Vitest, `*.spec.ts` ao lado do código)
 - `apps/api/src/platform/config/env.spec.ts`: com `NODE_ENV=production`, `TRUSTED_PROXIES` vazia ou ausente derruba `loadEnv` nomeando a variável; em development e test segue opcional; `ADMIN_EMAIL` é opcional.
 - `apps/api/src/modules/accounts/presentation/sign-up/sign-up.hook.spec.ts`: o hook ignora outros caminhos, devolve 400 com a lista de campos, 422 quando o `internalAdapter` dublê acha o e-mail em minúsculas e 422 para o e-mail de `ADMIN_EMAIL` em qualquer caixa.
 - `apps/api/src/modules/accounts/infra/rate-limit/valkey-rate-limit.storage.spec.ts`: `consume` libera até o máximo, recusa o seguinte com `retryAfter` e libera com o Valkey dublê lançando erro; com a conexão em `connecting` ou `connect`, o comando segue e o limite vale; o log leva o erro por `describeError`, sem a mensagem do driver.
-- `apps/api/src/modules/email/infra/queue/bullmq-email.queue.spec.ts`: o `add` que passa do limite e termina depois registra o id do job; o que falha depois registra o erro por `describeError`; o `error` da fila não leva a mensagem crua.
-- `apps/api/src/modules/email/infra/queue/email-send.processor.spec.ts`: o `onError` do worker registra o erro por `describeError`.
+- `apps/api/src/modules/email/infra/queue/bullmq-email.queue.spec.ts`: o `add` que passa do limite e termina depois registra o id do job; o que falha depois registra o erro por `describeError`; o `error` da fila não leva a mensagem crua; todo tipo de e-mail entra com as mesmas tentativas, backoff e retenção.
+- `apps/api/src/modules/email/infra/queue/email-send.processor.spec.ts`: o `onError` do worker registra o erro por `describeError`; com o job dublê, os dados são regravados só com `type` e `userId` quando o envio entrega, descarta conta inexistente ou já verificada, quando a última tentativa falha e quando o job é recusado por formato inválido; a falha que ainda terá nova tentativa mantém o `url`; o log de falha continua com o id da conta depois da regravação, e a falha ao regravar vai ao log sem o link.
 - `apps/api/src/modules/accounts/infra/verification-email/send-verification-email.spec.ts`: o link usa `WEB_ORIGIN` e o token, e o pedido não leva senha.
 - `apps/api/src/modules/email/domain/verify-email.template.spec.ts`: assunto, nome, link e a frase das 24 horas no texto e no HTML.
 - `apps/api/src/modules/email/application/send-email/send-email.use-case.spec.ts`: lê o destinatário, entrega pelo transporte dublê, descarta conta inexistente e descarta conta já verificada (`already-verified`) sem chamar o transporte.
@@ -224,7 +233,7 @@ Unidade (Vitest, `*.spec.ts` ao lado do código)
 
 Integração (Vitest, `apps/api/test/integration/**/*.int-spec.ts`, banco `app_test` e Valkey e Mailpit do Compose)
 - `sign-up.int-spec.ts` (substitui o da fundação, que provava o cadastro fechado): cadastro válido cria a conta pendente sem cookie; e-mail com maiúsculas é gravado em minúsculas; duplicado em outra caixa é recusado com 422; o e-mail de `ADMIN_EMAIL` é recusado com 422 antes do seed (o caso "não deixa registrar o e-mail de ADMIN_EMAIL antes do seed" volta); campos fora do contrato (`image`) são descartados; senha e campos fora da regra respondem 400 sem criar conta; o sexto cadastro do mesmo IP em 60 s responde 429. Cada caso manda um `X-Forwarded-For` próprio, e o `createTestApp` apaga as chaves `rate-limit:*` na subida.
-- `verification-email.int-spec.ts`: depois do cadastro, o e-mail chega ao Mailpit pela API REST dele, com o link da SPA e sem a senha; com o transporte trocado por um dublê que falha via `overrideProvider()`, o job tenta de novo; a conexão do worker tem a fila offline ligada e a do produtor não.
+- `verification-email.int-spec.ts`: depois do cadastro, o e-mail chega ao Mailpit pela API REST dele, com o link da SPA e sem a senha; o job concluído continua na fila, com a retenção comum e só `type` e `userId` nos dados; com o transporte trocado por um dublê que falha via `overrideProvider()`, o job tenta de novo com o link e, esgotadas as tentativas, fica falho sem o link; a conexão do worker tem a fila offline ligada e a do produtor não.
 - `sign-up-logs.int-spec.ts`: com o logger capturado, um cadastro completo não escreve senha, nome, e-mail nem token em nenhuma linha.
 
 Factories
@@ -255,6 +264,7 @@ Decisões
 - Erro de validação em 400 `VALIDATION_ERROR` com a lista `fields`, no formato de `APIError` do Better Auth, escolhido na entrevista. Alternativa descartada: os códigos nativos `INVALID_EMAIL` e `PASSWORD_TOO_SHORT`, um por vez, que aceitam nome vazio (`name: z.string()` em `routes/sign-up.mjs`).
 - Superfícies API HTTP, Worker, UI e E2E, com os gates `make check` e `make build`, escolhidas na entrevista.
 - O BullMQ usa conexão própria a partir de `REDIS_URL`, e não a conexão `REDIS` da plataforma, porque o worker exige `maxRetriesPerRequest` nulo (BullMQ 6.5.1, `classes/redis-connection.js`) e a conexão compartilhada usa 1. O produtor usa `enableOfflineQueue` falso para falhar rápido com o Valkey fora, como recomenda o guia de produção do BullMQ (docs.bullmq.io, Going to production), em vez de segurar a resposta do cadastro; o worker usa outra conexão, com a fila offline ligada, como o mesmo guia recomenda, para esperar a reconexão em vez de entrar num ciclo de erro. O `@nestjs/bullmq` cria o worker com as opções da fila e as estáticas do `@Processor` por cima, então a conexão do worker é lida de `REDIS_URL` quando ele é criado.
+- O link sai dos dados do job quando ele conclui ou falha de vez, e o job fica na fila com a retenção comum, decidido pela pessoa na revisão de segurança do RF-005 ("apagar só o link"): o link leva o token em texto puro, e guardado 24 horas ou 7 dias no Valkey contrariaria a regra de guardar o token só como hash (spec do RF-002, Regras e fluxos). A regra vale para todo tipo de e-mail de `email.send` que leva link com token, e o ADR-0015 continua valendo sem ADR novo: o job que esgota as tentativas fica como falho para inspeção, com o estado, as tentativas e o motivo, só sem o link. O HLD lista o link entre os dados do job (Modelo de dados) e o guarda no Redis enquanto pendente, o que esta regra mantém. Alternativa descartada: remover o job inteiro ao concluir e ao falhar de vez (`removeOnComplete` e `removeOnFail` verdadeiros), que a primeira correção do RF-005 aplicou ao `reset-password` e que apaga o job que o ADR-0015 manda guardar e a observação de tentativas que os itens do Worker conferem. Conferido no BullMQ 6.5.1: `Job.updateData` regrava o campo `data` do hash do job em qualquer estado, enquanto a chave existe (`commands/updateData-1.lua`). Ponto fraco aceito pela pessoa: se o worker cair, ou o Valkey sair do ar, entre o job concluir ou falhar e a regravação, o link fica nos dados até a retenção vencer (24 horas concluído, 7 dias falho).
 - O `add` que passa do limite de 3 segundos não ganha `jobId` determinístico, e o desfecho real dele vai ao log: o reenvio gera um token novo, então o id não deduplicaria o caso e ainda arriscaria bloquear o reenvio legítimo do RF-002.
 - A rota raiz da SPA resolve a API fora no próprio loader, guardando a última sessão lida, e não por `shouldRevalidate` com uma lista de ações neutras, que cada RF novo teria de lembrar de estender e que `/cadastro/` ou `/cadastro?x` já escapavam.
 - `createAuth` recebe as dependências novas num parâmetro opcional, e não por import em `auth.ts`, porque o seed carrega `auth.ts` direto no Node sem compilar (comentário de `auth.ts`), e o seed segue chamando `createAuth(env, prisma)` sem fila nem rate limit.
@@ -277,6 +287,7 @@ Hipóteses
 - Barra de navegação sem menu recolhido no mobile, porque só tem dois links; com sessão ela mostra só o nome do app até existir o RF de sair (hipótese)
 - Título da tela "Crie sua conta" em `display-lg` e avisos de servidor em `card-soft-tinted` com `role="alert"` (hipótese)
 - Classes de componente em `@layer components` no `app.css`, com os nomes do `DESIGN.md`, em vez de utilidades repetidas em cada tela (hipótese)
+- O job recusado por formato inválido, que falha sem nova tentativa, tem a regravação dos dados conferida só no teste de unidade do worker, e não no contrato, porque produzi-lo exige pôr dados forjados direto na fila (hipótese)
 
 Pendentes de ADR
 - nenhuma: o estilo e a fonte da SPA, pendentes na primeira versão desta revisão, estão registrados no ADR-0027 (Tailwind CSS 4) e no ADR-0028 (Inter auto-hospedada).
@@ -295,5 +306,6 @@ Pendentes de ADR
 | PRD, Segurança e autorização e Compliance | Regras e fluxos, Estratégia de testes |
 | HLD, Fluxo Cadastro e confirmação | Regras e fluxos (fluxo técnico) |
 | HLD, Interfaces públicas (API de autenticação, Fila de e-mail) | Contratos de interface |
+| HLD, Modelo de dados (Job de e-mail) e ADR-0015 (job falho para inspeção) | Regras e fluxos (sigilo do link na fila), Modelo de dados, Decisões |
 | RF-001 Criar conta: SPA Web, Módulo Contas, Módulo E-mail, PostgreSQL, Redis; API de autenticação, Fila de e-mail | Componentes |
 | `DESIGN.md` (tokens, componentes, Do's and Don'ts) | Regras e fluxos (Regras visuais), Componentes, Contratos de interface (Rotas da SPA Web) |

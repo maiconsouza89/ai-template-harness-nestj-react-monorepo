@@ -12,6 +12,7 @@ Incluído
 - Tela `/recuperar-senha` na SPA, já apontada pelo link "Recuperar a senha" do `/cadastro`, com o campo de e-mail que envia `POST /api/auth/request-password-reset` e responde sempre "Se o e-mail tiver conta, enviamos o link.", com e sem conta.
 - Pedido de recuperação pela rota nativa do Better Auth: para conta existente, grava o registro do link na tabela `verification`, válido por 1 hora, e pede ao Módulo E-mail o e-mail de recuperação com o link `<WEB_ORIGIN>/redefinir-senha?token=<token>`.
 - Token guardado só como hash: o identificador gravado é `reset-password:<sha256 do token>`, nunca o token em texto puro.
+- Link fora da fila depois do envio: o job `reset-password` segue a retenção comum de `email.send`, e o worker tira dele o link com o token quando o job conclui ou falha de vez, pela regra de sigilo do link na fila do RF-001.
 - Novo pedido que invalida os links anteriores: com o pedido de envio na fila, os registros de recuperação anteriores da conta são apagados.
 - Resposta neutra também com a fila fora: o pedido de uma conta existente responde o mesmo 200 de um e-mail sem conta, e os links anteriores continuam valendo.
 - Limite de 5 pedidos de recuperação a cada 60 segundos por IP.
@@ -48,6 +49,7 @@ Regras
 - O callback de envio pede o e-mail ao Módulo E-mail e, com o pedido na fila, apaga os registros de recuperação da conta criados antes do novo: os links anteriores deixam de valer (PRD, RF-005 Fluxos alternativos).
 - Se o pedido à fila falha, o callback apaga só o registro novo, registra a falha no log sem e-mail nem token e não propaga o erro: a resposta é o mesmo 200 neutro, e os links anteriores continuam valendo (escolhido na entrevista; HLD, Fluxo de dados: a perda é coberta por um novo pedido).
 - Cada pedido de conta existente também apaga os registros de recuperação vencidos, de qualquer conta (hipótese).
+- O job `reset-password` da fila `email.send` tem as mesmas tentativas, backoff e retenção do `verify-email` (concluído fica 24 horas, falho fica 7 dias) e segue a regra de sigilo do link na fila da spec do RF-001 (Regras e fluxos): o link com o token fica nos dados do job só enquanto ele está pendente ou esperando nova tentativa, e quando o job conclui ou falha de vez o worker regrava os dados só com `type` e `userId`. Assim o token em texto puro não fica guardado nem no banco nem na fila depois do envio (decisão da revisão de segurança do PR #18, "apagar só o link", que substitui a remoção do job inteiro).
 - O pedido de recuperação aceita 5 pedidos a cada 60 segundos por IP; o sexto recebe 429 com `X-Retry-After` (HLD, Interfaces públicas).
 - A checagem do link não consome o registro: responde 200 com registro dentro do prazo e 400 `INVALID_TOKEN` com registro vencido, ausente ou de conta que não existe mais.
 - A nova senha segue o `passwordSchema` de Contratos: no mínimo 8 caracteres, com ao menos uma letra e um número, no máximo 128 (PRD, Decisão regra de senha). Fora da regra, o hook antes de `/reset-password` responde 400 `VALIDATION_ERROR` com a regra e não chega à biblioteca: o link continua valendo e a senha não muda (PRD, RF-005 Erros previstos).
@@ -97,7 +99,7 @@ Fluxo técnico da troca
 | Módulo Contas | `apps/api/src/modules/accounts/infra/password-reset-email/send-reset-password.ts` | Novo. Callback `emailAndPassword.sendResetPassword`: monta o link da SPA, limpa os vencidos, pede o envio ao Módulo E-mail e só então apaga os anteriores; com falha, apaga o registro novo, registra a falha e não propaga o erro. |
 | Módulo Contas | `apps/api/src/modules/accounts/presentation/reset-password/reset-password.plugin.ts` | Novo. Plugin do Better Auth com o hook antes de `/reset-password`, que aplica o `passwordSchema` à nova senha, e o endpoint `GET /reset-password-status`, que confere o registro sem consumi-lo. |
 | Módulo Contas | `apps/api/src/modules/accounts/auth.ts`, `apps/api/src/modules/accounts/accounts.module.ts` | `emailAndPassword` ganha `sendResetPassword`, `resetPasswordTokenExpiresIn` de 3600 e `revokeSessionsOnPasswordReset`; `verification.storeIdentifier` ganha o override com o hash de `reset-password:`; `RATE_LIMIT.customRules` ganha `/request-password-reset` com 5 a cada 60 segundos; `AuthDependencies` ganha o callback, o plugin e a função de hash, que entram só com `deps`. O módulo liga a porta por `useClass` e monta o callback e o plugin. |
-| Módulo E-mail | `apps/api/src/modules/email/domain/email-request.ts`, `apps/api/src/modules/email/domain/reset-password.template.ts`, `apps/api/src/modules/email/application/send-email/send-email.use-case.ts` | Tipo `reset-password` em `EMAIL_TYPES`, template novo em pt-BR com o link e a validade de 1 hora, e o envio renderiza o template pelo tipo. O descarte de conta que não existe mais vale também para ele. |
+| Módulo E-mail | `apps/api/src/modules/email/domain/email-request.ts`, `apps/api/src/modules/email/domain/reset-password.template.ts`, `apps/api/src/modules/email/application/send-email/send-email.use-case.ts`, `apps/api/src/modules/email/infra/queue/email-send.queue.ts` | Tipo `reset-password` em `EMAIL_TYPES`, template novo em pt-BR com o link e a validade de 1 hora, e o envio renderiza o template pelo tipo. O descarte de conta que não existe mais vale também para ele. O job `reset-password` entra com as opções comuns de `email.send`, sem retenção própria, e o worker do RF-001 tira o link dos dados dele quando conclui ou falha de vez. |
 | PostgreSQL | `apps/api/prisma/schema.prisma` | Sem mudança: a tabela `verification` da fundação guarda os registros de recuperação, e `session` e `account` recebem a revogação e o hash novo. |
 | Redis | `apps/api/src/modules/accounts/auth.ts` | Sem mudança de código no armazenamento: a regra de 5 pedidos a cada 60 segundos usa os contadores no Valkey do RF-001, e o job de recuperação entra na fila `email.send`. |
 | SPA Web | `apps/web/src/routes/recuperar-senha/route.tsx`, `action.ts` | Nova rota `/recuperar-senha`, filha da raiz: o formulário de e-mail, o aviso neutro com "Enviar para outro e-mail" e os avisos de limite e de servidor fora. |
@@ -163,6 +165,12 @@ Pedido de envio ao Módulo E-mail (job da fila `email.send`)
 { "type": "reset-password", "userId": "Yp3m2...", "url": "http://localhost:5173/redefinir-senha?token=Xk3..." }
 ```
 
+- Opções e retenção comuns da fila, da spec do RF-001 (Contratos de interface). Dados do job concluído ou falho de vez, depois de o worker tirar o link:
+
+```json
+{ "type": "reset-password", "userId": "Yp3m2..." }
+```
+
 E-mail de recuperação (hipótese nos textos)
 - Assunto "Redefina sua senha"; saudação "Olá, <nome>!"; o link; "O link vale por 1 hora e só pode ser usado uma vez."; "Se você não pediu a troca, ignore esta mensagem: sua senha continua a mesma.". Texto e HTML, com o nome escapado no HTML.
 
@@ -203,6 +211,7 @@ O token é o `generateId(24)` do Better Auth, alfanumérico, de 24 caracteres; o
 | Senhas diferentes nos dois campos | SPA Web, esquema do formulário | Sem requisição | "As senhas não conferem." abaixo do campo de confirmação |
 | Dois pedidos de troca simultâneos com o mesmo link | Better Auth, `consumeVerificationValue` | Um 200, o outro 400 `INVALID_TOKEN` | Quem perdeu a corrida vê o estado de link inválido |
 | Falha na transação da troca (PostgreSQL fora) | Better Auth | 500; registro, sessões e senha ficam como estavam | "O servidor não respondeu. Tente de novo."; o mesmo link pode ser usado de novo |
+| Falha no envio do e-mail (SMTP fora ou recusando) | Módulo E-mail, worker | Nova tentativa até 5, com backoff exponencial a partir de 5 s e o link ainda nos dados; depois o job fica como falho, só com `type` e `userId` nos dados (regra do RF-001) | O mesmo aviso neutro; nenhum e-mail chega, e um novo pedido gera outro link |
 | Fila fora no pedido (Redis fora) | Módulo Contas, callback `sendResetPassword` | 200 neutro; o registro novo é apagado, os anteriores continuam valendo, a falha vai para o log sem dado pessoal | O mesmo aviso neutro; nenhum e-mail chega |
 | Pedido além de 5 por minuto do mesmo IP | Módulo Contas, rate limit do Better Auth | 429 com `X-Retry-After` | "Muitas tentativas. Tente de novo em alguns instantes." |
 | E-mail inválido no pedido | SPA Web, esquema de Contratos; Better Auth | Sem requisição; 400 se chegar à API | "Informe um e-mail válido." abaixo do campo |
@@ -218,13 +227,15 @@ Unidade (Vitest, `*.spec.ts` ao lado do código)
 - `apps/api/src/modules/accounts/presentation/reset-password/reset-password.plugin.spec.ts`: o hook ignora outros caminhos, recusa nova senha fora da regra com `VALIDATION_ERROR` e deixa seguir a válida; a checagem responde válido com registro no prazo e `INVALID_TOKEN` com registro vencido, ausente, sem token ou de conta inexistente, sem apagar nada.
 - `apps/api/src/modules/email/domain/reset-password.template.spec.ts`: assunto, saudação, link, validade e nome escapado no HTML.
 - `apps/api/src/modules/email/application/send-email/send-email.use-case.spec.ts`: o tipo `reset-password` renderiza o template de recuperação.
+- `apps/api/src/modules/email/infra/queue/bullmq-email.queue.spec.ts`: o job `reset-password` entra com as mesmas tentativas, backoff e retenção do `verify-email`.
+- `apps/api/src/modules/email/infra/queue/email-send.processor.spec.ts`: o job `reset-password` tem os dados regravados só com `type` e `userId` quando conclui e quando falha de vez, como o `verify-email`.
 - `packages/contracts/src/accounts.spec.ts`: os esquemas do pedido, da troca e do formulário, inclusive a mensagem de senhas diferentes.
 - `apps/web/src/routes/recuperar-senha/action.spec.ts`: o aviso neutro no 200, o de limite no 429, o de servidor fora e o erro de campo sem chamar a API.
 - `apps/web/src/routes/redefinir-senha/loader.spec.ts` e `action.spec.ts`: o loader devolve formulário, link inválido (inclusive sem token, sem chamada) e servidor fora; a `action` devolve senha alterada no 200, link inválido no 400 `INVALID_TOKEN` e `USER_NOT_FOUND`, erros de campo no `VALIDATION_ERROR` e sem chamar a API com senhas diferentes.
 - `apps/web/src/routes/redefinir-senha/route.spec.tsx`: depois da `action` com sucesso, a tela continua em "Senha alterada" sem refazer a checagem.
 
 Integração (Vitest, `apps/api/test/integration/**/*.int-spec.ts`, banco `app_test`, Valkey e Mailpit do Compose)
-- `reset-password.int-spec.ts`: pedido com e sem conta com o mesmo corpo; registro gravado só como hash e com prazo de 1 hora; novo pedido apaga o anterior; fila fora mantém o anterior e responde 200; a checagem não consome; a troca muda a senha, apaga as sessões e consome o link; link vencido, usado e trocado respondem `INVALID_TOKEN`; regra de senha mantém o link; troca simultânea troca uma vez; conta pendente continua pendente; o sexto pedido do mesmo IP responde 429.
+- `reset-password.int-spec.ts`: pedido com e sem conta com o mesmo corpo; registro gravado só como hash e com prazo de 1 hora; novo pedido apaga o anterior; fila fora mantém o anterior e responde 200; a checagem não consome; a troca muda a senha, apaga as sessões e consome o link; link vencido, usado e trocado respondem `INVALID_TOKEN`; regra de senha mantém o link; troca simultânea troca uma vez; conta pendente continua pendente; o sexto pedido do mesmo IP responde 429; o job que entregou o e-mail continua na fila como concluído, só com `type` e `userId` nos dados e sem o token.
 - `reset-password-logs.int-spec.ts`: com o logger capturado, pedido, checagem e troca não escrevem token, senha, e-mail nem nome.
 
 Factories
@@ -235,7 +246,7 @@ Verificação por superfície
 | Superfície | Mecanismo | Decisão |
 | --- | --- | --- |
 | API HTTP | requisições HTTP contra a API em execução no Compose, consulta e alteração do PostgreSQL, leitura das linhas de log do serviço api, serviço valkey parado e religado pelo Compose no item de fila fora | fundação |
-| Worker | leitura da caixa do Mailpit pela API REST dele depois dos pedidos | ADR-0016 |
+| Worker | leitura da caixa do Mailpit pela API REST dele depois dos pedidos e das chaves da fila `email.send` no Valkey, com o serviço mailpit parado pelo Compose no item de falha de envio | ADR-0016 |
 | UI | navegador dirigido pelo `@playwright/cli` contra a SPA em execução, lendo conteúdo, atributos, estilo computado, URL e requisições de rede, com o serviço api parado pelo Compose no item de falha | ADR-0024 |
 | E2E | navegador dirigido pelo `@playwright/cli` na SPA, mais a caixa do Mailpit, requisições HTTP à API e o estado do PostgreSQL | ADR-0024 |
 
@@ -247,6 +258,7 @@ Decisões
 - Recuperação pelas rotas nativas do Better Auth (`/request-password-reset` e `/reset-password`), com o callback, o hook e o endpoint de checagem do Módulo Contas, pelo ADR-0010 e pela tabela de componentes do HLD (Módulo Contas monta a recuperação).
 - Token guardado como `reset-password:<sha256 do token>` por `verification.storeIdentifier` com override só para `reset-password:` e função de hash própria, escolhido na entrevista. O Better Auth 1.7.14 grava o token em texto puro por padrão (`routes/password.mjs`) e aplica a função de hash do override em `createVerificationValue`, `findVerificationValue` e no consumo (`db/verification-token-storage.mjs`, `db/internal-adapter.mjs`). Alternativas descartadas: o modo `hashed` nativo, que perde o prefixo e impede apagar os anteriores por ele, e o texto puro.
 - Novo pedido invalida os anteriores no callback, depois de o pedido entrar na fila, como no reenvio do RF-002: a biblioteca não apaga os registros anteriores sozinha.
+- O job `reset-password` segue a retenção comum de `email.send` e só perde o link quando conclui ou falha de vez, pela regra do RF-001, decidido pela pessoa na revisão de segurança do PR #18 ("apagar só o link"). A primeira correção do achado removia o job inteiro ao concluir e ao falhar de vez (`removeOnComplete` e `removeOnFail` verdadeiros), exceção ao ADR-0015, que manda o job que esgota as tentativas ficar como falho para inspeção; a regra comum tira o token da fila sem apagar o job. Ponto fraco aceito pela pessoa: se o worker cair entre o job terminar e a regravação dos dados, o link fica guardado até a retenção vencer (24 horas concluído, 7 dias falho), embora o token perca a validade em 1 hora.
 - Pedido com a fila fora responde o 200 neutro, escolhido na entrevista: responder 500 só para conta existente revelaria a conta. O registro novo é apagado e os anteriores continuam valendo.
 - Validade do link checada ao abrir, por um endpoint do plugin, escolhido na entrevista: a rota nativa `GET /reset-password/:token` só redireciona, e a SPA não lê o destino do redirecionamento pelo `fetch`. O endpoint usa `createAuthEndpoint` de `better-auth/api` e busca pelo `internalAdapter`, que aplica o mesmo hash.
 - Conta pendente troca a senha e continua pendente, escolhido na entrevista: a confirmação de e-mail fica só no RF-002.
@@ -284,4 +296,5 @@ Pendentes de ADR
 | Depende de | Escopo, Entradas |
 | PRD, Decisão recuperação com link de 1 hora e resposta neutra, Decisão regra de senha e Compliance | Regras e fluxos |
 | HLD, Fluxo de dados (perda coberta por novo pedido), Interfaces públicas (rate limit) e Segurança (links de uso único) | Regras e fluxos, Decisões |
+| Spec do RF-001, regra de sigilo do link na fila, e ADR-0015 (job falho para inspeção) | Regras e fluxos, Contratos de interface, Decisões |
 | RF-005 Recuperar senha: SPA Web, Módulo Contas, Módulo E-mail, Redis; API de autenticação, Fila de e-mail | Componentes |
