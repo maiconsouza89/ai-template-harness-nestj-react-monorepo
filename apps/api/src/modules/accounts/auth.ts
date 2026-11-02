@@ -8,6 +8,7 @@ import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { admin } from 'better-auth/plugins/admin';
 import type { Env } from '../../platform/config/env.js';
 import type { PrismaClient } from '../../platform/prisma/prisma.service.js';
+import type { SendResetPassword } from './infra/password-reset-email/send-reset-password.js';
 import type { SendVerificationEmail } from './infra/verification-email/send-verification-email.js';
 import type { SignUpHook } from './presentation/sign-up/sign-up.hook.js';
 
@@ -28,15 +29,26 @@ export type AuthEnv = Pick<
 /** Validade do link de confirmação de e-mail: 24 horas (spec, Regras e fluxos). */
 export const EMAIL_VERIFICATION_EXPIRES_IN = 86_400;
 
+/** Validade do link de recuperação de senha: 1 hora (PRD, RF-005 Fluxo principal). */
+export const RESET_PASSWORD_EXPIRES_IN = 3_600;
+
+/** Prefixo do identificador dos registros de recuperação, o do Better Auth 1.7.14. */
+const RESET_PASSWORD_IDENTIFIER_PREFIX = 'reset-password:';
+
 /**
  * Regras do rate limit (HLD, Interfaces públicas): 100 requisições a cada 10 segundos por IP e
- * caminho em `/api/auth` e 5 cadastros a cada 60 segundos por IP. RF-003 e RF-005 acrescentam
- * as de sign-in e recuperação em `customRules`.
+ * caminho em `/api/auth`, 5 cadastros e 5 pedidos de recuperação de senha a cada 60 segundos por
+ * IP; as de `customRules` sobrepõem as especiais da biblioteca, que são 3 a cada 60 segundos em
+ * `/request-password-reset` (`api/rate-limiter`, `resolveRateLimitConfig`). RF-003 acrescenta a
+ * de sign-in.
  */
 export const RATE_LIMIT = {
   window: 10,
   max: 100,
-  customRules: { '/sign-up/email': { window: 60, max: 5 } },
+  customRules: {
+    '/sign-up/email': { window: 60, max: 5 },
+    '/request-password-reset': { window: 60, max: 5 },
+  },
 } as const;
 
 /** Função de log que recebe as linhas do Better Auth (`logger.log`). */
@@ -64,6 +76,18 @@ export interface AuthDependencies {
    * prazo pelo registro de confirmação e a resposta `ALREADY_VERIFIED` à conta já ativa.
    */
   verifyEmailPlugin: BetterAuthPlugin;
+  /**
+   * Callback do pedido de recuperação (RF-005): pede ao Módulo E-mail o link da SPA e apaga os
+   * registros anteriores da conta, sem propagar falha.
+   */
+  sendResetPassword: SendResetPassword;
+  /**
+   * Plugin da recuperação (RF-005): a regra de senha antes de `/reset-password` e o endpoint
+   * `GET /reset-password-status`, que checa o link sem consumi-lo.
+   */
+  resetPasswordPlugin: BetterAuthPlugin;
+  /** Hash de `reset-password:<token>` para `reset-password:<sha256 do token>` (RF-005). */
+  hashPasswordResetIdentifier: (identifier: string) => Promise<string>;
   /** Contadores do rate limit no Valkey. */
   rateLimitStorage: BetterAuthRateLimitStorage;
   /** Linhas de log da biblioteca, encaminhadas ao pino. */
@@ -87,11 +111,20 @@ export interface AuthDependencies {
  * - IP do cliente pelo `X-Forwarded-For`, resolvido com `TRUSTED_PROXIES` quando definida; sem
  *   ela, vale um cabeçalho de um valor só e, sem cabeçalho, o endereço local em development e
  *   test (`@better-auth/core`, `utils/ip`).
+ * - Recuperação de senha (RF-005): link de 1 hora, de uso único, e a troca revoga todas as
+ *   sessões da conta na mesma transação que consome o link e grava a senha nova
+ *   (`revokeSessionsOnPasswordReset`; `utils/password`, `resetCredentialPassword`).
+ * - Limpeza dos registros vencidos da tabela `verification` desligada na biblioteca
+ *   (`disableCleanup`): o `findVerificationValue` dela apagaria, a cada busca, os vencidos de
+ *   qualquer tipo, inclusive os de confirmação de e-mail que o RF-002 guarda vencidos para
+ *   responder `TOKEN_EXPIRED`. Cada tipo limpa os próprios: a confirmação no reenvio e a
+ *   recuperação no callback do pedido.
  * - Com `deps` (a API em execução): hook antes do cadastro, o plugin que descarta os campos de
  *   redirecionamento do cadastro, o plugin de uso único do link de confirmação (RF-002), envio
- *   do e-mail de confirmação pelo Módulo E-mail, rate limit ligado em todo ambiente com os contadores no Valkey e os logs da
- *   biblioteca no pino. Sem `deps` (seed e CLI de schema), nada disso entra e o rate limit fica
- *   desligado, porque não há requisição HTTP.
+ *   do e-mail de confirmação pelo Módulo E-mail, o callback e o plugin da recuperação com o
+ *   identificador do link gravado como hash (RF-005), rate limit ligado em todo ambiente com os
+ *   contadores no Valkey e os logs da biblioteca no pino. Sem `deps` (seed e CLI de schema), nada
+ *   disso entra e o rate limit fica desligado, porque não há requisição HTTP.
  */
 export function createAuth(
   env: AuthEnv,
@@ -104,11 +137,31 @@ export function createAuth(
     secret: env.BETTER_AUTH_SECRET,
     database: prismaAdapter(prisma, { provider: 'postgresql' }),
     trustedOrigins: [env.WEB_ORIGIN],
-    emailAndPassword: { enabled: true, requireEmailVerification: true },
+    emailAndPassword: {
+      enabled: true,
+      requireEmailVerification: true,
+      sendResetPassword: deps?.sendResetPassword,
+      resetPasswordTokenExpiresIn: RESET_PASSWORD_EXPIRES_IN,
+      revokeSessionsOnPasswordReset: true,
+    },
     emailVerification: {
       sendOnSignUp: true,
       expiresIn: EMAIL_VERIFICATION_EXPIRES_IN,
       sendVerificationEmail: deps?.sendVerificationEmail,
+    },
+    verification: {
+      disableCleanup: true,
+      // Só `reset-password:` grava o identificador como hash; os demais tipos ficam como estão.
+      storeIdentifier: deps
+        ? {
+            default: 'plain',
+            overrides: {
+              [RESET_PASSWORD_IDENTIFIER_PREFIX]: {
+                hash: deps.hashPasswordResetIdentifier,
+              },
+            },
+          }
+        : undefined,
     },
     session: { cookieCache: { enabled: false } },
     rateLimit: deps
@@ -128,7 +181,12 @@ export function createAuth(
         : { enabled: false },
     },
     plugins: deps
-      ? [admin(), deps.signUpRequestPlugin, deps.verifyEmailPlugin]
+      ? [
+          admin(),
+          deps.signUpRequestPlugin,
+          deps.verifyEmailPlugin,
+          deps.resetPasswordPlugin,
+        ]
       : [admin()],
   });
 }

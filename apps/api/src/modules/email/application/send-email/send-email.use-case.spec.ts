@@ -113,6 +113,55 @@ describe('SendEmailUseCase', () => {
     expect(transport.sent).toEqual([]);
   });
 
+  describe('recuperação de senha', () => {
+    const resetUrl = 'http://localhost:5173/redefinir-senha?token=Xk3abc';
+    const reset: EmailRequest = {
+      type: 'reset-password',
+      userId: 'confirmada',
+      url: resetUrl,
+    };
+
+    it('renderiza o template de recuperação, mesmo para conta com e-mail confirmado', async () => {
+      const transport = new TransportDouble();
+      const result = await new SendEmailUseCase(recipients, transport).execute(
+        reset,
+      );
+
+      expect(result).toBe('sent');
+      expect(transport.sent).toHaveLength(1);
+      const [message] = transport.sent;
+      expect(message.to).toBe('rui@example.com');
+      expect(message.subject).toBe('Redefina sua senha');
+      expect(message.text).toContain('Olá, Rui Lopes!');
+      expect(message.text).toContain(resetUrl);
+      expect(message.html).toContain(
+        'O link vale por 1 hora e só pode ser usado uma vez.',
+      );
+    });
+
+    it('entrega também para conta pendente de confirmação', async () => {
+      const transport = new TransportDouble();
+      const result = await new SendEmailUseCase(recipients, transport).execute({
+        ...reset,
+        userId: 'u1',
+      });
+
+      expect(result).toBe('sent');
+      expect(transport.sent[0]?.subject).toBe('Redefina sua senha');
+    });
+
+    it('descarta o pedido de conta que não existe mais, sem entregar', async () => {
+      const transport = new TransportDouble();
+      const result = await new SendEmailUseCase(recipients, transport).execute({
+        ...reset,
+        userId: 'apagada',
+      });
+
+      expect(result).toBe('discarded');
+      expect(transport.sent).toEqual([]);
+    });
+  });
+
   it('rejeita quando o transporte falha, para a fila tentar de novo', async () => {
     const transport = new TransportDouble();
     transport.failWith = new Error('SMTP fora');

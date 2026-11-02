@@ -1,5 +1,5 @@
 /** Tipos de e-mail que o Módulo E-mail sabe enviar; cada um tem o seu template em `domain/`. */
-export const EMAIL_TYPES = ['verify-email'] as const;
+export const EMAIL_TYPES = ['verify-email', 'reset-password'] as const;
 export type EmailType = (typeof EMAIL_TYPES)[number];
 
 /**

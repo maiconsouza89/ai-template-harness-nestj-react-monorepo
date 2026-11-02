@@ -99,6 +99,44 @@ describe('BullMqEmailQueue', () => {
     expect(line).not.toContain('valkey:6379');
   });
 
+  it('o job reset-password sai da fila ao concluir e ao falhar de vez, com as mesmas tentativas', async () => {
+    const queue = {
+      on: vi.fn(),
+      add: vi.fn(() => Promise.resolve({ id: '1' })),
+    };
+    const adapter = new BullMqEmailQueue(queue as unknown as Queue);
+
+    await adapter.enqueue({
+      type: 'reset-password',
+      userId: 'u1',
+      url: 'http://localhost:5173/redefinir-senha?token=abc',
+    });
+    await adapter.enqueue(request);
+
+    expect(queue.add).toHaveBeenNthCalledWith(
+      1,
+      'reset-password',
+      expect.anything(),
+      {
+        attempts: 5,
+        backoff: { type: 'exponential', delay: 5_000 },
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
+    );
+    expect(queue.add).toHaveBeenNthCalledWith(
+      2,
+      'verify-email',
+      expect.anything(),
+      {
+        attempts: 5,
+        backoff: { type: 'exponential', delay: 5_000 },
+        removeOnComplete: { age: 86_400 },
+        removeOnFail: { age: 604_800 },
+      },
+    );
+  });
+
   it('não registra nada quando o add falha antes do limite', async () => {
     const { queue, fail } = slowQueue();
     const enqueued = new BullMqEmailQueue(queue).enqueue(request);

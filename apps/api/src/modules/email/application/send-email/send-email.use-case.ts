@@ -5,6 +5,7 @@ import {
 } from '../../domain/email-recipients.js';
 import type { EmailRequest } from '../../domain/email-request.js';
 import { EmailTransport } from '../../domain/email-transport.js';
+import { renderResetPasswordEmail } from '../../domain/reset-password.template.js';
 import {
   renderVerifyEmail,
   type RenderedEmail,
@@ -18,7 +19,8 @@ export type SendEmailResult = 'sent' | 'discarded' | 'already-verified';
 
 /**
  * Envio de um pedido da fila: lê nome e e-mail da conta no momento da entrega, renderiza o
- * template do tipo e entrega pelo transporte. Conta que não existe mais descarta o pedido sem
+ * template do tipo (confirmação do RF-001 ou recuperação de senha do RF-005) e entrega pelo
+ * transporte. Conta que não existe mais descarta o pedido sem
  * erro, para a fila não tentar de novo, e o mesmo vale para a confirmação de uma conta que já
  * confirmou (por um link reenviado enquanto este job esperava o backoff); falha do transporte
  * rejeita, e a fila tenta de novo. A conta é lida antes e de novo depois de o servidor de e-mail
@@ -62,5 +64,7 @@ function render(request: EmailRequest, name: string): RenderedEmail {
   switch (request.type) {
     case 'verify-email':
       return renderVerifyEmail({ name, url: request.url });
+    case 'reset-password':
+      return renderResetPasswordEmail({ name, url: request.url });
   }
 }

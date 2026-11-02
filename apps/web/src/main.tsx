@@ -14,6 +14,14 @@ import {
 import { VerifyEmailRoute } from './routes/confirmar-email/route.js';
 import { ErrorPage } from './routes/error-page.js';
 import { HomeRoute } from './routes/home/route.js';
+import { requestPasswordResetAction } from './routes/recuperar-senha/action.js';
+import { RequestPasswordResetRoute } from './routes/recuperar-senha/route.js';
+import { resetPasswordAction } from './routes/redefinir-senha/action.js';
+import {
+  resetPasswordLoader,
+  shouldRevalidateResetPassword,
+} from './routes/redefinir-senha/loader.js';
+import { ResetPasswordRoute } from './routes/redefinir-senha/route.js';
 import { rootLoader } from './routes/root/loader.js';
 import { RootRoute } from './routes/root/route.js';
 
@@ -44,6 +52,18 @@ export const router = createBrowserRouter([
         loader: verifyEmailLoader,
         action: verifyEmailAction,
         shouldRevalidate: shouldRevalidateVerifyEmail,
+      },
+      {
+        path: 'recuperar-senha',
+        Component: RequestPasswordResetRoute,
+        action: requestPasswordResetAction,
+      },
+      {
+        path: 'redefinir-senha',
+        Component: ResetPasswordRoute,
+        loader: resetPasswordLoader,
+        action: resetPasswordAction,
+        shouldRevalidate: shouldRevalidateResetPassword,
       },
     ],
   },

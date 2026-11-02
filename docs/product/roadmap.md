@@ -4,9 +4,9 @@ Gerado de `prd.md` versão 0.1.0 pela skill prd-writer. Status se muda na coluna
 
 ## Situação
 
-- Concluídos: 2 de 13 RFs (15 por cento)
-- Onda atual: 2
-- Liberados para começar: RF-005, RF-003
+- Concluídos: 3 de 13 RFs (23 por cento)
+- Onda atual: 3
+- Liberados para começar: RF-003
 - Em andamento: nenhum
 - Bloqueados: nenhum
 - Caminho crítico restante: RF-003 → RF-008 → RF-009 (3 RFs)
@@ -20,7 +20,7 @@ graph LR
   DEP1{{"DEP-1 serviço de envio de e-mail"}}:::externa
   RF001["RF-001 Criar conta"]:::feito
   RF002["RF-002 Confirmar e-mail"]:::feito
-  RF005["RF-005 Recuperar senha"]:::pendente
+  RF005["RF-005 Recuperar senha"]:::feito
   RF003["RF-003 Entrar"]:::pendente
   RF004["RF-004 Sair"]:::pendente
   RF008["RF-008 Criar tarefa"]:::pendente
@@ -61,7 +61,7 @@ RFs da mesma onda podem ser desenvolvidos em paralelo.
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 | RF-001 | Criar conta | alta | feito | avaliação limpa em docs/features/RF-001-criar-conta/avaliacao.md | DEP-1 |
 | 2 | RF-002 | Confirmar e-mail | alta | feito | avaliação limpa em docs/features/RF-002-confirmar-e-mail/avaliacao.md | RF-001 |
-| 2 | RF-005 | Recuperar senha | media | pendente |  | RF-001 |
+| 2 | RF-005 | Recuperar senha | media | feito | avaliação limpa em docs/features/RF-005-recuperar-senha/avaliacao.md | RF-001 |
 | 3 | RF-003 | Entrar | alta | pendente |  | RF-002 |
 | 4 | RF-004 | Sair | alta | pendente |  | RF-003 |
 | 4 | RF-008 | Criar tarefa | alta | pendente |  | RF-003 |

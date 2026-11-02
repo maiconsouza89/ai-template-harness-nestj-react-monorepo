@@ -22,7 +22,7 @@ const HTML_ESCAPES: Record<string, string> = {
 };
 
 /** Escapa texto para o HTML do e-mail: o nome vem da pessoa e não pode virar marcação. */
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value.replace(/[&<>"']/g, (char) => HTML_ESCAPES[char] ?? char);
 }
 

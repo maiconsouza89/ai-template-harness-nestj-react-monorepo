@@ -16,9 +16,17 @@ export interface MailpitMessage {
   HTML: string;
 }
 
-/** Ids das mensagens cujo destinatário é `address`, numa só busca, da mais recente à mais antiga. */
-async function messageIdsTo(address: string): Promise<string[]> {
-  const query = encodeURIComponent(`to:"${address}"`);
+/**
+ * Ids das mensagens cujo destinatário é `address` e, com `subject`, cujo assunto o contém, numa só
+ * busca, da mais recente à mais antiga.
+ */
+async function messageIdsTo(
+  address: string,
+  subject?: string,
+): Promise<string[]> {
+  const terms = [`to:"${address}"`];
+  if (subject) terms.push(`subject:"${subject}"`);
+  const query = encodeURIComponent(terms.join(' '));
   const search = await fetch(`${MAILPIT_URL}/api/v1/search?query=${query}`);
   if (!search.ok) throw new Error(`Mailpit respondeu ${search.status}`);
   const { messages } = (await search.json()) as { messages: { ID: string }[] };
@@ -34,23 +42,30 @@ async function readMessages(ids: string[]): Promise<MailpitMessage[]> {
   );
 }
 
-/** Mensagens cujo destinatário é `address`, com o corpo completo, da mais recente à mais antiga. */
-export async function messagesTo(address: string): Promise<MailpitMessage[]> {
-  return readMessages(await messageIdsTo(address));
+/**
+ * Mensagens cujo destinatário é `address` (e, com `subject`, cujo assunto o contém), com o corpo
+ * completo, da mais recente à mais antiga.
+ */
+export async function messagesTo(
+  address: string,
+  subject?: string,
+): Promise<MailpitMessage[]> {
+  return readMessages(await messageIdsTo(address, subject));
 }
 
 /**
- * Espera até `timeoutMs` chegarem `minCount` mensagens (ao menos uma) para `address`; só lê os
- * corpos no fim.
+ * Espera até `timeoutMs` chegarem `minCount` mensagens (ao menos uma) para `address` e, com
+ * `subject`, com esse assunto; só lê os corpos no fim.
  */
 export async function waitForMessagesTo(
   address: string,
   timeoutMs = 15_000,
   minCount = 1,
+  subject?: string,
 ): Promise<MailpitMessage[]> {
   const deadline = Date.now() + timeoutMs;
   for (;;) {
-    const ids = await messageIdsTo(address);
+    const ids = await messageIdsTo(address, subject);
     if (ids.length >= minCount || Date.now() > deadline) {
       return readMessages(ids);
     }
