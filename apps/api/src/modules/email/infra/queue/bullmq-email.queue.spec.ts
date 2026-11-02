@@ -99,12 +99,18 @@ describe('BullMqEmailQueue', () => {
     expect(line).not.toContain('valkey:6379');
   });
 
-  it('o job reset-password sai da fila ao concluir e ao falhar de vez, com as mesmas tentativas', async () => {
+  it('todo tipo de e-mail entra com as mesmas tentativas, backoff e retenção', async () => {
     const queue = {
       on: vi.fn(),
       add: vi.fn(() => Promise.resolve({ id: '1' })),
     };
     const adapter = new BullMqEmailQueue(queue as unknown as Queue);
+    const common = {
+      attempts: 5,
+      backoff: { type: 'exponential', delay: 5_000 },
+      removeOnComplete: { age: 86_400 },
+      removeOnFail: { age: 604_800 },
+    };
 
     await adapter.enqueue({
       type: 'reset-password',
@@ -117,23 +123,13 @@ describe('BullMqEmailQueue', () => {
       1,
       'reset-password',
       expect.anything(),
-      {
-        attempts: 5,
-        backoff: { type: 'exponential', delay: 5_000 },
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
+      common,
     );
     expect(queue.add).toHaveBeenNthCalledWith(
       2,
       'verify-email',
       expect.anything(),
-      {
-        attempts: 5,
-        backoff: { type: 'exponential', delay: 5_000 },
-        removeOnComplete: { age: 86_400 },
-        removeOnFail: { age: 604_800 },
-      },
+      common,
     );
   });
 

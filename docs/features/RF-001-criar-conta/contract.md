@@ -30,7 +30,7 @@ Cada gate precisa passar para a feature ser considerada pronta.
 
 | Critério de aceitação | Coberto por |
 | --- | --- |
-| Cadastro com dados válidos cria conta pendente com papel usuário e gera um e-mail de confirmação para o endereço informado. | API-CADASTRO-01, API-CADASTRO-02, API-CADASTRO-03, API-SENHA-04, API-CAMPOS-04, API-LIMITE-03, API-PROXY-01, API-PROXY-02, API-FALHA-01, WRK-EMAIL-01, WRK-EMAIL-02, WRK-EMAIL-06, WRK-RETRY-01, WRK-RETRY-02, WRK-FILA-01, WRK-FILA-02, UI-CADASTRO-01, UI-REENVIO-01, UI-FALHA-01, UI-FALHA-02, E2E-CADASTRO-01 |
+| Cadastro com dados válidos cria conta pendente com papel usuário e gera um e-mail de confirmação para o endereço informado. | API-CADASTRO-01, API-CADASTRO-02, API-CADASTRO-03, API-SENHA-04, API-CAMPOS-04, API-LIMITE-03, API-PROXY-01, API-PROXY-02, API-FALHA-01, WRK-EMAIL-01, WRK-EMAIL-02, WRK-EMAIL-06, WRK-RETRY-01, WRK-RETRY-02, WRK-FILA-01, WRK-FILA-02, WRK-SIGILO-01, WRK-SIGILO-02, WRK-SIGILO-03, UI-CADASTRO-01, UI-REENVIO-01, UI-FALHA-01, UI-FALHA-02, E2E-CADASTRO-01 |
 | Cadastro com e-mail já existente, mesmo com outra combinação de maiúsculas, é recusado e não cria segunda conta. | API-DUPLICADO-01, API-DUPLICADO-02, API-DUPLICADO-03, API-ADMIN-01, WRK-EMAIL-05, UI-DUPLICADO-01 |
 | Senha sem número, sem letra ou com menos de 8 caracteres é recusada com a regra exibida. | API-SENHA-01, API-SENHA-02, API-SENHA-03, UI-SENHA-01 |
 | A senha nunca aparece em texto puro na tela, no e-mail ou em registros do sistema. | API-SIGILO-01, API-SIGILO-02, API-SIGILO-03, API-SIGILO-04, WRK-EMAIL-03, WRK-EMAIL-04, UI-SIGILO-01, E2E-CADASTRO-01 |
@@ -514,6 +514,34 @@ Dado comum: a caixa do Mailpit vazia no início do item.
   - em até 1 minuto depois da retomada, a fila email.send tem um job verify-email com o id da conta de valeria@example.com
   - uma linha de log do serviço api escrita depois da retomada traz o id desse job
   - em até 2 minutos a caixa tem exatamente uma mensagem para valeria@example.com
+
+### Sigilo do link na fila
+
+#### WRK-SIGILO-01
+- **Dado:** a caixa do Mailpit vazia e nenhuma conta com o e-mail wesley@example.com.
+- **Quando:** uma requisição sem cookie pede POST /api/auth/sign-up/email com nome Wesley Prates, e-mail wesley@example.com e senha Segura123.
+- **Então:**
+  - em até 2 minutos a caixa tem uma mensagem para wesley@example.com com um link para /confirmar-email?token=
+  - o job verify-email dessa conta fica concluído na fila email.send
+  - os dados desse job concluído têm só os campos type e userId
+  - nenhum campo desse job no Valkey contém o token do link da mensagem
+
+#### WRK-SIGILO-02
+- **Dado:** o serviço mailpit parado durante todo o item e nenhuma conta com o e-mail yara@example.com.
+- **Quando:** uma requisição sem cookie pede POST /api/auth/sign-up/email com nome Yara Leme, e-mail yara@example.com e senha Segura123.
+- **Então:**
+  - em até 3 minutos o job verify-email dessa conta fica no estado falho na fila email.send
+  - o job registra 5 tentativas
+  - os dados desse job falho têm só os campos type e userId
+  - nenhum campo desse job no Valkey contém o trecho token=
+
+#### WRK-SIGILO-03
+- **Dado:** o serviço mailpit parado, o cadastro de nome Wilma Seixas, e-mail wilma@example.com e senha Segura123 já feito por POST /api/auth/sign-up/email, e essa conta marcada com e-mail verificado no banco enquanto o mailpit está parado.
+- **Quando:** o serviço mailpit é religado.
+- **Então:**
+  - em até 2 minutos da volta o job verify-email dessa conta fica concluído na fila email.send
+  - os dados desse job concluído têm só os campos type e userId
+  - nenhum campo desse job no Valkey contém o trecho token=
 
 ## E2E
 
