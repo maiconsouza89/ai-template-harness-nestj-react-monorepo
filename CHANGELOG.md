@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/compare/v1.3.0...v1.4.0) (2026-11-02)
+
+
+### Adicionado
+
+* **accounts:** permite recuperar a senha pelo link de uso único ([#18](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/issues/18)) ([b1206a1](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/commit/b1206a1812a222bf8909edfdbd44aafa0ebc63d6))
+
 ## [1.3.0](https://github.com/maiconsouza89/ai-template-harness-nestj-react-monorepo/compare/v1.2.0...v1.3.0) (2026-11-01)
 
 
